@@ -1,0 +1,11 @@
+node_modules
+.vitepress/cache/
+.vitepress/dist/
+.vitepress/.temp/
+por-publicar/ALINEACION-NUEVO-TEMARIO.md
+por-publicar/old-organizacion.curso.md
+por-publicar/organizacion-del-curso.md
+por-publicar/curso-bienvenida/
+
+
+TAREAS.md

@@ -1,0 +1,8 @@
+[
+  { "path": "00-preparacion/" },
+  { "path": "01-oracle/" },
+  { "path": "02-dotnet/" },
+  { "path": "03-vue/" },
+  { "path": "04-integracion/" },
+  { "path": "05-avanzadas/" }
+]

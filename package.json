@@ -1,0 +1,29 @@
+{
+  "name": "documentacion-aplicaciones",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "preinstall": "node ./scripts/check-pnpm-version.mjs",
+    "docs:sidebar": "node ./scripts/check-pnpm-version.mjs && node ./scripts/generate-sidebar.mjs",
+    "postinstall": "pnpm docs:sidebar",
+    "docs:dev": "corepack pnpm docs:sidebar && corepack pnpm exec vitepress dev --force",
+    "docs:build": "corepack pnpm docs:sidebar && corepack pnpm exec vitepress build",
+    "docs:preview": "corepack pnpm docs:sidebar && corepack pnpm exec vitepress preview",
+    "docs:deploy": "pnpm docs:build && powershell -ExecutionPolicy Bypass -File ./deploy.ps1 -SkipBuild",
+    "docs:deploy-preview": "pnpm docs:build && powershell -ExecutionPolicy Bypass -File ./deploy.ps1 -SkipBuild -Preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.22.0",
+  "devDependencies": {
+    "mermaid": "^11.13.0",
+    "vitepress": "2.0.0-alpha.16",
+    "vitepress-mermaid": "^2.1.2",
+    "vitepress-plugin-diagrams": "^1.2.2",
+    "vitepress-plugin-llms": "^1.11.0",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  }
+}
