@@ -179,6 +179,37 @@ Copia la línea completa (empieza por `ssh-rsa ...`) y pégala en el campo del f
 Pon un nombre descriptivo a la clave SSH en TFS (ej: `Portatil-UA-2025`). Si alguna vez pierdes el equipo, podrás identificarla y revocarla fácilmente.
 :::
 
+### Verificar la conexión SSH {#ssh-verificar}
+
+Antes de clonar ningún repositorio, comprueba que la clave está correctamente cargada y que el servidor la acepta.
+
+**1. Verificar que la clave está cargada en el agente SSH:**
+
+```bash
+ssh-add -l
+```
+
+Debe mostrar tu clave `id_rsa`. Si devuelve `The agent has no identities`, ejecuta `ssh-add ~/.ssh/id_rsa`.
+
+**2. Probar la conexión con el servidor TFS:**
+
+```bash
+ssh -T git@servidortfs.campus.ua.es
+```
+
+La respuesta correcta cuando la autenticación ha funcionado es:
+
+```
+remote: Shell access is not supported.
+shell request failed on channel 0
+```
+
+::: info CONTEXTO
+Este mensaje **no es un error**. Azure DevOps Server acepta la clave SSH para operaciones Git pero rechaza las sesiones shell interactivas, que no son necesarias. Si ves este mensaje, la autenticación SSH está correctamente configurada y puedes clonar repositorios con normalidad.
+
+Si en cambio ves `Permission denied (publickey)`, revisa que la clave pública está registrada en tu perfil TFS y que `ssh-add -l` muestra la clave.
+:::
+
 ---
 
 ## Autenticación HTTPS con TFS {#https-auth}
@@ -464,17 +495,20 @@ npm --version
 ```
 
 ::: details Salida esperada del test SSH
-Si la clave SSH está bien configurada, el comando `ssh -T git@servidortfs.campus.ua.es` debería devolver un mensaje similar a:
+Si la clave SSH está bien configurada, el comando `ssh -T git@servidortfs.campus.ua.es` devuelve:
 
 ```
-remote: Welcome to Azure DevOps, Nombre Apellido!
+remote: Shell access is not supported.
+shell request failed on channel 0
 ```
+
+Este mensaje **es la respuesta correcta**. Azure DevOps Server acepta la clave para operaciones Git pero no permite sesiones shell interactivas.
 
 Si devuelve `Permission denied (publickey)`, revisa que:
 
 1. La clave pública está añadida en el perfil TFS
 2. El fichero `~/.ssh/config` apunta al fichero de clave correcto (`id_rsa`)
-3. `ssh-agent` está corriendo y tiene cargada la clave (`ssh-add -l`)
+3. `ssh-agent` está corriendo y tiene cargada la clave: `ssh-add -l`
    :::
 
 ---

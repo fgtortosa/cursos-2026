@@ -684,6 +684,17 @@ BEGIN
   -- Sin esto haría falta una query extra (SELECT ... FROM ...) para conocer el ID.
   RETURNING ID_TIPO_RECURSO INTO P_ID_TIPO_RECURSO;
 END CREAR;
+
+PROCEDURE VALIDAR_TEXTO(
+    P_NOMBRE_CAMPO IN VARCHAR2,
+    P_VALOR        IN VARCHAR2
+  ) AS
+  BEGIN
+    IF P_VALOR IS NULL OR TRIM(P_VALOR) IS NULL THEN
+      RAISE_APPLICATION_ERROR(-20700, P_NOMBRE_CAMPO || ' es obligatorio.');
+    END IF;
+  END VALIDAR_TEXTO;
+
 ```
 
 Tres escenarios típicos y por qué capa "salen":
