@@ -17,7 +17,17 @@ Pasamos de la arquitectura ADM/WEB a construirla con objetos reales del schema `
 Las secciones más densas (REF CURSOR detallado, EBR, funciones SQL) están al final, en [Para profundizar](#profundizar), para que la clase quepa en una hora.
 :::
 
-## Antes de empezar {#antes-de-empezar}
+::: tip GUÍA RÁPIDA PARA 90 MINUTOS
+Cada apartado lleva una marca al lado del título:
+
+- **`IMPRESCINDIBLE`** — dar siempre. Es el hilo principal de la sesión.
+- **`RECOMENDADO`** — dar si quedan minutos; aporta contexto pero no rompe la práctica si se omite.
+- **`OPCIONAL`** — saltar sin culpa. Es material de profundización o casos colaterales.
+
+Ruta mínima en 90 min: *Antes de empezar → Objetivos → Entidad de ejemplo → Paso 1 → Paso 2 → Paso 3 → Gestión de errores → Práctica guiada (puntos 1–5 y 7) → Ejercicio entregable → Resumen*. Lo demás es ampliación.
+:::
+
+## Antes de empezar · `IMPRESCINDIBLE` {#antes-de-empezar}
 
 Esta sesión continúa directamente desde la [Sesión 1 — Fundamentos Oracle](../1-fundamentos-oracle/). Antes de ejecutar scripts, confirma que tienes claro el punto de partida:
 
@@ -32,7 +42,7 @@ Esta sesión continúa directamente desde la [Sesión 1 — Fundamentos Oracle](
 Si no has completado el [ejercicio de la sesión 1](../2-ejercicio-fundamentos/) ni el checklist de continuidad, vuelve primero allí. En esta sesión trabajamos con dos conexiones (`CURSONORMADM` y `CURSONORMWEB`) que deben estar listas.
 :::
 
-## Objetivos
+## Objetivos · `IMPRESCINDIBLE`
 
 Al terminar esta sesión serás capaz de:
 
@@ -44,7 +54,7 @@ Al terminar esta sesión serás capaz de:
 - Aplicar el modelo de errores `-20700/-20701/-20702/-20703` de forma coherente.
 - Verificar objetos compilados y grants antes de conectar la capa .NET.
 
-## La entidad de ejemplo: `TRES_TIPO_RECURSO` {#entidad-ejemplo}
+## La entidad de ejemplo: `TRES_TIPO_RECURSO` · `IMPRESCINDIBLE` {#entidad-ejemplo}
 
 `TRES_TIPO_RECURSO` clasifica los recursos reservables de ReserUA. Es un catálogo sencillo: no tiene columnas de estado ni borrado lógico. Su objetivo es que otros objetos, como `TRES_RECURSO`, puedan indicar de qué tipo es cada recurso.
 
@@ -75,7 +85,7 @@ erDiagram
 En este material manda el schema real. Si una guía genérica habla de `ACTIVO`, borrado lógico o `ACTUALIZAR_ACTIVO`, solo aplica a entidades que tengan esa columna. `TRES_TIPO_RECURSO` no la tiene; `TRES_RECURSO` sí.
 :::
 
-## Paso 1 — Tabla `TRES_TIPO_RECURSO` {#tabla}
+## Paso 1 — Tabla `TRES_TIPO_RECURSO` · `IMPRESCINDIBLE` {#tabla}
 
 El DDL exportado define una tabla de catálogo con cinco columnas:
 
@@ -122,7 +132,7 @@ CREATE TABLE CURSONORMADM.TRES_TIPO_RECURSO
 En proyectos nuevos preferimos nombres semánticos para constraints, pero aquí respetamos el export porque es la fotografía del schema real del curso.
 :::
 
-## Paso 2 — Vista `VRES_TIPO_RECURSO` {#vista}
+## Paso 2 — Vista `VRES_TIPO_RECURSO` · `IMPRESCINDIBLE` {#vista}
 
 La vista es el contrato de lectura para la aplicación. En este caso no filtra por estado porque la tabla no tiene columna `ACTIVO`.
 
@@ -184,7 +194,7 @@ En entidades que sí tienen `ACTIVO` (como `TRES_RECURSO`), el patrón cambia:
 Para entidades con estado, **un único procedimiento** `ACTUALIZAR_FLAGS` con un parámetro por flag es preferible a tener `ACTIVAR`/`DESACTIVAR`/`HACER_VISIBLE`/`OCULTAR`. Menos superficie de API, más coherencia.
 :::
 
-## Paso 2.5 — La vista que actúa como tabla {#vista-edicion}
+## Paso 2.5 — La vista que actúa como tabla · `OPCIONAL` {#vista-edicion}
 
 Hasta aquí hemos tratado `VRES_TIPO_RECURSO` como un contrato de **lectura**. En Oracle, sin embargo, una vista puede aceptar `UPDATE`, `INSERT` y `DELETE` directos cuando cumple ciertas condiciones: las llamamos *vistas actualizables* o *key-preserved views*.
 
@@ -255,7 +265,7 @@ Que la vista permita `UPDATE` no convierte el `UPDATE` directo en buena idea par
 La capacidad de DML directo de la vista es una **opción técnica** que nos guardamos para scripts de mantenimiento puntuales desde la conexión `CURSONORMADM` (corrección de catálogos, cargas iniciales). La aplicación productiva siempre escribe vía package. Por eso `VRES_TIPO_RECURSO.sql` mantiene los `GRANT INSERT/UPDATE/DELETE` **comentados** y solo entrega `GRANT SELECT` a `CURSONORMWEB`.
 :::
 
-## Paso 3 — Package `PKG_RES_TIPO_RECURSO` {#package}
+## Paso 3 — Package `PKG_RES_TIPO_RECURSO` · `IMPRESCINDIBLE` {#package}
 
 El package es la superficie de escritura. El usuario WEB no necesita permisos directos sobre la tabla: ejecuta procedimientos del package.
 
@@ -460,7 +470,7 @@ END OBTENER_POR_ID;
 Aunque el package podría leer directamente de la tabla, **siempre** consulta la vista. Si mañana la vista añade columnas calculadas o filtros, el package los aprovecha automáticamente.
 :::
 
-### Por qué un procedimiento con cursor en lugar de leer la vista directamente {#por-que-cursor}
+### Por qué un procedimiento con cursor en lugar de leer la vista directamente · `OPCIONAL` {#por-que-cursor}
 
 Si la lectura ya está expuesta en `VRES_TIPO_RECURSO` y el usuario WEB tiene `GRANT SELECT` sobre ella, **podríamos** leerla directamente desde .NET sin pasar por el procedimiento `OBTENER_TODOS`. De hecho, esa es la opción que usamos en muchos servicios. ¿Por qué entonces existe el procedimiento con `OUT T_CURSOR`?
 
@@ -644,7 +654,7 @@ END ELIMINAR;
 La regla "no borrar tipos en uso" no está en una FK con `ON DELETE`; vive en el package porque el mensaje funcional es más claro y porque también queremos protegernos de borrar catálogos referenciados desde otras tablas que podrían añadirse en el futuro.
 :::
 
-## Gestión de errores en el package {#gestion-errores}
+## Gestión de errores en el package · `IMPRESCINDIBLE` {#gestion-errores}
 
 En la sesión 1 vimos que los errores que llegan a .NET pueden venir del package (`-20xxx`) o de Oracle (`ORA-xxxxx`). Aquí los aplicamos a `PKG_RES_TIPO_RECURSO` para que veas el mapa completo en una entidad real.
 
@@ -710,13 +720,13 @@ flowchart LR
 La capa funcional convierte mensajes técnicos en mensajes accionables para el usuario. Las capas declarativas se mantienen porque garantizan los datos incluso si el package se equivoca.
 :::
 
-## Edition-Based Redefinition (EBR) en una línea {#editions}
+## Edition-Based Redefinition (EBR) en una línea · `OPCIONAL` {#editions}
 
 Tanto `VRES_TIPO_RECURSO` como `PKG_RES_TIPO_RECURSO` se han creado con `EDITIONABLE`: Oracle puede mantener N versiones del mismo objeto en el schema (despliegue sin downtime). La tabla, en cambio, no es edicionable. Si nunca has trabajado con EBR no necesitas usarlo en este curso, pero sí conviene saber por qué nuestros scripts lo declaran.
 
 > **Detalle ampliado:** flujo de despliegue sin parada, objetos edicionables/no edicionables, `ORA-38818`, cómo habilitarlo en un schema y experimento con dos ediciones están en [Para profundizar — EBR](#detalle-ebr) al final.
 
-## Práctica guiada {#practica}
+## Práctica guiada · `IMPRESCINDIBLE` {#practica}
 
 ### 1. Verificar la tabla
 
@@ -819,7 +829,7 @@ END;
 Activa `SET SERVEROUTPUT ON` en tu cliente SQL para ver los `DBMS_OUTPUT.PUT_LINE`. Es la única forma de inspeccionar los OUT desde un bloque anónimo sin recurrir a bind variables.
 :::
 
-### 6. Editar a través de la vista (demo "vista que actúa como tabla")
+### 6. Editar a través de la vista (demo "vista que actúa como tabla") · `OPCIONAL`
 
 Conectado como `CURSONORMADM`, concede permisos temporales y prueba la edición directa:
 
@@ -855,7 +865,7 @@ REVOKE INSERT, UPDATE, DELETE ON CURSONORMADM.VRES_TIPO_RECURSO FROM CURSONORMWE
 La vista no valida nada: si te equivocas con el `WHERE`, modificas filas equivocadas sin aviso. Por eso, fuera de esta demo, la app **siempre** pasa por `PKG_RES_TIPO_RECURSO.ACTUALIZAR`.
 :::
 
-### 7. Forzar cada error `-20xxx` y leerlo por OUT
+### 7. Forzar cada error `-20xxx` y leerlo por OUT · `IMPRESCINDIBLE`
 
 Como ahora los procedimientos no lanzan excepción, los errores se leen en `P_CODIGO_ERROR` / `P_MENSAJE_ERROR`:
 
@@ -915,7 +925,7 @@ SELECT ID_TIPO_RECURSO, COUNT(*) AS recursos
 
 :::
 
-### 7. Opcional para ANALISTAS — desplegar una nueva edición sin parada {#practica-ebr}
+### 8. Para ANALISTAS — desplegar una nueva edición sin parada · `OPCIONAL` {#practica-ebr}
 
 ::: info SOLO ANALISTAS
 Este apartado es **opcional** y está pensado para el perfil de analista que tendrá que coordinar despliegues en producción. Si tu rol es solo de desarrollo, puedes saltarlo. Para hacerlo necesitas un usuario con privilegios `CREATE ANY EDITION` y `ALTER DATABASE` (en el aula lo proporciona el formador, en producción lo ejecuta el DBA).
@@ -1006,7 +1016,7 @@ DROP EDITION CURSO_LAB_<TUS_INICIALES> CASCADE;
 Si haces este apartado, adjunta a la entrega un fichero `ebr_<inicales>.sql` con las sentencias ejecutadas y un pantallazo de la consulta a `dba_objects_ae` mostrando las dos ediciones conviviendo. Cuenta como mejora en la nota de los analistas, no sustituye al ejercicio principal.
 :::
 
-## Ejercicio entregable {#ejercicio-entregable}
+## Ejercicio entregable · `IMPRESCINDIBLE` {#ejercicio-entregable}
 
 La práctica de esta página te da una entidad real completa: tabla, vista, package y grants de `TRES_TIPO_RECURSO`.
 
@@ -1025,7 +1035,7 @@ El trabajo autónomo de esta sesión se divide en dos partes complementarias ant
 La referencia de `TRES_TIPO_RECURSO` enseña el patrón, pero no resuelve las decisiones de reservas. En el ejercicio se valorará especialmente que justifiques qué reglas proteges con constraints y cuáles dejas para el package.
 :::
 
-## Checklist antes de dar por buena una entidad Oracle {#checklist}
+## Checklist antes de dar por buena una entidad Oracle · `RECOMENDADO` {#checklist}
 
 - [ ] La tabla tiene PK nombrada explícitamente con `CONSTRAINT PK_...`.
 - [ ] Los campos obligatorios están protegidos por `NOT NULL` o checks equivalentes.
@@ -1045,13 +1055,13 @@ La referencia de `TRES_TIPO_RECURSO` enseña el patrón, pero no resuelve las de
 - [ ] `GRANT EXECUTE` sobre el package a usuario WEB.
 - [ ] Los scripts están guardados en el repositorio bajo `SQL/`.
 
-## Funciones SQL y PL/SQL que conviene conocer {#funciones-utiles}
+## Funciones SQL y PL/SQL que conviene conocer · `OPCIONAL` {#funciones-utiles}
 
 El SQL real del schema usa funciones recurrentes (`NVL`, `TRIM`, `CASE`, `SYSDATE`, `LISTAGG`, `%TYPE`/`%ROWTYPE`, `EXCEPTION WHEN`) que conviene reconocer pero **no son objetivo** de esta sesión.
 
 > **Tabla con los ejemplos completos:** [Para profundizar — Funciones SQL y PL/SQL útiles](#detalle-funciones).
 
-## Resumen y conexión con .NET {#resumen}
+## Resumen y conexión con .NET · `IMPRESCINDIBLE` {#resumen}
 
 Hemos revisado el ciclo real de `TRES_TIPO_RECURSO`:
 
@@ -1081,7 +1091,7 @@ Lectura  (OBTENER_POR_ID con ID no válido) ──▶  excepción ORA-20701 que 
 
 Antes de pasar a .NET, completa los dos ejercicios entregables ([2A — vistas](../4-ejercicio-tablas-vistas/) y [2B — paquetes](../5-paquetes/)) para practicar tanto el contrato de lectura como la escritura PL/SQL. En la parte .NET veremos cómo conectar `PKG_RES_TIPO_RECURSO` desde `ClaseOracleBD3`, escribir DTOs como `ClaseTipoRecurso` y exponer el CRUD como API REST leyendo `P_CODIGO_ERROR` / `P_MENSAJE_ERROR`.
 
-## Para profundizar {#profundizar}
+## Para profundizar · `OPCIONAL` {#profundizar}
 
 ::: details Diferencia entre catálogo simple y entidad con estado
 
