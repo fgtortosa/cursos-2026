@@ -1,16 +1,22 @@
-﻿CREATE OR REPLACE FORCE EDITIONABLE VIEW "CURSONORMADM"."VRES_FRANJA_HORARIO" ("ID_FRANJA", "ID_RECURSO", "FECHA_INICIO", "FECHA_FIN", "ACTIVO") DEFAULT COLLATION "USING_NLS_COMP"  AS 
-  SELECT /* Vista de franjas horarias asociadas a un recurso.
+﻿create or replace force editionable view "CURSONORMADM"."VRES_FRANJA_HORARIO" (
+   "ID_FRANJA",
+   "ID_RECURSO",
+   "FECHA_INICIO",
+   "FECHA_FIN",
+   "ACTIVO"
+) default collation "USING_NLS_COMP" as
+   select /* Franjas especificas por recurso acotadas por fechas, usadas para definir
+           disponibilidad o bloqueos puntuales del recurso.
 
+           IMPORTANTE: Incluye ID_RECURSO para filtrar las franjas por recurso y ACTIVO
+           para distinguir franjas vigentes de las dadas de baja logicamente.
 
-           IMPORTANTE: Incluye ID_RECURSO para filtrar y gestionar las franjas por recurso.
-
-
-   26/02/2026  SERVICIOINFORMATICA  Se actualiza la vista para incluir ID_RECURSO.
-   01/03/2026  SERVICIOINFORMATICA  Se normaliza el formato de definición y documentación de la vista.
-                       */
-  ID_FRANJA,
-  ID_RECURSO,
-  FECHA_INICIO,
-  FECHA_FIN,
-  ACTIVO
-FROM CURSONORMADM.TRES_FRANJA_HORARIO;
+   26/02/2026  SERVICIOINFORMATICA  Creacion de la vista.
+   01/03/2026  SERVICIOINFORMATICA  Se normaliza el formato de definicion y documentacion de la vista.
+   11/05/2026  SERVICIOINFORMATICA  Se actualiza el comentario con la descripcion oficial de la tabla.
+                       */ id_franja,
+          id_recurso,
+          fecha_inicio,
+          fecha_fin,
+          activo
+     from cursonormadm.tres_franja_horario;
