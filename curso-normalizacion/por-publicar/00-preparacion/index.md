@@ -302,46 +302,95 @@ npm ping --registry https://servidortfs.campus.ua.es/tfs/Desarrollo/ComponentesV
 
 ## Configuración de NuGet {#nuget}
 
-El fichero `%APPDATA%\NuGet\NuGet.Config` define las fuentes de paquetes NuGet disponibles en Visual Studio y en la CLI de dotnet.
+::: info CONTEXTO — dos sistemas de paquetes
+Una aplicación UA moderna tiene **dos sistemas de paquetes independientes**:
 
-### Fuentes configuradas
+| Lado     | Gestor       | Fichero de configuración                                  | Qué descarga                                  |
+| -------- | ------------ | --------------------------------------------------------- | --------------------------------------------- |
+| **.NET** | NuGet        | `%APPDATA%\NuGet\NuGet.Config` (global por usuario)       | `PlantillaMVCCore`, `ClaseOracleBD3`, etc.    |
+| **Vue**  | npm / pnpm   | `%USERPROFILE%\.npmrc` (global por usuario)               | `@vueua/...`, `vue`, `axios`, `pinia`, etc.   |
 
-| Nombre                 | URL                                                  | Notas                        |
-| ---------------------- | ---------------------------------------------------- | ---------------------------- |
-| `nuget.org`            | `https://api.nuget.org/v3/index.json`                | Repositorio público oficial  |
-| `NUGET UA`             | `https://preproddesa.campus.ua.es:443/NugetUA/nuget` | Feed interno de la UA        |
-| `Preprod`              | Feed TFS (ver abajo)                                 | Paquetes del servidor TFS    |
-| `PaquetesLocalesNuget` | Carpeta local del equipo                             | Paquetes en desarrollo local |
+Cada uno tiene su propio fichero **en tu equipo**, con su propio formato y sus propias credenciales. Si los feeds no están bien configurados, no compilarás ni un "Hola mundo". Esta sección cubre el lado **.NET**; la siguiente (`Configuración de npm`) cubre el lado JavaScript.
+:::
 
-La fuente **Microsoft Visual Studio Offline Packages** está deshabilitada por defecto al no ser necesaria en el entorno de la UA.
+El fichero `%APPDATA%\NuGet\NuGet.Config` define las fuentes de paquetes NuGet disponibles en Visual Studio y en la CLI de `dotnet`.
 
-::: details Ver el NuGet.Config completo
+### Editar el fichero en tu equipo
+
+Abre el fichero global con el bloc de notas desde PowerShell (cárgalo en tu carpeta de usuario):
+
+```powershell
+notepad.exe $env:APPDATA\NuGet\NuGet.Config
+```
+
+Si no existe la carpeta o el fichero, créalos:
+
+```powershell
+New-Item -ItemType Directory -Force -Path "$env:APPDATA\NuGet" | Out-Null
+New-Item -ItemType File -Force -Path "$env:APPDATA\NuGet\NuGet.Config" | Out-Null
+notepad.exe $env:APPDATA\NuGet\NuGet.Config
+```
+
+### Contenido para el curso
+
+Pega **exactamente** este contenido. Es el que se usa durante todo el curso:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
+   <auditSources>
+      <clear />
+      <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    </auditSources>
   <packageSources>
-    <add key="nuget.org"
-         value="https://api.nuget.org/v3/index.json"
-         protocolVersion="3" />
-    <add key="NUGET UA"
-         value="https://preproddesa.campus.ua.es:443/NugetUA/nuget" />
-    <add key="ServidorTfs"
-         value="https://servidortfs.campus.ua.es/tfs/Desarrollo/4ae97c7f-a3b4-4000-b8e4-b307b5c301f9/_packaging/PaquetesNugets/nuget/v3/index.json" />
-    <add key="Microsoft Visual Studio Offline Packages"
-         value="C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\" />
+    <clear />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+    <add key="Microsoft Visual Studio Offline Packages" value="C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\" />
+    <add key="PaquetesNugets" value="https://servidortfs.campus.ua.es/tfs/Desarrollo/4ae97c7f-a3b4-4000-b8e4-b307b5c301f9/_packaging/PaquetesNugets/nuget/v3/index.json" />
+    <add key="NUGET UA" value="https://preproddesa.campus.ua.es:443/NugetUA/nuget" />
   </packageSources>
+  <activePackageSource>
+    <add key="PaquetesNugets" value="true" />
+    <add key="NUGET UA" value="true" />
+  </activePackageSource>
+  <disabledPackageSources>
+    <add key="Microsoft Visual Studio Offline Packages" value="true" />
+  </disabledPackageSources>
   <packageRestore>
     <add key="enabled" value="True" />
     <add key="automatic" value="True" />
   </packageRestore>
-  <disabledPackageSources>
-    <add key="Microsoft Visual Studio Offline Packages" value="true" />
-  </disabledPackageSources>
+  <bindingRedirects>
+    <add key="skip" value="False" />
+  </bindingRedirects>
+  <packageManagement>
+    <add key="disabled" value="False" />
+    <add key="format" value="0" />
+  </packageManagement>
 </configuration>
 ```
 
+::: warning IMPORTANTE
+- **El orden de `packageSources` importa**: NuGet consulta los feeds en el orden en que aparecen. Si un mismo paquete existe en varios, gana el primero que lo tenga.
+- **Los feeds privados de la UA requieren estar dentro de la red campus** o tener un VPN activo. Si trabajas desde casa sin VPN, el restore fallará.
+- **Nunca pongas credenciales en `NuGet.Config`.** Para los feeds privados UA, Visual Studio autentica con tu usuario Windows / Azure DevOps.
 :::
+
+### Comandos útiles
+
+```powershell
+# Ver feeds configurados
+dotnet nuget list source
+
+# Restaurar paquetes de la solución (descarga lo que falte)
+dotnet restore
+
+# Buscar paquetes en los feeds activos
+dotnet package search ClaseOracle
+
+# Forzar limpieza de cachés si el restore se atasca
+dotnet nuget locals all --clear
+```
 
 ### Añadir credenciales para el feed TFS en Visual Studio
 
