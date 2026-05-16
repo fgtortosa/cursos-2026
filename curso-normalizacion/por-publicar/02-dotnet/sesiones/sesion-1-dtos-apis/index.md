@@ -2077,7 +2077,7 @@ Diseña los endpoints sabiendo que **los errores tienen forma estable**. Si tu c
 
 ### 1.5.5 Cómo lo recoge el front: `useGestionFormularios` (referencia lateral)
 
-En el cliente Vue del curso tenemos un composable que se traga `ValidationProblemDetails` directamente y lo expone como estado reactivo: **`useGestionFormularios`** (en `@vueua/lib`, ruta `componentes/vue/vueua-lib/src/composables/use-gestion-formularios/`). No es tema de esta sesión — pero merece saber que existe porque cierra el círculo "API → Vue → usuario".
+En el cliente Vue del curso tenemos un composable que se traga `ValidationProblemDetails` directamente y lo expone como estado reactivo: **`useGestionFormularios`** (paquete npm **`@vueua/components`**; carpeta del repo `componentes/vue/vueua-lib/src/composables/use-gestion-formularios/` — el paquete se llama `@vueua/components` aunque su carpeta en disco se llame `vueua-lib`). No es tema de esta sesión — pero merece saber que existe porque cierra el círculo "API → Vue → usuario".
 
 Lo que devuelve el composable (resumido):
 
@@ -2095,8 +2095,8 @@ Patrón de uso en Vue (simplificado):
 
 ```ts
 // En una vista que crea un TipoRecurso
-import { useGestionFormularios } from '@vueua/lib';
-import { llamadaAxios, verbosAxios } from '@vueua/lib';
+import { useGestionFormularios } from '@vueua/components/composables/use-gestion-formularios';
+import { llamadaAxios, verbosAxios } from '@vueua/components/composables/use-axios';
 
 const { modelState, mensajeError, errorDeCampo, adaptarProblemDetails,
         inicializarMensajeError } = useGestionFormularios();
@@ -2551,62 +2551,106 @@ Si algo falla, **lo verás en Network antes que en la consola**.
 
 ### 1.8.2 El "probador de API" que ya tienes en `Home.vue`
 
-El componente `ClientApp/src/views/Home.vue` ya viene con una sección de botones que llama a cada endpoint usando `peticion<T>` de `@vueua/components/composables/use-axios`:
+`ClientApp/src/views/Home.vue` viene con un probador completo: **seis botones** que llaman a la API real y vuelcan la respuesta a un `<pre>`. El script es esto (resumido para la docu, pero el real es prácticamente idéntico):
 
 ```ts
-import { peticion, verbosAxios } from "@vueua/components/composables/use-axios";
+// ClientApp/src/views/Home.vue (extracto)
+import { ref } from "vue";
+import { useI18n } from "vue-i18n";
+import {
+  gestionarError,
+  peticion,
+  verbosAxios,
+} from "@vueua/components/composables/use-axios";
 
-// Tipo "espejo" de lo que devuelve la API (solo lo necesario):
-interface RecursoLectura {
-    idRecurso: number;
-    nombre: string;
-    tipoCodigo?: string | null;
-    tipoNombre?: string | null;
+const { t } = useI18n();
+
+// DTOs "espejo" de lo que devuelve la API (solo los campos que el probador usa).
+interface TipoRecursoLectura  { idTipoRecurso: number; codigo: string; nombre: string; }
+interface RecursoLectura      { idRecurso: number; nombre: string; tipoCodigo?: string|null; }
+interface ReservaLectura      { idReserva: number; idRecurso: number; codPer: number; fechaReserva: string; }
+interface ObservacionReservaLectura { idObservacionReserva: number; idReserva: number; texto: string; }
+
+const salida    = ref("");
+const cargando  = ref(false);
+const ultimaUrl = ref("");
+
+// Helper generico: hace GET, vuelca el JSON o gestiona el error.
+async function llamar<T>(url: string, etiqueta: string) {
+  ultimaUrl.value = url;
+  cargando.value  = true;
+  salida.value    = t("Home.api.salida.llamando", { etiqueta, url });
+  try {
+    const datos = await peticion<T>(url, verbosAxios.GET);
+    salida.value = JSON.stringify(datos, null, 2);            // ← respuesta cruda
+  } catch (error: any) {
+    // gestionarError muestra un toast rojo con titulo + detalle, leyendo
+    // el ProblemDetails de error.response.data si lo hay.
+    gestionarError(
+      error,
+      t("Home.api.errores.titulo",  { etiqueta }),
+      t("Home.api.errores.detalle", { etiqueta }),
+    );
+    salida.value = t("Home.api.salida.error", {
+      estado:  error?.response?.status ?? "?",
+      mensaje: error?.message ?? "",
+    });
+  } finally {
+    cargando.value = false;
+  }
 }
 
-async function listarRecursos() {
-    // peticion<T> hace GET, espera 200, y devuelve directamente T.
-    // El navegador adjunta solo la cookie X-Access-Token.
-    const recursos = await peticion<RecursoLectura[]>("Recursos", verbosAxios.GET);
-    console.log(recursos);          // ← se ve en la pestaña Console de DevTools
-}
+// Acciones de los seis botones (una llamada por endpoint).
+const listarTipoRecursos   = () => llamar<TipoRecursoLectura[]>     ("TipoRecursos",       t("Home.api.etiquetas.tiposRecurso"));
+const listarRecursos       = () => llamar<RecursoLectura[]>         ("Recursos",           t("Home.api.etiquetas.recursos"));
+const listarReservas       = () => llamar<ReservaLectura[]>         ("Reservas",           t("Home.api.etiquetas.reservas"));
+const listarObservaciones  = () => llamar<ObservacionReservaLectura[]>("Observaciones",    t("Home.api.etiquetas.observaciones"));
+const obtenerUsuarioActual = () => llamar<unknown>                  ("Info/UsuarioActual", t("Home.api.etiquetas.usuarioActual"));
+const provocarError400     = () => llamar<unknown>                  ("Info/MessageError",  t("Home.api.etiquetas.errorDemo"));
 ```
 
-En el template hay botones por endpoint (Tipos de recurso, Recursos, Reservas, Observaciones del ejercicio, Usuario actual, Error simulado) y un `<pre>` que vuelca la respuesta JSON.
+Tres cosas que merece la pena fijarse:
+
+| Pieza | Para qué |
+|---|---|
+| **`peticion<T>(url, verbosAxios.GET)`** | Hace `GET /api/{url}`, espera 200, devuelve directamente el `T` (sin `.data` ni `.value`). Si el status no es 2xx, lanza excepción → cae al `catch`. |
+| **`gestionarError(err, titulo, detalle)`** | Helper de la librería que mira `err.response.data` (un `ProblemDetails` / `ValidationProblemDetails` si la API devolvió ese formato) y muestra el toast adecuado. Si el error no tiene `response` (red caída), usa el `titulo`/`detalle` que le pasas como fallback. |
+| **`useI18n()` + `t("...")`** | Todos los textos del probador están traducidos via `vue-i18n` con la cabecera `X-Idioma` que vimos en §1.5.3. Si cambias el idioma del usuario, los mensajes del probador también cambian. |
 
 ::: info CONTEXTO — `peticion<T>` vs `llamadaAxios` vs `HttpApi`
 La librería `@vueua/components/composables/use-axios` expone **tres modos** de llamar a la API:
 
-| Modo                  | Devuelve                       | Cuándo se usa                                          |
-| --------------------- | ------------------------------ | ------------------------------------------------------ |
-| **`peticion<T>(...)`**| `Promise<T>` (dato directo)    | Caso general: CRUD, acciones, formularios.            |
-| `llamadaAxios(...)`   | `{ data, isLoading, ... }`     | Listados reactivos con estado de carga visible.       |
-| `HttpApi`             | `Promise<AxiosResponse<T>>`    | Necesitas cabeceras, status exacto, config avanzada.  |
+| Modo                  | Devuelve                       | Cuándo se usa                                                                  |
+| --------------------- | ------------------------------ | ------------------------------------------------------------------------------ |
+| **`peticion<T>(...)`**| `Promise<T>` (dato directo)    | Caso general: probadores, CRUDs simples, acciones puntuales. **El probador usa éste**. |
+| `llamadaAxios(...)`   | `{ data, isLoading, error, ... }` reactivo | Formularios con estado de carga visible. **El composable `useGestionFormularios` lo usa** (vimos un ejemplo en §1.5.5). |
+| `HttpApi`             | `Promise<AxiosResponse<T>>`    | Cuando necesitas cabeceras, status exacto o config avanzada de la respuesta. |
 
-Para el "probador" usamos **`peticion<T>`** porque es el modo más cercano a un `fetch` clásico: tipado, async/await, sin `.value`.
+Para el probador `Home.vue` usamos **`peticion<T>`** porque es lo más cercano a un `fetch` clásico: tipado, async/await, sin reactividad envolvente.
 :::
 
 ### 1.8.3 Recorrido guiado de una llamada (lo que vais a ver en clase)
 
-1. Arrancar `dotnet watch` y `pnpm dev` (o lanzar el proyecto desde Visual Studio).
+1. Arrancar `dotnet watch` (que se encarga de levantar también el dev server de Vite).
 2. Abrir `https://localhost:44306/uareservas/` → login CAS si no estás autenticado.
 3. Abrir DevTools en la pestaña **Network**.
 4. En la página Home, pulsar **`GET /api/TipoRecursos`**:
    - Aparece una entrada `TipoRecursos` en Network.
    - Status `200 OK`.
    - **Headers → Request Headers**: ves la `Cookie: X-Access-Token=...`, la cabecera `Accept: application/json` que pone axios.
-   - **Response**: el array JSON.
-5. En otra pestaña, abrir `https://localhost:44306/uareservas/scalar`:
+   - **Response**: el array JSON con los tipos de recurso.
+5. En otra pestaña, abrir `https://localhost:44306/uareservas/scalar/`:
    - Buscar `TipoRecursos` en la sidebar.
-   - Pulsar **"Try it out"** y luego **"Send"**.
+   - Pulsar **"Test Request"** y luego **"Send"**.
    - Comparar el JSON: es **idéntico** al que vimos en Network.
-6. Pulsar el botón **`GET /api/Info/MessageError`** del Home:
+6. Pulsar el botón **`GET /api/Info/MessageError (400)`** del Home:
    - Status `400`.
-   - En la respuesta hay un `ProblemDetails` con `title` y `detail`.
+   - En la respuesta hay un `ValidationProblemDetails` con `title = "ERROR_DEMO"` y `detail` localizado.
    - `gestionarError` muestra un toast rojo en la pantalla.
+   - Si cambias `X-Idioma` (en Scalar o vía claim del JWT), el `detail` cambia de idioma.
 
-::: tip BUENA PRÁCTICA — la sesión 5 conecta esto con Oracle
-Mientras devolvemos datos hardcodeados, los botones funcionan igual. **Cuando en la sesión 5 conectemos el controlador a un servicio que llama a `ClaseOracleBD3`, los botones siguen funcionando sin tocar Vue.** Ese es el sentido del DTO como contrato: a Vue solo le importa qué JSON recibe, no quién lo genera.
+::: tip BUENA PRÁCTICA — el contrato es lo que sobrevive
+Mientras desarrollas la API, **el JSON que vuelca el `<pre>` es el contrato real con Vue**. Si modificas el servicio (por ejemplo, conectar la lectura a Oracle vía `ClaseOracleBD3` en la sesión 2), los botones siguen funcionando sin tocar Vue siempre que el JSON tenga la misma forma. Ese es el sentido del DTO como contrato: a Vue solo le importa qué JSON recibe, no quién lo genera.
 :::
 
 ## 1.9 Ejercicio: API de `Observaciones` de reservas
