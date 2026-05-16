@@ -2149,159 +2149,218 @@ Aplicar esta lista a cualquier controlador nuevo:
 | ☐ | Rutas en plural (`/api/Recursos`, `/api/Reservas`).                                           |
 | ☐ | Parámetros de ruta con tipo (`{id:int}`) cuando son numéricos: error 404 automático si no.    |
 
-## 1.6 Cómo responde .NET 10: `TypedResults`, `ProblemDetails` y status codes
+## 1.6 Cómo se construye la respuesta en el servidor: `Result<T>` + `HandleResult`
 
-Una API **es** sus respuestas. La diferencia entre una API mediocre y una excelente está en cómo devuelve los errores: si el cliente Vue puede distinguir un "no autenticado" de un "no autorizado" de un "validación fallida" de un "no encontrado", todo el código de UI se simplifica. Si todo es `500 algo fue mal`, el cliente tiene que adivinar.
-
-### 1.6.1 Las cuatro familias de status code: el idioma común
-
-Antes de los nombres concretos (`200 OK`, `404 NotFound`...), entiende **las familias**. Cada respuesta HTTP empieza por un número del 100 al 599 y ese primer dígito **ya te dice mucho**:
+En §1.5 vimos **qué forma JSON tienen** los errores que llegan al cliente. Aquí vemos **cómo se construyen** desde el servicio hasta la respuesta HTTP. La pieza central es **`Result<T>`** y su traductor único **`HandleResult`** (ambos en `ApiControllerBase.cs` y `Models/Errors/`).
 
 ```mermaid
 flowchart LR
-    Req[Petición HTTP<br/>desde Vue] --> Server[.NET decide la respuesta]
-    Server --> R2["🟢 2xx — OK<br/>Todo bien.<br/>Aquí tienes los datos."]
-    Server --> R3["🟡 3xx — Redirección<br/>Vé a otra URL.<br/>Poco usado en APIs JSON."]
-    Server --> R4["🟠 4xx — Tu culpa<br/>(cliente)<br/>Lo que pediste está mal."]
-    Server --> R5["🔴 5xx — Mi culpa<br/>(servidor)<br/>Yo me he roto."]
+    Svc["Servicio<br/>(TiposRecursoServicio)"] -- "Result&lt;T&gt;.Success(v)<br/>Result&lt;T&gt;.NotFound(...)<br/>Result&lt;T&gt;.Validation(...)<br/>Result&lt;T&gt;.Fail(...)" --> Ctrl["Controlador<br/>(TipoRecursosController)"]
+    Ctrl -- "HandleResult(result)" --> Base["ApiControllerBase.HandleResult"]
+    Base -- "200 / 400 / 404 / 500" --> HTTP["Respuesta HTTP<br/>+ ProblemDetails localizado"]
 
-    R2 --> OK[Respuesta con cuerpo<br/>= datos útiles para Vue]
-    R4 --> Err4[Respuesta con cuerpo<br/>= ProblemDetails describiendo<br/>qué hiciste mal]
-    R5 --> Err5[Respuesta con cuerpo<br/>= ProblemDetails genérico]
+    style Svc fill:#d1ecf1,stroke:#0c5460
+    style Base fill:#fff3cd,stroke:#856404
+    style HTTP fill:#d4edda,stroke:#155724
 ```
 
-<!-- diagram id="familias-http" caption: "Las cuatro familias de status code y qué significa cada una semánticamente." -->
+<!-- diagram id="result-handleresult" caption: "El servicio devuelve un Result<T>; el controlador llama a HandleResult; HandleResult decide el HTTP y localiza el mensaje." -->
 
-::: info CONTEXTO — la pregunta clave de cada familia
-| Familia    | Pregunta que responde                                 | ¿Quién la "lía"?       | ¿Vue debe reaccionar?                           |
-| ---------- | ------------------------------------------------------ | ---------------------- | ------------------------------------------------ |
-| **2xx**    | "¿Salió bien?" → **Sí**.                              | Nadie, todo en orden.  | Mostrar los datos.                               |
-| **3xx**    | "¿Tengo que ir a otra URL?" → **Sí**.                 | Es informativo.        | Casi nunca: axios sigue redirecciones solo.      |
-| **4xx**    | "¿La culpa es del que pidió?" → **Sí**.               | El cliente (tú).       | Pintar el error: lo puedes arreglar.             |
-| **5xx**    | "¿La culpa es del servidor?" → **Sí**.                | El servidor.           | Disculparse y reintentar o avisar al usuario.    |
+### 1.6.1 Familias de status code: por qué la API se diseña así
+
+Cada respuesta HTTP empieza por un número del 100 al 599 y ese primer dígito **ya te dice mucho**:
+
+| Familia | Significa                                  | Quién la "lía"          | Qué hace el cliente Vue                          |
+| ------- | ------------------------------------------ | ----------------------- | ------------------------------------------------ |
+| **2xx** | Todo bien, aquí tienes los datos.          | Nadie.                  | Pintar los datos.                                |
+| **3xx** | Redirección. Casi nunca en APIs JSON.      | Informativo.            | axios sigue el redirect solo.                    |
+| **4xx** | **Cliente** mandó algo mal o sin permisos. | El cliente (tú/Vue).    | Pintar el error: lo puede arreglar.              |
+| **5xx** | **Servidor** se rompió.                    | El servidor.            | Toast genérico y reintentar.                     |
+
+::: tip BUENA PRÁCTICA — el principio que se deriva
+**No respondas 200 con un `{ error: ... }` dentro**. Es un antipatrón clásico. Si algo falla, devuelve 4xx/5xx con `ProblemDetails`; si va bien, devuelve 2xx con el dato. El cliente reacciona **al status code**, no al cuerpo. Mezclar capas confunde a Vue y al composable `useGestionFormularios`.
+
+Y por la misma razón: **distingue 4xx de 5xx en logs**. Un 5xx te avisa de un bug tuyo; un 4xx te avisa de que el cliente lo está intentando mal (lo cual también te puede interesar — quizá tu UI le confunde).
 :::
 
-#### Lectura visual: qué piensa Vue ante cada familia
+La tabla de qué código devuelve cada operación del proyecto ya está en §1.3 ("Códigos de respuesta — los que vas a usar"). No la repito aquí.
 
-```mermaid
-flowchart TD
-    Resp[Llega la respuesta] --> Cuál{Status code}
-    Cuál -->|2xx| Bien[✅ 'Tengo datos.<br/>Los pinto.']
-    Cuál -->|3xx| Sigue[➡️ 'Sigo el redirect.<br/>axios lo hace solo.']
-    Cuál -->|400 ó 422| Validar[⚠️ 'El usuario ha rellenado algo mal.<br/>Pinto los errores en el formulario.']
-    Cuál -->|401| Login[🔒 'Token muerto.<br/>Redirijo a CAS.']
-    Cuál -->|403| NoPuedo[🚫 'No tengo permisos.<br/>Toast de error.']
-    Cuál -->|404| NoExiste[🔍 'El recurso no existe.<br/>Mensaje específico.']
-    Cuál -->|409| Conflicto[🔀 'Hay un conflicto con otro dato.<br/>Pinto el detail.']
-    Cuál -->|5xx| Roto[💥 'El servidor se ha caído.<br/>Toast genérico, reintentar luego.']
-```
+### 1.6.2 Las tres formas de devolver: por qué el curso usa `ActionResult` + `HandleResult`
 
-<!-- diagram id="reaccion-vue-familias" caption: "Una reacción tipo de Vue para cada familia de respuesta." -->
-
-::: tip BUENA PRÁCTICA — qué reglas se derivan de las familias
-- **Distingue 4xx de 5xx** en logs y monitoring: los 5xx te dicen que tu servidor está mal; los 4xx te dicen que tus clientes están mal (o tu UI los confunde).
-- **No respondas 200 con un `{ error: ... }` dentro**. Es un anti-patrón clásico. Si algo falla, devuelve **4xx o 5xx** con `ProblemDetails`; si va bien, devuelve **2xx** con el dato. Mezclar capas confunde al cliente.
-- **Las redirecciones (3xx) en APIs JSON son rarísimas.** Si las ves, probablemente sean del middleware de auth (p.ej. CAS interceptando una petición sin token). Cuando llegan al `.catch` de axios sin `error.response`, sospecha de esto.
-:::
-
-### 1.6.2 Tres formas de devolver desde un controlador (.NET 10)
+.NET 10 ofrece tres estilos para retornar desde un controlador:
 
 ```csharp
-// (a) IActionResult — la clásica, máxima flexibilidad
-[HttpGet("{id:int}")]
-public IActionResult ObtenerA(int id)
-{
-    var r = _recursos.BuscarxId(id);
-    if (r == null) return NotFound();
-    return Ok(r);
-}
+// (a) IActionResult — la clásica, máxima flexibilidad.
+public IActionResult ObtenerA(int id) { ... return Ok(r); }
 
-// (b) ActionResult<T> — añade tipado para Swagger/OpenAPI
-[HttpGet("{id:int}")]
-public ActionResult<RecursoLectura> ObtenerB(int id)
-{
-    var r = _recursos.BuscarxId(id);
-    if (r == null) return NotFound();
-    return r;   // implícitamente Ok(r)
-}
+// (b) ActionResult<T> — añade tipado para OpenAPI/Scalar.
+public ActionResult<RecursoLectura> ObtenerB(int id) { ... return r; }
 
-// (c) Results<...> + TypedResults — el patrón moderno (.NET 9+)
+// (c) Results<...> + TypedResults — patrón moderno (.NET 9+), tipa cada rama.
+public Results<Ok<RecursoLectura>, NotFound<ProblemDetails>> ObtenerC(int id) { ... }
+```
+
+El curso usa una mezcla muy concreta:
+
+> **`Task<ActionResult>` como tipo de retorno + `HandleResult(await _servicio.X(...))` como cuerpo.**
+
+```csharp
 [HttpGet("{id:int}")]
-public Results<Ok<RecursoLectura>, NotFound<ProblemDetails>> ObtenerC(int id)
+[ProducesResponseType<TipoRecursoLectura>(StatusCodes.Status200OK)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+public async Task<ActionResult> ObtenerPorId([FromRoute] int id) =>
+    HandleResult(await _tiposRecurso.ObtenerPorIdAsync(id, Idioma));
+```
+
+Cuatro razones para esta elección:
+
+1. **Una sola línea por acción.** El servicio devuelve `Result<T>` y `HandleResult` decide el HTTP. No hay `if (...) return NotFound()` repartidos por todo el código.
+2. **El tipo de retorno (200/404/etc.) lo declara `[ProducesResponseType<T>(...)]`**, no la firma. Esto le dice a Scalar todos los códigos posibles sin que el método tenga que enumerarlos en su tipo de retorno (`Results<Ok<T>, NotFound<...>, ...>` crece feo cuando hay 5 ramas).
+3. **Compatible con todo `ControllerBase` clásico** (`Ok`, `NoContent`, `CreatedAtAction`, `Forbid`...). `TypedResults` mete sus propios tipos (`Created<T>`, `Forbid`, etc.) y no compone bien con `HandleResult`.
+4. **La localización de mensajes vive en un solo sitio** — dentro de `HandleResult`. Si cada acción construyera su propio `TypedResults.NotFound(new ProblemDetails { ... })`, habría que localizar los textos a mano cada vez.
+
+::: info CONTEXTO — `Results<...>` + `TypedResults` no es "mejor"
+Es un estilo más nuevo y tiene tipado más estricto, pero **para el patrón del curso** (donde `HandleResult` ya decide la traducción) no aporta. Si en algún proyecto fuera del curso encuentras `TypedResults`, no es un error, es otro estilo válido. El criterio que debe permanecer: **una sola pieza decide cómo se construye cada `ProblemDetails`**.
+:::
+
+### 1.6.3 Cómo viaja el error desde el servicio: `Result<T>` y `Error`
+
+`Result<T>` (`Models/Errors/Result.cs`) es la "caja" en la que viaja todo lo que devuelve un servicio. O lleva un **valor** (`IsSuccess == true`) o lleva un **`Error`**:
+
+```csharp
+// Models/Errors/Result.cs
+public class Result<T>
 {
-    var r = _recursos.BuscarxId(id);
-    if (r == null)
-        return TypedResults.NotFound(new ProblemDetails {
-            Title = "Recurso no encontrado",
-            Detail = $"No existe el recurso con id {id}.",
+    public bool   IsSuccess { get; }
+    public T?     Value     { get; }
+    public Error? Error     { get; }
+
+    public static Result<T> Success(T value) => new(value);
+    public static Result<T> Failure(Error error) => new(error);
+
+    // Atajos para los casos habituales:
+    public static Result<T> NotFound(string code, string message,
+                                     params object?[] messageArgs) => /* ... */;
+    public static Result<T> Validation(string code, string message,
+                                       IDictionary<string, string[]>? errors = null,
+                                       params object?[] messageArgs) => /* ... */;
+    public static Result<T> Fail(string code, string message,
+                                 params object?[] messageArgs) => /* ... */;
+}
+```
+
+Y el `Error` (`Models/Errors/Error.cs`) es un `record` con la información que `HandleResult` necesita para construir el HTTP:
+
+```csharp
+public record Error(
+    string Code,                                       // "TIPO_RECURSO_NO_ENCONTRADO"
+    string Message,                                    // "No existe un tipo con id {0}."
+    ErrorType Type,                                    // NotFound / Validation / Failure
+    IDictionary<string, string[]>? ValidationErrors,   // solo para Type=Validation
+    string? MessageKey,                                // clave en SharedResource.resx
+    object?[]? MessageArgs,                            // formatear el message ({0}, {1}...)
+    string? TechnicalMessage);                         // para logs, no para el cliente
+```
+
+`ErrorType` es un enum con tres valores: `Validation`, `NotFound`, `Failure`. **No hay más**: cualquier otra cosa (`Conflict`, `Forbidden`, etc.) hoy cae en `Failure` (500); si lo necesitas, se añade al enum y se extiende `HandleResult`.
+
+Uso desde un servicio, ya visto en §2.3:
+
+```csharp
+public async Task<Result<TipoRecursoLectura>> ObtenerPorIdAsync(int id, string idioma)
+{
+    var fila = await _bd.ObtenerPrimeroMapAsync<TipoRecursoLectura>(/* ... */);
+
+    return fila is null
+        ? Result<TipoRecursoLectura>.NotFound(
+              "TIPO_RECURSO_NO_ENCONTRADO",
+              $"No existe un tipo de recurso con id {id}.",
+              id)                                       // ← messageArgs[0] = {0}
+        : Result<TipoRecursoLectura>.Success(fila);
+}
+```
+
+### 1.6.4 `HandleResult`: el traductor único `Result<T>` → HTTP localizado
+
+`HandleResult` vive en `ApiControllerBase.cs`. Es **la única función del proyecto** que sabe cómo se construyen `ProblemDetails` y `ValidationProblemDetails`. Si quieres cambiar el formato de los errores, este es el sitio:
+
+```csharp
+// Controllers/Apis/ApiControllerBase.cs
+protected ActionResult HandleResult<T>(Result<T> result)
+{
+    if (result.IsSuccess)
+        return Ok(result.Value);                              // 200
+
+    var error   = result.Error!;
+    var mensaje = LocalizarMensaje(error);                    // ← clave SharedResource
+    RegistrarErrorTecnico(error);                             // log si Type=Failure
+
+    return error.Type switch
+    {
+        ErrorType.Validation => ValidationProblem(
+            new ValidationProblemDetails(
+                error.ValidationErrors ?? new Dictionary<string, string[]>())
+            {
+                Title  = error.Code,
+                Detail = mensaje,
+                Status = StatusCodes.Status400BadRequest
+            }),
+
+        ErrorType.NotFound => NotFound(new ProblemDetails
+        {
+            Title  = error.Code,
+            Detail = mensaje,
             Status = StatusCodes.Status404NotFound
-        });
-    return TypedResults.Ok(r);
+        }),
+
+        _ => Problem(detail: mensaje,
+                     title: error.Code,
+                     statusCode: StatusCodes.Status500InternalServerError)
+    };
 }
 ```
 
-::: tip BUENA PRÁCTICA — cuándo cada una
-- **`IActionResult`**: para controladores existentes que ya lo usan. Sigue siendo válido y es lo que verás en la mayor parte del código UA.
-- **`ActionResult<T>`**: si quieres que Swagger detecte el tipo de retorno sin escribir `[ProducesResponseType(typeof(T), 200)]`.
-- **`Results<...>` + `TypedResults`** (.NET 9+): la opción moderna. Cada posible respuesta es un tipo en la firma del método → OpenAPI lo detecta perfecto y tienes ayuda del compilador si olvidas un caso.
+Mapeo en una tabla:
 
-En código nuevo de la UA: **`Results<...>` para nuevos endpoints**, **`IActionResult`** si extiendes un controlador antiguo. No mezcles estilos en el mismo método.
+| `Result<T>`                             | `ErrorType` | HTTP                                | Cuerpo JSON                                                  |
+| --------------------------------------- | ----------- | ----------------------------------- | ------------------------------------------------------------ |
+| `Success(v)`                            | —           | **200 OK**                          | El valor `v` serializado.                                    |
+| `Validation(code, msg, errors)`         | Validation  | **400 Bad Request**                 | `ValidationProblemDetails { title=code, detail=msg-localizado, errors={...} }` |
+| `NotFound(code, msg, args)`             | NotFound    | **404 Not Found**                   | `ProblemDetails { title=code, detail=msg-localizado }`       |
+| `Fail(code, msg, args)`                 | Failure     | **500 Internal Server Error**       | `ProblemDetails { title=code, detail=msg-localizado }` + log |
+
+::: info CONTEXTO — la localización del mensaje
+`LocalizarMensaje(error)` resuelve `error.MessageKey ?? error.Code` contra `IStringLocalizer<SharedResource>`. Es decir: la clave `TIPO_RECURSO_NO_ENCONTRADO` que viene en el `Result` se busca como `<data name="TIPO_RECURSO_NO_ENCONTRADO">` en el resx del idioma de la petición (`Resources/SharedResource.{es,ca,en}.resx`). Si la clave no existe en el resx, cae al `error.Message` literal con `string.Format` para sustituir `{0}`, `{1}`, etc. por `error.MessageArgs`.
+
+El idioma activo lo decide `UseRequestLocalization()` en el pipeline (§1.5.3): `HttpContext.Items["idioma"]` → claim `LENGUA` → `"es"`.
 :::
 
-### 1.6.3 Tabla maestra de status codes que vas a usar
+::: tip BUENA PRÁCTICA — qué claves van al resx
+- **Sí van**: errores que el usuario va a ver (`TIPO_RECURSO_NO_ENCONTRADO`, `RESERVA_SOLAPADA`, `ERROR_DEMO`).
+- **Sí van**: códigos `ORA-20XXX` que devuelven los paquetes PL/SQL. `SharedResource.es.resx` ya tiene entradas como `<data name="ORA-20001">...</data>` para traducir las excepciones del paquete.
+- **No van**: mensajes técnicos para logs (esos van en `TechnicalMessage` del `Error` y los lee `RegistrarErrorTecnico`).
 
-| Código | Helper `TypedResults`                            | Cuándo                                                   |
-| ------ | ------------------------------------------------ | ---------------------------------------------------------- |
-| **200 OK**             | `TypedResults.Ok(valor)`             | Lectura exitosa con cuerpo.                                |
-| **201 Created**        | `TypedResults.Created(url, valor)`   | Creación exitosa. `url` apunta al recurso nuevo.           |
-| **204 NoContent**      | `TypedResults.NoContent()`           | Operación exitosa sin cuerpo (DELETE típico).              |
-| **400 BadRequest**     | `TypedResults.BadRequest(detalles)`  | Petición mal formada (validación rota, JSON inválido).     |
-| **401 Unauthorized**   | `TypedResults.Unauthorized()`        | Falta autenticación (no hay cookie JWT válida).            |
-| **403 Forbidden**      | `TypedResults.Forbid()`              | Hay autenticación, pero no permiso para esta acción.       |
-| **404 NotFound**       | `TypedResults.NotFound()`            | El recurso no existe.                                      |
-| **409 Conflict**       | `TypedResults.Conflict(detalles)`    | Estado inconsistente (p.ej. solapamiento de reserva).      |
-| **422 UnprocessableEntity** | `TypedResults.UnprocessableEntity(...)` | Sintaxis OK, semántica imposible. Menos usado.       |
-| **500 Problem**        | `TypedResults.Problem(...)`          | Error inesperado del servidor.                             |
-
-::: danger ZONA PELIGROSA — confusiones habituales
-- **401 vs 403**: 401 = "no sé quién eres", 403 = "sé quién eres pero no puedes". Vue debería **redirigir a login** ante 401 y mostrar **toast de error** ante 403.
-- **404 vs 400**: si el recurso no existe → 404. Si la petición es absurda (tipo incorrecto, falta campo) → 400. Nunca al revés.
-- **500 no es papelera**: un 500 dice "yo, servidor, me he roto". Un fallo de validación **no es** un 500. Un FK violation tampoco (es 409 o 400).
+Si añades un código `RAISE_APPLICATION_ERROR(-20999, '...')` en un paquete PL/SQL, no olvides añadir la entrada `ORA-20999` a los tres `SharedResource.*.resx`. Si no, el cliente verá el mensaje técnico literal de Oracle.
 :::
 
-### 1.6.4 `ProblemDetails` (RFC 9457): el formato estándar para errores
+### 1.6.5 Activar `ProblemDetails` global y manejo de excepciones
 
-Cualquier error con cuerpo en .NET sigue el **estándar RFC 9457** (antes 7807). Esto significa que el cliente Vue siempre recibe la misma forma JSON para cualquier error:
-
-```json
-{
-  "type":     "https://tools.ietf.org/html/rfc9110#section-15.5.5",
-  "title":    "Recurso no encontrado",
-  "status":   404,
-  "detail":   "No existe el recurso con id 999.",
-  "instance": "/api/Recursos/999",
-  "traceId":  "00-abc123def456-..."
-}
-```
-
-Para validaciones se extiende a **`ValidationProblemDetails`** con el campo `errors`:
-
-```json
-{
-  "type":   "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-  "title":  "One or more validation errors occurred.",
-  "status": 400,
-  "errors": {
-    "HoraInicio":   ["La hora de inicio debe estar entre 0 y 23."],
-    "MinutosReserva": ["La duracion debe ser multiplo de la granulidad."]
-  }
-}
-```
-
-### 1.6.5 Activar `ProblemDetails` global
+Para que las **excepciones no controladas** también se conviertan en `ProblemDetails` (en vez de en una página HTML de Developer Exception Page) hay que activar el handler global. La plantilla UA lo hace así en `Program.cs`:
 
 ```csharp
-// Program.cs
+// En Production / Staging
+else
+{
+    app.UseExceptionHandler("/Error");
+    app.UseStatusCodePagesWithReExecute("/Error/Error{0}");
+    app.UseHsts();
+}
+```
+
+Para enriquecer todos los `ProblemDetails` con metadata común (path, traceId, timestamp) sin tocar `HandleResult`, se puede añadir:
+
+```csharp
+// Program.cs (opcional pero recomendado)
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = ctx =>
@@ -2311,78 +2370,78 @@ builder.Services.AddProblemDetails(options =>
         ctx.ProblemDetails.Extensions["timestamp"] = DateTime.UtcNow;
     };
 });
-
-var app = builder.Build();
-
-// Convierte excepciones no controladas en ProblemDetails (en lugar de página HTML)
-app.UseExceptionHandler();
-app.UseStatusCodePages();         // 404, 401, etc., también con ProblemDetails
 ```
 
-Con esto, **cualquier excepción** que escape de un controlador se convierte automáticamente en un JSON `ProblemDetails` 500. Vue puede tratarlo igual que el resto.
+Cualquier excepción que escape de un controlador acaba como un `ProblemDetails 500` con `traceId` para correlación en logs. Vue lo trata igual que un 404 o un 400: cae al `.catch`, `useGestionFormularios.adaptarProblemDetails` lo absorbe.
 
-### 1.6.6 Tres patrones de respuesta aplicados a `uaReservas`
+### 1.6.6 Tres patrones aplicados al código real
 
-**Patrón A — Lectura con 404:**
+**Patrón A — Lectura con 404** (de `TipoRecursosController` + `TiposRecursoServicio`):
 
 ```csharp
+// Controlador: una línea.
 [HttpGet("{id:int}")]
-[ProducesResponseType(typeof(RecursoConTipo), 200)]
-[ProducesResponseType(typeof(ProblemDetails), 404)]
-public Results<Ok<RecursoConTipo>, NotFound<ProblemDetails>> ObtenerPorId(int id)
+public async Task<ActionResult> ObtenerPorId([FromRoute] int id) =>
+    HandleResult(await _tiposRecurso.ObtenerPorIdAsync(id, Idioma));
+
+// Servicio: decide entre Success y NotFound.
+public async Task<Result<TipoRecursoLectura>> ObtenerPorIdAsync(int id, string idioma)
 {
-    var r = _recursos.BuscarxId(id);
-    if (r == null)
-        return TypedResults.NotFound(new ProblemDetails
-        {
-            Title  = "Recurso no encontrado",
-            Detail = $"No existe el recurso con id {id} o esta dado de baja.",
-            Status = 404
-        });
-    return TypedResults.Ok(MapearAConTipo(r));
+    var fila = await _bd.ObtenerPrimeroMapAsync<TipoRecursoLectura>(/* ... */);
+    return fila is null
+        ? Result<TipoRecursoLectura>.NotFound(
+              "TIPO_RECURSO_NO_ENCONTRADO",
+              $"No existe un tipo de recurso con id {id}.",
+              id)
+        : Result<TipoRecursoLectura>.Success(fila);
 }
 ```
 
-**Patrón B — Creación con 201 + Location:**
+→ El cliente recibe `200 + TipoRecursoLectura` o `404 + ProblemDetails { title:"TIPO_RECURSO_NO_ENCONTRADO", detail:"...localizado..." }`.
+
+**Patrón B — Creación con 201 + Location** (de `TipoRecursosController`):
 
 ```csharp
 [HttpPost]
-[ProducesResponseType(typeof(object), 201)]
-[ProducesResponseType(typeof(ValidationProblemDetails), 400)]
-[ProducesResponseType(typeof(ProblemDetails), 401)]
-public Results<Created<object>, ValidationProblem, UnauthorizedHttpResult> Crear(
-    [FromBody] ReservaCrear dto)
+public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
 {
-    var v = _tokens.ValidarJwt(_tokens.GetTokenCookie(_tokens.APPTOKEN), false);
-    if (!v.TokenValido) return TypedResults.Unauthorized();
-
-    int codPer = int.Parse(v.CodPersona);
-    int idReserva = _reservas.Crear(dto, codPer);
-
-    return TypedResults.Created($"/api/Reservas/{idReserva}", new { idReserva });
+    var resultado = await _tiposRecurso.CrearAsync(dto);
+    if (!resultado.IsSuccess) return HandleResult(resultado);   // 400 ó 500
+    return CreatedAtAction(nameof(ObtenerPorId),
+                           new { id = resultado.Value },
+                           resultado.Value);                    // 201 + Location
 }
 ```
 
-**Patrón C — Detección de conflicto con 409:**
+→ `HandleResult` se usa **solo para la rama de error**; el caso bueno necesita un `CreatedAtAction` específico para devolver el header `Location`. Es la única acción en la que el cuerpo del método no es una sola línea.
+
+**Patrón C — Validación de paquetes PL/SQL** (de `ErrorPaquetePlSql.AResultFailure<T>`):
 
 ```csharp
-catch (ReservaSolapadaException ex)
-{
-    return TypedResults.Conflict(new ProblemDetails
-    {
-        Title  = "Solapamiento de reserva",
-        Detail = ex.Message,
-        Status = 409
-    });
-}
+// En el servicio, tras llamar al paquete:
+await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_TIPO_RECURSO.CREAR", p);
+
+var failure = ErrorPaquetePlSql.AResultFailure<int>(
+    ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR"),
+    ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"));
+
+if (failure is not null) return failure;                    // → Result<int>.Validation(...)
+return Result<int>.Success(ErrorPaquetePlSql.LeerInt(p, "P_ID_TIPO_RECURSO"));
 ```
 
-### 1.6.7 La regla de oro: NUNCA `500` por algo previsible
+`ErrorPaquetePlSql.AResultFailure<T>` mira el `P_CODIGO_ERROR` que devolvió el paquete:
 
-Una validación rota es **400**. Un recurso ausente es **404**. Un conflicto de datos es **409**. Un error de permisos es **403**. Reservar el **500** para lo que es realmente inesperado (BD caída, NullReference no contemplado, fallo de dependencia externa).
+| Códigos                                                  | Devuelve                          | HTTP final |
+| -------------------------------------------------------- | --------------------------------- | ---------- |
+| `0`                                                      | `null` (no es failure)            | (continúa) |
+| `-20003`, `-20307`, `-20702`                             | `Result<T>.NotFound(...)`         | 404        |
+| `-20001`, `-20002`, `-20301..-20306`, `-20308`, `-20700`, `-20701`, `-20703` | `Result<T>.Validation(...)` | 400 |
+| Cualquier otro                                           | `Result<T>.Fail(...)`             | 500        |
 
-::: tip BUENA PRÁCTICA
-Si en tu controlador escribes `try { ... } catch (Exception) { return Problem(...); }`, está bien como red de seguridad. Pero **lo importante** es que los errores **previsibles** se capturen como tipos específicos (`ReservaSolapadaException`, `RecursoNoEncontradoException`, etc.) y se mapeen al status correcto. El 500 debería ser raro en logs.
+Esto es lo que cierra el círculo Oracle → .NET → Vue: una validación del paquete (`RAISE_APPLICATION_ERROR(-20001, 'El código está duplicado')`) llega al cliente como un **`400 ValidationProblemDetails`** localizado al idioma del usuario, sin que el controlador haga absolutamente nada — solo `HandleResult(resultado)`.
+
+::: info CONTEXTO — la sesión 3 profundiza
+La sesión 3 (Validación + Errores) detalla cómo se construyen las validaciones del DTO con `DataAnnotations` y `FluentValidation`, qué pasa cuando ambas coexisten, y cómo `useGestionFormularios.adaptarProblemDetails` recoge el `ValidationProblemDetails` y lo pinta en el formulario. Aquí solo necesitas saber que **el contrato de respuesta es estable** y que **una sola pieza (`HandleResult`)** lo construye.
 :::
 
 ## 1.7 Cómo consume Vue: conceptos clave (sin código)
