@@ -1,15 +1,17 @@
 ---
-title: "Sesiones 4 y 5: Modelos, primer API y acceso a Oracle"
-description: De los DTOs al acceso a Oracle, pasando por la arquitectura .NET ↔ Vue y los patrones UA
+title: "Sesión 4: Modelos y primer API"
+description: DTOs, controladores API REST, verbos HTTP, status codes, documentación Scalar y prueba sin BD desde Chrome
 outline: deep
 ---
 
-# Sesiones 4 y 5: Modelos, primer API y acceso a Oracle
+# Sesión 4: Modelos y primer API (~1 h 30 min)
 
 [[toc]]
 
 ::: info ¿Para quién es este material?
-Este documento sirve a **dos sesiones consecutivas**: la 4 (Modelos y primer API) y la 5 (Servicios y acceso a Oracle). Está pensado para gente con perfiles muy distintos: desde quien lleva años con Oracle PL/SQL pero nunca ha tocado HTTP, hasta quien viene de ASP clásico, WebForms o MVC y nunca ha trabajado con SPAs. Por eso vamos despacio y conceptualmente al principio, y luego entramos al detalle.
+Esta sesión está pensada para gente con perfiles muy distintos: desde quien lleva años con Oracle PL/SQL pero nunca ha tocado HTTP, hasta quien viene de ASP clásico, WebForms o MVC y nunca ha trabajado con SPAs. Por eso empezamos despacio con la arquitectura conceptual y vamos descendiendo al detalle.
+
+**En esta sesión no vamos a tocar Oracle ni a escribir Vue:** la API se prueba desde Chrome DevTools y desde la página `Home.vue` (que ya está hecha). El acceso a base de datos y la arquitectura por capas se ven en la [**sesión 5**](../sesion-2-servicios-oracle/).
 :::
 
 ## 0. Pre-requisitos del curso
@@ -215,9 +217,23 @@ flowchart LR
 
 **Orden de prioridad** (lo que llega último gana): `appsettings.json` → `appsettings.{Entorno}.json` → **user-secrets** → variables de entorno → argumentos de línea de comandos.
 
-#### Estructura habitual de `appsettings.json`
+#### Las fuentes de configuración se **fusionan**, no se sustituyen
 
-Este es el `appsettings.json` real de `uaReservas` (resumido). Fíjate en lo que **SÍ** está y lo que **NO**:
+`WebApplicationBuilder` carga la configuración en cascada. Las claves de niveles posteriores sobrescriben las anteriores; las claves que un nivel no define se mantienen del anterior:
+
+```
+appsettings.json
+  → appsettings.{Environment}.json     (Development / Staging / Production)
+    → User Secrets                     (SOLO en Development, por defecto)
+      → Variables de entorno           (Oracle__UserId, Oracle__Password, ...)
+        → Argumentos --key=val
+```
+
+La consecuencia importante: **puedes partir un objeto entre varias fuentes**. El `DataSource` (no es secreto) vive en `appsettings.json`; el `UserId` / `Password` (sí lo son) viven en user-secrets en desarrollo y en variables de entorno en preproducción/producción. En runtime .NET los devuelve fusionados como si estuviesen en un único objeto `Oracle:*`.
+
+#### Estructura del `appsettings.json` del curso
+
+Este es el `appsettings.json` real de `uaReservas`, ya en su forma definitiva:
 
 ```json
 {
@@ -227,7 +243,7 @@ Este es el `appsettings.json` real de `uaReservas` (resumido). Fíjate en lo que
   "AllowedHosts": "*",
   "App": {
     "Version": "1.0.0",
-    "DirApp": "/uaReservas",
+    "DirApp": "/uareservas",
     "IdApp": "PRU_MVC",
     "NombreApp": "Plantilla UACloud"
   },
@@ -244,256 +260,183 @@ Este es el `appsettings.json` real de `uaReservas` (resumido). Fíjate en lo que
   },
   "ConnectionStrings": {
     "oradb": ""
+  },
+  "Oracle": {
+    "DataSource": "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=laguar-n1-vip.cpd.ua.es)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORACTEST.UA.ES)))",
+    "ConnectionLifeTime": 240,
+    "Pooling": false
   }
 }
 ```
 
-::: tip BUENA PRÁCTICA — qué SÍ va aquí
-- **Configuración no sensible**: URLs, identificadores de aplicación, niveles de log, rutas base.
-- **La estructura** (las claves): `ConnectionStrings:oradb` aparece, pero **el valor está vacío**. Es un "hueco" que cada desarrollador rellena en su user-secrets.
-- **Valores por defecto inocuos**: rangos numéricos, flags booleanos, valores de display.
+Fíjate en que **no aparecen `UserId` ni `Password`** dentro de `Oracle`. Esos dos valores llegan por user-secrets en desarrollo y por variables de entorno en staging/producción — la sección siguiente lo detalla.
+
+::: tip BUENA PRÁCTICA — qué SÍ va en `appsettings.json` y qué NO
+**SÍ va:** estructura, identificadores no sensibles, URLs públicas, `DataSource` Oracle (host, puerto, service name), niveles de log, flags.
+
+**NO va:** `UserId`, `Password`, tokens, claves privadas, cadenas de conexión completas con credenciales embebidas.
 :::
 
-::: danger qué NO va aquí
-- Contraseñas, tokens PAT, claves privadas.
-- Cadenas de conexión Oracle completas (`User Id=...;Password=...;...`).
-- Direcciones de servidor de correo con credenciales.
-- Tokens JWT pre-firmados, claves de cifrado.
+::: warning IMPORTANTE — NO pongas comentarios `//` dentro de `appsettings.json`
+ASP.NET Core sí tolera comentarios en sus JSON (su lector los salta), pero **Vite los importa con `esbuild`**, que aplica JSON estricto. Si `vite.config.ts` hace `import config from "../appsettings.json"` (es lo que hace la plantilla del curso para leer `App:DirApp`), un `// comentario` en el JSON rompe el dev server con `JSON does not support comments`.
+
+Regla: si necesitas anotar algo del `appsettings.json`, hazlo en el README o en `Program.cs`, **nunca dentro del JSON**.
 :::
+
+Fíjate en dos detalles:
+
+- **`ConnectionStrings:oradb` aparece vacío.** `Program.cs` la reconstruye en arranque con `OracleConnectionStringBuilder` a partir de `Oracle:DataSource` + `Oracle:UserId` + `Oracle:Password`. Ese builder escapa por ti los caracteres especiales de la pwd — no hay que envolver nada a mano.
+- **La sección `Oracle` no tiene `UserId` ni `Password`**. Esos huecos los rellena user-secrets en dev y variables de entorno en otros entornos.
 
 #### Activar user-secrets en un proyecto
 
 ```powershell
-# Desde la carpeta del .csproj. Esto modifica el csproj añadiendo
-# <UserSecretsId>GUID-aleatorio</UserSecretsId>
-dotnet user-secrets init --project uaReservas
+# Desde la carpeta del .csproj. Añade <UserSecretsId>GUID-aleatorio</UserSecretsId>.
+cd uaReservas
+dotnet user-secrets init
 ```
 
-Tras esto, el `.csproj` tiene una línea como:
+Tras esto, el `.csproj` tiene:
 
 ```xml
 <PropertyGroup>
-  <UserSecretsId>a1b2c3d4-e5f6-7890-abcd-ef1234567890</UserSecretsId>
+  <UserSecretsId>ccd511a2-a696-4a6e-9187-647ef6b3081c</UserSecretsId>
 </PropertyGroup>
 ```
 
-Ese GUID identifica el fichero de secretos del proyecto. **El csproj sí se commitea**, pero el GUID solo apunta a un fichero que está **en tu equipo, fuera del repo**.
+Ese GUID identifica el fichero de secretos del proyecto. **El csproj sí se commitea**; el GUID solo apunta a un fichero que está **fuera del repo**, en tu equipo:
 
-#### La cadena de conexión real del curso
+- **Windows**: `%APPDATA%\Microsoft\UserSecrets\<GUID>\secrets.json`
+- **Linux/macOS**: `~/.microsoft/usersecrets/<GUID>/secrets.json`
 
-Para todo el curso usamos el **esquema de aplicación `CURSONORMWEB`** sobre la base de datos de test. Sus parámetros son:
+#### Credenciales de desarrollo en User Secrets
 
-| Campo          | Valor                                                  |
-| -------------- | ------------------------------------------------------ |
-| Host           | `laguar-n1-vip.cpd.ua.es`                              |
-| Puerto         | `1521`                                                 |
-| Service Name   | `ORACTEST.UA.ES`                                       |
-| Usuario        | `CURSONORMWEB`                                         |
-| Contraseña     | `O8XN"mA(Ij3U\SMCW-O5`                                 |
+El esquema de aplicación del curso es **`CURSONORMWEB`** sobre ORACTEST. Sus parámetros:
 
-La cadena de conexión completa, en formato Oracle Managed Data Access con descriptor TNS embebido, queda así:
+| Campo            | Valor                                                |
+| ---------------- | ---------------------------------------------------- |
+| Host             | `laguar-n1-vip.cpd.ua.es`                            |
+| Puerto           | `1521`                                               |
+| Service Name     | `ORACTEST.UA.ES`                                     |
+| Usuario          | `CURSONORMWEB`                                       |
+| Contraseña       | `8K1wLtuh_30d4sUM662JZ1xVW`                          |
+
+Como `DataSource` ya está en `appsettings.json`, lo único que hay que meter en secrets son las dos credenciales:
+
+```powershell
+cd uaReservas
+
+dotnet user-secrets set "Oracle:UserId"   "CURSONORMWEB"
+dotnet user-secrets set "Oracle:Password" "8K1wLtuh_30d4sUM662JZ1xVW"
+
+# Verifica
+dotnet user-secrets list
+```
+
+Salida esperada:
 
 ```text
-Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=laguar.cpd.ua.es)(PORT=1521))(LOAD_BALANCE=yes)(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORACTEST.UA.ES)));User ID=CURSONORMWEB;Password=O8XN"mA(Ij3U\SMCW-O5; Connection Lifetime=240; pooling=false
+Oracle:Password = 8K1wLtuh_30d4sUM662JZ1xVW
+Oracle:UserId = CURSONORMWEB
 ```
 
-::: danger ZONA PELIGROSA — la contraseña tiene `"` y `\`, no escapes a mano
-La contraseña real (`O8XN"mA(Ij3U\SMCW-O5`) contiene **comilla doble** y **barra invertida**, dos de los caracteres que peor lleva PowerShell entre comillas dobles. Intentar pasarla "en línea" entre `"..."` con `\"` y `\\` por dentro **es fuente garantizada de bugs**: PowerShell no usa `\` como escape (el escape es backtick `` ` ``), así que `\\` son dos barras literales y `\"` ni siquiera se interpreta como esperarías.
-
-**Truco clave**: en PowerShell, lo que va entre **comillas simples** `'...'` se trata **literal** — `"`, `\`, `$`, paréntesis... no necesitan escape. Solo no puedes meter una `'` literal por dentro (no es nuestro caso).
+::: info CONTEXTO — los `:` describen rutas anidadas
+`"Oracle:UserId"` se traduce a `{ "Oracle": { "UserId": "..." } }`. La configuración de .NET es plana en la API (`IConfiguration["Oracle:UserId"]`) pero estructurada en los proveedores JSON. El `:` une niveles igual que el `.` en notación dotted.
 :::
 
-#### Añadir el secreto en PowerShell (la forma que funciona)
-
-Desde la carpeta del proyecto `uaReservas` (la que contiene `uaReservas.csproj`), pega estas DOS líneas. Es la receta más simple y robusta:
-
-```powershell
-$cadena = 'Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=laguar.cpd.ua.es)(PORT=1521))(LOAD_BALANCE=yes)(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORACTEST.UA.ES)));User ID=CURSONORMWEB;Password=O8XN"mA(Ij3U\SMCW-O5;Connection Lifetime=240;pooling=false'
-
-dotnet user-secrets set "ConnectionStrings:oradb" $cadena
-```
-
-##### Cómo funciona, paso a paso
-
-1. **Línea 1 — la cadena entre comillas simples (`'...'`).**
-   Todo lo de dentro es literal. Las `"` y las `\` se guardan tal cual, sin escapado. La cadena se asigna a la variable `$cadena`.
-2. **Línea 2 — pasamos la variable al comando.**
-   `dotnet user-secrets set` recibe dos argumentos: la clave (`"ConnectionStrings:oradb"`) y el valor (`$cadena`). PowerShell expande `$cadena` y lo pasa **sin modificar** como un único argumento.
-3. **No hace falta `--project`** si estás dentro de la carpeta del `.csproj`. Si no, añade `--project .\uaReservas\uaReservas.csproj`.
-
-::: tip BUENA PRÁCTICA — pega siempre en dos líneas
-Si tu terminal pega todo en una sola línea (algunos terminales lo hacen), divide manualmente con **Enter** después de la primera comilla de cierre `'`. Comprueba que `$cadena` queda en la primera línea entera y que `dotnet user-secrets set` está sola en la segunda.
-:::
-
-::: info CONTEXTO — alternativa con here-string (`@'...'@`)
-Si la cadena fuese **muy larga** o llevase varias líneas, otra opción es un here-string single-quoted:
-
-```powershell
-$cadena = @'
-Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=laguar.cpd.ua.es)(PORT=1521))(LOAD_BALANCE=yes)(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORACTEST.UA.ES)));User ID=CURSONORMWEB;Password=O8XN"mA(Ij3U\SMCW-O5;Connection Lifetime=240;pooling=false
-'@
-dotnet user-secrets set "ConnectionStrings:oradb" $cadena
-```
-
-Reglas del here-string que **te van a hacer perder media hora si las saltas**:
-- `@'` tiene que ir **solo en su línea**, con un **Enter inmediatamente detrás** (no puede haber nada más en esa misma línea — PowerShell dará "No characters are allowed after a here-string header but before the end of the line").
-- `'@` de cierre tiene que ir **solo en su línea** y **en la columna 0** (sin espacios ni tabuladores delante).
-- El contenido va **entre** ambas marcas, en líneas propias.
-
-Para una cadena de una sola línea, la versión con `'...'` de arriba es más simple y menos frágil — úsala salvo que tengas saltos de línea reales.
+::: tip BUENA PRÁCTICA — el password actual no tiene caracteres especiales
+La cuenta `CURSONORMWEB` del curso usa una pwd sin `"`, `'`, `;`, `=`, `\` ni espacios — a propósito. Así no hay que pelearse con el escapado de PowerShell ni con las reglas de envoltura de Oracle. Si en otra app te toca una pwd con esos caracteres, el patrón es: **siempre envuelve en `'...'` (comillas simples)** en PowerShell, y deja que `OracleConnectionStringBuilder` (en `Program.cs`) construya la cadena final.
 :::
 
 #### Listar, quitar y limpiar secretos
 
 ```powershell
-# Otro ejemplo de clave anidada (no se usa en esta sesión pero conviene tenerla).
-# Sin comillas internas problemáticas: una sola línea entre comillas dobles vale.
-dotnet user-secrets set "ClaseCorreo:Password" "lacontraseñadelservidor"
-
-# ─── LISTAR todos los secretos del proyecto ───
-dotnet user-secrets list
-
-# ─── QUITAR un secreto concreto ───
-dotnet user-secrets remove "ConnectionStrings:oradb"
-
-# ─── QUITAR TODOS los secretos del proyecto (con cuidado) ───
-dotnet user-secrets clear
+dotnet user-secrets list                       # ver todo
+dotnet user-secrets remove "Oracle:Password"   # borrar una clave
+dotnet user-secrets clear                      # borrar todo
 ```
 
-::: tip BUENA PRÁCTICA — verifica que ha quedado bien
-Después de `set`, ejecuta `dotnet user-secrets list` y compara byte a byte:
+::: info CONTEXTO — desde qué carpeta y `--project`
+- **Dentro de `uaReservas/`** (la del `.csproj`): omite `--project`.
+- **Desde una carpeta de arriba**: `--project .\uaReservas\uaReservas.csproj`.
+- **Error típico** — `The file '...\uaReservas\uaReservas' does not exist`: estabas dentro de `uaReservas/` y has puesto `--project uaReservas` por inercia. Quita el `--project`.
+:::
 
-```text
-ConnectionStrings:oradb = Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=laguar.cpd.ua.es)(PORT=1521))(LOAD_BALANCE=yes)(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORACTEST.UA.ES)));User ID=CURSONORMWEB;Password=O8XN"mA(Ij3U\SMCW-O5;Connection Lifetime=240;pooling=false
+#### Preproducción y producción: variables de entorno
+
+User Secrets **solo está activo en Development** (es lo que hace `WebApplicationBuilder` por defecto: `if (env.IsDevelopment()) builder.Configuration.AddUserSecrets<Program>();`). En cualquier otro entorno hay que inyectar las credenciales como **variables de entorno** con la convención del JsonConfigurationProvider: los `:` se sustituyen por `__` (doble guión bajo, porque shells como bash no admiten `:` en nombres de variables).
+
+```powershell
+# En el host (IIS / Windows Service / systemd / pipeline):
+$env:Oracle__UserId   = "CURSONORMWEB"
+$env:Oracle__Password = "<password DE PREPROD, distinto al de dev>"
 ```
 
-La contraseña debe aparecer **literal** como `O8XN"mA(Ij3U\SMCW-O5`. Si ves `\"`, `\\` o caracteres extra, es que PowerShell ha tocado el valor: vuelve a guardarlo con el here-string.
-:::
+| Entorno              | Cómo se inyecta `UserId` / `Password`                                            |
+| -------------------- | -------------------------------------------------------------------------------- |
+| Development          | `dotnet user-secrets set "Oracle:UserId" ...` en tu equipo.                      |
+| Staging / Preprod    | Variables de entorno del servidor: `Oracle__UserId`, `Oracle__Password`.         |
+| Producción           | Igual que staging, gestionado por infraestructura / pipeline de despliegue.      |
 
-::: info CONTEXTO — desde qué carpeta lo ejecutas y `--project`
-- **Dentro de `uaReservas/`** (la del `.csproj`): omite `--project`. Es lo más cómodo.
-- **Desde una carpeta de arriba**: añade `--project .\uaReservas\uaReservas.csproj` (apuntando al fichero `.csproj`, no solo al nombre de la carpeta).
-- **Error típico** — `The file '...\uaReservas\uaReservas' does not exist`: estabas dentro de `uaReservas/` y has puesto `--project uaReservas` por inercia, así que dotnet busca `uaReservas\uaReservas`. Quita el `--project` o pasa el `.csproj` con su ruta completa.
-:::
+Cada entorno tiene **su propio password**: el `CURSONORMWEB` de desarrollo apunta a ORACTEST; los de preprod/producción apuntan a otras BBDD con credenciales distintas. Nunca se reutilizan.
 
-::: info CONTEXTO — `appsettings.json` deja el "hueco"
-El `appsettings.json` de `uaReservas` declara la clave pero **vacía**:
+::: tip BUENA PRÁCTICA — `appsettings.{Environment}.json` para el `DataSource` por entorno
+Si el host Oracle cambia entre entornos (BBDD distinta en preprod o prod), crea `appsettings.Staging.json` / `appsettings.Production.json` SOLO con esa clave; las credenciales siguen viniendo por variables de entorno:
 
 ```json
-"ConnectionStrings": {
-  "oradb": ""
+// appsettings.Production.json (commiteado, sin secretos)
+{
+  "Oracle": {
+    "DataSource": "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle-prod.ua.es)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=ORACPROD.UA.ES)))"
+  }
 }
 ```
 
-El valor real lo aporta el user-secrets en desarrollo, o variables de entorno en preproducción/producción. Así el fichero del repo nunca tiene credenciales.
+Los `appsettings.Development.json`, `appsettings.Staging.json` y `appsettings.Production.json` que vienen con la plantilla pueden estar vacíos (`{}`) si no hay overrides; .NET no se queja.
 :::
 
-#### El mismo secreto en el proyecto de tests
+::: warning IMPORTANTE — nunca metas el password en `appsettings.{Environment}.json`
+Aunque `appsettings.Production.json` "no se ejecuta en tu máquina", está en git. Lo que entra en git se queda en git. Las credenciales SIEMPRE por user-secrets o variables de entorno.
+:::
 
-El proyecto `uaReservas.Tests` también necesita la cadena para los tests REALES contra Oracle. **Es un proyecto distinto, así que tiene su propio `UserSecretsId` y su propio fichero de secretos**:
+#### El mismo patrón en el proyecto de tests
+
+`uaReservas.Tests` es un **host distinto** (xUnit construye su propio `ServiceProvider`), así que tiene su propio `UserSecretsId` y su propio fichero de secretos. Los tests REALES (marcados con `[SkippableFact]`) abren Oracle; los tests SIMULADOS no.
 
 ```powershell
-# Activar user-secrets en el proyecto de tests
 dotnet user-secrets init --project uaReservas.Tests
-
-# Misma cadena (esquema CURSONORMWEB sobre ORACTEST)
-dotnet user-secrets set "ConnectionStrings:oradb" "Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=laguar.cpd.ua.es)(PORT=1521))(LOAD_BALANCE=yes)(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=ORACTEST.UA.ES)));User ID=CURSONORMWEB;Password=O8XN\"mA(Ij3U\\SMCW-O5; Connection Lifetime=240; pooling=false" --project uaReservas.Tests
+dotnet user-secrets set "Oracle:UserId"   "CURSONORMWEB"               --project uaReservas.Tests
+dotnet user-secrets set "Oracle:Password" "8K1wLtuh_30d4sUM662JZ1xVW"  --project uaReservas.Tests
 ```
 
-Si no configuras esto, los tests REALES (los que tocan Oracle) se marcarán como **skipped** vía `[SkippableFact]` y la suite seguirá pasando. Los tests SIMULADOS (con fakes) no necesitan ningún secreto.
+Si no configuras esto, los tests REALES se marcarán como **skipped** y la suite seguirá pasando.
 
 ::: info CONTEXTO — ¿hace falta poner el secreto en cada proyecto que use Oracle?
-**No.** Con la inyección de dependencias el secreto solo se necesita **donde se construye `IClaseOracleBd`**, es decir, **en el proyecto host** (el que arranca el `WebApplication`).
+**No.** Con la inyección de dependencias, el secreto solo se necesita **donde se construye `IClaseOracleBd`** — es decir, en el proyecto host (el que arranca el `WebApplication`).
 
-- En la app web `uaReservas`, el `Program.cs` lee `ConnectionStrings:oradb` y registra `IClaseOracleBd` en el contenedor. Cualquier `Services/` o `Controllers/` que pida `IClaseOracleBd` por constructor recibe esa instancia ya configurada. **No leen ni necesitan ver el secreto.**
-- El proyecto `uaReservas.Tests` es un **host distinto** (xUnit construye su propio `ServiceProvider` para los tests REALES), por eso necesita su propio user-secrets. Pero **solo ahí**.
+- En la app web `uaReservas`, `Program.cs` lee `Oracle:*` y registra `IClaseOracleBd` en el contenedor. Cualquier `Services/` o `Controllers/` que pida `IClaseOracleBd` por constructor recibe la instancia configurada — no leen ni necesitan ver el secreto.
+- En `uaReservas.Tests`, xUnit construye otro `ServiceProvider`, así que necesita su propio user-secrets. **Solo ahí.**
 
-Conclusión: si añades un proyecto de tipo "biblioteca de clases" (`.csproj` sin `Program.cs`), no le pongas user-secrets. Ese código se ejecuta dentro de la app o de los tests; el secreto se inyecta hacia él, no se lee.
+Si añades una biblioteca de clases (`.csproj` sin `Program.cs`), no le pongas user-secrets: ese código se ejecuta dentro de la app o de los tests, el secreto se inyecta hacia él.
 :::
 
-::: info CONTEXTO — ¿dónde se guardan físicamente?
-Cuando ejecutas `dotnet user-secrets set`, el secreto se guarda en un fichero JSON en:
+#### Resumen — los comandos que vas a usar
 
-- **Windows**: `%APPDATA%\Microsoft\UserSecrets\<UserSecretsId>\secrets.json`
-- **Linux/macOS**: `~/.microsoft/usersecrets/<UserSecretsId>/secrets.json`
-
-Puedes abrirlo con un editor y verlo en crudo (`notepad %APPDATA%\Microsoft\UserSecrets\a1b2...\secrets.json`). El contenido es JSON plano, exactamente con la misma estructura que `appsettings.json`.
-:::
-
-#### Cómo lo lee la aplicación
-
-En `Program.cs`, la plantilla UA hace algo así (resumido):
-
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-
-// Esto es lo que CreateBuilder hace por defecto, pero merece la pena verlo:
-// builder.Configuration.AddJsonFile("appsettings.json", optional: false);
-// builder.Configuration.AddJsonFile($"appsettings.{Environment}.json", optional: true);
-// if (env.IsDevelopment())
-//     builder.Configuration.AddUserSecrets<Program>();
-// builder.Configuration.AddEnvironmentVariables();
-// builder.Configuration.AddCommandLine(args);
-```
-
-Y luego, en cualquier servicio inyectas `IConfiguration` y lees:
-
-```csharp
-public class MiServicio
-{
-    private readonly string _cadenaOracle;
-
-    public MiServicio(IConfiguration configuracion)
-    {
-        // .NET fusiona appsettings.json (estructura) + user-secrets (valor real)
-        // y devuelve la cadena resuelta.
-        _cadenaOracle = configuracion.GetConnectionString("oradb")
-                        ?? throw new InvalidOperationException(
-                            "Falta ConnectionStrings:oradb en user-secrets");
-    }
-}
-```
-
-::: warning IMPORTANTE — user-secrets SOLO en desarrollo
-`AddUserSecrets()` se activa **solo cuando `ASPNETCORE_ENVIRONMENT=Development`**. En staging, preproducción y producción los secretos vienen de **variables de entorno** o de un gestor centralizado (Azure Key Vault, secrets manager del servidor, etc.). En la UA, los entornos de despliegue ponen las variables vía el pipeline.
-
-Esto significa que en tu equipo local todo se lee de user-secrets, pero en el servidor de preproducción nadie tiene que tocar ese fichero.
-:::
-
-#### Aplicado al proyecto de tests (lo que ya hicimos)
-
-El proyecto `uaReservas.Tests` que veremos construir más adelante usa user-secrets **igual** que la app principal:
-
-```powershell
-# 1) Activar user-secrets en el proyecto de tests
-dotnet user-secrets init --project uaReservas.Tests
-
-# 2) Añadir la cadena de conexión al esquema de TEST
-dotnet user-secrets set "ConnectionStrings:oradb" "User Id=...;Password=...;Data Source=..." --project uaReservas.Tests
-
-# 3) Verificar
-dotnet user-secrets list --project uaReservas.Tests
-```
-
-Si no configuras esto, los tests que tocan Oracle se marcarán como **skipped** (con `[SkippableFact]`) y la suite seguirá pasando.
-
-#### Resumen — los seis comandos que te vas a aprender
-
-| Comando                                            | Para qué                                                |
-| -------------------------------------------------- | -------------------------------------------------------- |
-| `dotnet user-secrets init --project X`             | Activa user-secrets en el proyecto (añade `UserSecretsId`). |
-| `dotnet user-secrets set "Clave:Anidada" "valor"`  | Añade o actualiza un secreto.                           |
-| `dotnet user-secrets list`                          | Lista todos los secretos del proyecto.                  |
-| `dotnet user-secrets remove "Clave:Anidada"`       | Quita un secreto concreto.                              |
-| `dotnet user-secrets clear`                         | Quita TODOS los secretos del proyecto.                  |
-| `notepad %APPDATA%\Microsoft\UserSecrets\<id>\secrets.json` | Abre el fichero a pelo (Windows).               |
+| Comando                                              | Para qué                                                 |
+| ---------------------------------------------------- | -------------------------------------------------------- |
+| `dotnet user-secrets init`                           | Activa user-secrets en el proyecto (`UserSecretsId`).    |
+| `dotnet user-secrets set "Clave:Anidada" "valor"`    | Añade o actualiza un secreto.                            |
+| `dotnet user-secrets list`                           | Lista todos los secretos del proyecto.                   |
+| `dotnet user-secrets remove "Clave:Anidada"`         | Quita un secreto concreto.                               |
+| `dotnet user-secrets clear`                          | Quita TODOS los secretos del proyecto.                   |
+| `--project <ruta>.csproj`                            | Apunta a otro proyecto si no estás en su carpeta.        |
 
 ::: tip BUENA PRÁCTICA — diagnóstico rápido
-Si una conexión falla con "ORA-01017 invalid username/password" o un secreto parece "no llegar":
+Si una conexión falla con `ORA-01017 invalid username/password` o un secreto parece "no llegar":
 
-1. Ejecuta `dotnet user-secrets list --project X` para confirmar que el secreto está donde tú crees.
-2. Verifica que el entorno es `Development`: `echo $env:ASPNETCORE_ENVIRONMENT`.
-3. Si depuras en Visual Studio, abre la pestaña **Manage User Secrets** (clic derecho en el proyecto) — es el mismo fichero pero con GUI.
+1. `dotnet user-secrets list` — confirma que la clave existe con el valor que esperas.
+2. `echo $env:ASPNETCORE_ENVIRONMENT` — confirma que es `Development`. Fuera de ese entorno, user-secrets se ignora.
+3. En Visual Studio, clic derecho en el proyecto → **Manage User Secrets** — abre el `secrets.json` con GUI.
 :::
 
 ### 0.4 Repaso exprés de la sesión 3 (lo que vamos a usar enseguida)
@@ -828,39 +771,28 @@ sequenceDiagram
 
 ### 1.0.3 Pieza por pieza, con código real de `uaReservas`
 
-#### A. El "interruptor" general en `Program.cs`
+#### A. Vue vive dentro de Razor: la ruta `/` carga `Index.cshtml`
 
-Toda la cadena CAS + cookies + JWT + plantilla la activa **una sola línea**:
+Una app UA moderna **no tiene un proyecto Vue separado del proyecto .NET**. Es un único proyecto ASP.NET Core MVC con:
 
-```csharp {6,18,21}
-// Program.cs
-var builder = WebApplication.CreateBuilder(args);
+- Un `HomeController.Index()` que devuelve la vista Razor `Views/Home/Index.cshtml`.
+- Dentro de `Index.cshtml` hay un `<div id="app"></div>` y los `<script>` que cargan el bundle de Vite/Vue.
 
-builder.Services.AddViteServices();
+Cuando el navegador pide la URL raíz de la app (`https://localhost:44306/uareservas/`), el routing convencional de MVC (`{controller=Home}/{action=Index}/{id?}`) la mapea a `HomeController.Index()`. Esa acción devuelve `Index.cshtml`, y **el navegador descarga el HTML + los scripts de Vite**. A partir de ese momento Vue se monta sobre `<div id="app">` y manda en el DOM; las siguientes peticiones son llamadas API (JSON) desde Vue al mismo backend .NET.
 
-builder.AddServicesUA();        // ← (1) Registra CAS, JWT, ClaseTokens, plantilla...
-
-builder.Services.AddControllersWithViews(options => {
-    options.Filters.Add(typeof(GestionLayoutFilter));
-});
-
-var app = builder.Build();
-
-app.UseRouting();
-app.UsePreServicesUA();         // ← (2) Antes de auth: setup de la plantilla
-
-app.UseAuthentication();        // ← (3) Aquí actúa CAS y se generan los JWT
-app.UseAuthorization();
-
-app.UseServicesUA(app.Environment.IsDevelopment());   // (4) Middleware UA
+```mermaid
+flowchart LR
+    Browser["GET /uareservas/"] --> Routing["Routing MVC<br/>{controller=Home}/{action=Index}"]
+    Routing --> Home["HomeController.Index()<br/>[Authorize]"]
+    Home --> View["Views/Home/Index.cshtml<br/>(HTML + &lt;div id='app'&gt;<br/>+ scripts Vite/Vue)"]
+    View --> Vue["Vue se monta y manda<br/>en el DOM del navegador"]
 ```
 
-| #   | Pieza                          | Qué hace                                                                                                    |
-| --- | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| (1) | `builder.AddServicesUA()`      | Registra el **scheme de cookies** + el **scheme de CAS** + `ClaseTokens` en el contenedor de DI.            |
-| (2) | `app.UsePreServicesUA()`       | Prepara estado de la plantilla antes de la autenticación.                                                  |
-| (3) | `UseAuthentication`            | **El núcleo**: detecta que falta cookie → 302 a CAS. Cuando vuelve, valida ticket, escribe **3 cookies**.   |
-| (4) | `app.UseServicesUA(...)`       | Cierra la inicialización (filtros UI, idioma, etc.).                                                       |
+<!-- diagram id="razor-lanza-vue" caption: "La ruta por defecto (Home/Index) devuelve Razor; Razor entrega los scripts de Vue al navegador." -->
+
+::: info CONTEXTO — esto NO es "Vue como SPA hosteada por nginx"
+En otras arquitecturas Vue es un proyecto independiente que se compila a estáticos y los sirve un servidor web aparte. Aquí Vue **vive dentro del ciclo de petición de .NET**: la primera petición es una vista Razor; las siguientes son llamadas API al mismo proceso. Por eso `[Authorize]` en `HomeController` ya basta para forzar el login antes de que Vue siquiera arranque — el navegador no carga ni un solo `.js` de Vue hasta que CAS ha emitido las cookies de sesión.
+:::
 
 #### B. La página de entrada: `HomeController` con `[Authorize]`
 
@@ -1058,18 +990,40 @@ public async Task<IActionResult> MisReservas()
 }
 
 [HttpPost("Aprobar/{idReserva:int}")]
+[Authorize(Roles = "admin")]   // ← El rol se exige en la CABECERA, no dentro del método.
 public async Task<IActionResult> Aprobar(int idReserva)
 {
-    // Comprobación de rol sin hardcodear strings repartidos:
-    if (!Roles.Contains("RESERVAS_ADMIN"))
-        return Forbid();
-
+    // Si llegamos aquí, el usuario está autenticado Y tiene el rol "admin".
+    // Si no, ASP.NET ya devolvió 401 (sin cookie) o 403 (sin rol) automáticamente.
     await _reservas.AprobarAsync(idReserva, aprobadoPor: CodPer);
     return NoContent();
 }
 ```
 
 Esto es la clave de lo que vimos en 1.2: **`CODPER`, idioma, roles y datos personales se obtienen del token en el servidor, jamás del payload que envía Vue**. Aunque un usuario malicioso intente enviar `codPer=999` en el body, el servidor lo ignora — usa el de `User`.
+
+::: tip BUENA PRÁCTICA — la autorización por rol va en el atributo
+**No** uses `if (!Roles.Contains("..."))` dentro del método. Tres razones:
+
+1. **El check se ejecuta antes de entrar al método.** ASP.NET corta la petición con 401/403 sin ejecutar tu lógica ni abrir transacciones Oracle.
+2. **Es declarativo:** mirando la cabecera del método ya sabes quién puede llamarlo. No hay que leer el cuerpo para saberlo.
+3. **Lo lee Scalar/OpenAPI:** la UI de la API documenta qué endpoints necesitan qué rol automáticamente.
+
+Para casos sencillos, `[Authorize(Roles = "admin")]` basta. Para combinaciones (PDI o PTGAS, varios roles con la misma política, etc.) se definen **políticas con nombre** en `Program.cs` y se aplican con `[Authorize(Policy = "...")]`. La app de Accesibilidad lo hace así — mira `Accesibilidad/Configuration/AuthorizationPolicies.cs` y la sección `AddAuthorization` de su `Program.cs`. Para profundizar, el skill `ua-dotnet-seguridad` (en `skills-claude/`) tiene el patrón completo: vista Oracle de roles, mapeo de claim `ROLES` → `ClaimTypes.Role`, definición de políticas y uso en controladores.
+:::
+
+::: info CONTEXTO — `Roles` viene del claim `ROLES` declarado en `appsettings.json`
+Para que `[Authorize(Roles = "admin")]` funcione, el JWT que emite la plantilla UA debe llevar un claim `ROLES`. Ese claim se activa declarándolo en `App:Variables`:
+
+```json
+"App": {
+  "IdApp": "PRU_MVC",
+  "Variables": [ "PATHFOTO", "LENGUA", "CODPER_UAAPPS", "NOMPER", "ROLES" ]
+}
+```
+
+La plantilla UA lee la vista Oracle de roles del usuario (`{ESQUEMA}.V_ROLES_USUARIOS` típicamente, con `LISTAGG` agrupando todos los roles por `CODPER`) y los inyecta como un único string en el claim `ROLES`. La propiedad `Roles` de `ControladorBase` (vista arriba) lo parsea a lista para cuando quieras leerlo programáticamente — pero **para autorizar, prefiere el atributo**.
+:::
 
 #### G. Refresco automático
 
@@ -1293,6 +1247,88 @@ namespace ua.Models.Reservas
     }
 }
 ```
+
+#### Lo mismo, pero como `record`: para la API no hay diferencia
+
+El mismo Modelo se puede escribir como `record` y la API lo trata **exactamente igual** (mismo JSON, mismas validaciones, mismo binding). Es solo una forma más corta de declarar la clase cuando el DTO no necesita lógica interna:
+
+```csharp
+// Models/Reservas/TipoRecursoDto.cs
+using System.ComponentModel.DataAnnotations;
+
+namespace ua.Models.Reservas
+{
+    /// <summary>
+    /// DTO de TipoRecurso en versión record. Equivalente funcional a la clase
+    /// de arriba: mismos campos, mismas DataAnnotations, mismo JSON.
+    /// </summary>
+    public record TipoRecursoDto(
+        int IdTipoRecurso,
+        [Required, MaxLength(100)] string Codigo,
+        [Required, MaxLength(150)] string NombreEs,
+        [Required, MaxLength(150)] string NombreCa,
+        [Required, MaxLength(150)] string NombreEn
+    );
+}
+```
+
+Un endpoint que lo devuelva en JSON se escribe igual que con la clase:
+
+```csharp
+// Controllers/Apis/TiposRecursoController.cs
+[Route("api/[controller]")]
+[ApiController]
+[Authorize]
+public class TiposRecursoController : ControladorBase
+{
+    /// <summary>Devuelve un ejemplo "hardcodeado" de TipoRecurso como record.</summary>
+    [HttpGet("Ejemplo")]
+    public ActionResult<TipoRecursoDto> Ejemplo() =>
+        Ok(new TipoRecursoDto(
+            IdTipoRecurso: 1,
+            Codigo:        "SALAREU",
+            NombreEs:      "Sala de reuniones",
+            NombreCa:      "Sala de reunions",
+            NombreEn:      "Meeting room"));
+}
+```
+
+JSON de respuesta:
+
+```json
+{
+  "idTipoRecurso": 1,
+  "codigo": "SALAREU",
+  "nombreEs": "Sala de reuniones",
+  "nombreCa": "Sala de reunions",
+  "nombreEn": "Meeting room"
+}
+```
+
+::: tip BUENA PRÁCTICA — cuándo usar `record` y cuándo `class`
+| Usa `record`...                                          | Usa `class`...                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------------ |
+| DTOs de entrada/salida cortos, sin lógica interna.       | Entidades con métodos, lógica de validación cruzada o estado mutable. |
+| Cuando quieres igualdad por valor (tests, comparaciones). | Cuando el objeto va a mutar campos a lo largo de su vida.          |
+| Cuando lo declaras y desaparece en 1-2 líneas.           | Cuando tienes 5+ propiedades con `[DataAnnotation]` largas.        |
+
+Para la API es **indiferente**: ASP.NET Core serializa records con `System.Text.Json` igual que clases (PascalCase → camelCase en el JSON), y el model binding rellena las propiedades del constructor primario igual que rellenaría setters.
+:::
+
+::: info CONTEXTO — sintaxis "constructor primario"
+`public record TipoRecursoDto(int IdTipoRecurso, ...)` declara propiedades **inmutables** (`init`-only) y un constructor que las recibe todas. Si necesitas que sean mutables (para que un formulario las modifique tras crearlas), usa la forma alternativa:
+
+```csharp
+public record TipoRecursoDto
+{
+    public int    IdTipoRecurso { get; set; }
+    public string Codigo        { get; set; } = string.Empty;
+    // ...
+}
+```
+
+Sigue siendo un `record` (sigue teniendo igualdad por valor), pero las propiedades son mutables como en una clase.
+:::
 
 ### Modelo más completo: `Recurso`
 
@@ -1583,194 +1619,10 @@ public class ReservasController : ControllerBase
 
 :::
 
-## 1.3.bis Patrón `Result<T>` + `HandleResult`: una sola forma de responder
-
-Antes de seguir, paramos un momento para introducir **el patrón que vamos a usar en TODOS los controladores del curso**. Si lo entiendes ahora, los próximos controladores son trivial.
-
-### 1.3.bis.1 El problema: `return Ok / NotFound / Problem` repartido por todas partes
-
-Mira el controlador que acabamos de ver: cada acción decide a mano cuándo devolver `Ok`, cuándo `NotFound`, cuándo `Problem`, y construye su `ProblemDetails` artesanal. Eso significa:
-
-- **Repetición**: cada controlador escribe el mismo `if (datos == null) return NotFound(...)`.
-- **Inconsistencia**: en uno el `ProblemDetails` lleva `Title`, en otro `Detail`, en otro nada.
-- **Mezcla de capas**: el controlador conoce los códigos HTTP **y** la lógica de negocio.
-- **Tests difíciles**: para probar el flujo "no existe" hay que montar HTTP, no basta con probar el servicio.
-
-::: tip BUENA PRÁCTICA — separar QUÉ ha pasado de CÓMO se traduce a HTTP
-Queremos que **el servicio diga qué pasó** (éxito, no encontrado, validación falla, error inesperado) y que **una sola clase del controlador traduzca eso a HTTP**. Así cada uno tiene una responsabilidad.
-:::
-
-### 1.3.bis.2 Las piezas: `Result<T>`, `Error`, `ErrorType`
-
-Creamos un pequeño "sobre" en el que el servicio mete su respuesta. **`Result<T>` es un éxito con un valor, o un fallo con un `Error`** — nunca las dos cosas.
-
-```csharp
-// Models/Errors/ErrorType.cs
-public enum ErrorType
-{
-    Failure    = 0,   // -> HTTP 500 (error inesperado)
-    Validation = 1,   // -> HTTP 400 (datos inválidos del cliente)
-    NotFound   = 2    // -> HTTP 404 (recurso no encontrado)
-}
-
-// Models/Errors/Error.cs — record inmutable
-public record Error(
-    string Code,                                          // ej. "RECURSO_NO_ENCONTRADO"
-    string Message,                                       // mensaje legible
-    ErrorType Type,                                       // clasifica el error
-    IDictionary<string, string[]>? ValidationErrors = null);
-
-// Models/Errors/Result.cs
-public class Result<T>
-{
-    public bool   IsSuccess { get; }
-    public T?     Value     { get; }
-    public Error? Error     { get; }
-
-    private Result(T value)        => (IsSuccess, Value, Error) = (true,  value,   null);
-    private Result(Error error)    => (IsSuccess, Value, Error) = (false, default, error);
-
-    public static Result<T> Success(T value)         => new(value);
-    public static Result<T> Failure(Error error)     => new(error);
-
-    // Atajos para no tener que crear el Error a mano cada vez:
-    public static Result<T> NotFound(string code, string message) =>
-        new(new Error(code, message, ErrorType.NotFound));
-
-    public static Result<T> Validation(string code, string message,
-        IDictionary<string, string[]>? errors = null) =>
-        new(new Error(code, message, ErrorType.Validation, errors));
-
-    public static Result<T> Fail(string code, string message) =>
-        new(new Error(code, message, ErrorType.Failure));
-}
-```
-
-### 1.3.bis.3 `ApiControllerBase` con `HandleResult`
-
-Ahora la clase base que TODOS los controladores API heredan. Su única misión: convertir `Result<T>` en respuesta HTTP. Esto se escribe **una sola vez** en todo el proyecto.
-
-```csharp
-// Controllers/Apis/ApiControllerBase.cs
-public abstract class ApiControllerBase : ControllerBase
-{
-    /// <summary>
-    /// Convierte un Result<T> en HTTP:
-    ///   Success           -> 200 OK con result.Value
-    ///   Validation        -> 400 ValidationProblemDetails (con campo->errores)
-    ///   NotFound          -> 404 ProblemDetails
-    ///   Failure (default) -> 500 ProblemDetails genérico
-    /// </summary>
-    protected ActionResult HandleResult<T>(Result<T> result)
-    {
-        if (result.IsSuccess)
-            return Ok(result.Value);
-
-        var error = result.Error!;
-        return error.Type switch
-        {
-            ErrorType.Validation => ValidationProblem(
-                new ValidationProblemDetails(
-                    error.ValidationErrors ?? new Dictionary<string, string[]>())
-                {
-                    Detail = error.Message,
-                    Status = StatusCodes.Status400BadRequest
-                }),
-
-            ErrorType.NotFound => NotFound(new ProblemDetails
-            {
-                Title  = error.Code,
-                Detail = error.Message,
-                Status = StatusCodes.Status404NotFound
-            }),
-
-            _ => Problem(
-                detail:     error.Message,
-                title:      error.Code,
-                statusCode: StatusCodes.Status500InternalServerError)
-        };
-    }
-}
-```
-
-En el curso, `ControladorBase` (el que ya conocemos, con `ObtenerIdiomaPeticion`, `CodPer`, etc.) **hereda de `ApiControllerBase`**. Así los controladores específicos heredan de `ControladorBase` y obtienen **las dos cosas a la vez**: helpers de usuario y `HandleResult`.
-
-```mermaid
-classDiagram
-    class ControllerBase {
-      <<framework>>
-      +Ok, NotFound, Problem...
-    }
-    class ApiControllerBase {
-      <<UA>>
-      #HandleResult(Result~T~)
-    }
-    class ControladorBase {
-      <<UA>>
-      #ObtenerIdiomaPeticion()
-      #CodPer
-      #Roles, Idioma...
-    }
-    class TipoRecursosController {
-      +Listar()
-      +ObtenerPorId(int)
-    }
-
-    ControllerBase <|-- ApiControllerBase
-    ApiControllerBase <|-- ControladorBase
-    ControladorBase <|-- TipoRecursosController
-```
-
-<!-- diagram id="jerarquia-controlador-base" caption: "ApiControllerBase aporta HandleResult; ControladorBase aporta claims; los controladores los heredan los dos." -->
-
-### 1.3.bis.4 Los servicios devuelven `Result<T>`, no datos pelados
-
-Antes el servicio devolvía `Task<TipoRecursoLectura?>` y dejaba al controlador interpretar el `null`. Ahora devuelve `Task<Result<TipoRecursoLectura>>` y la respuesta es **explícita**:
-
-```csharp
-public async Task<Result<TipoRecursoLectura>> ObtenerPorIdAsync(int id, string idioma)
-{
-    var fila = await _bd.ObtenerPrimeroMapAsync<TipoRecursoLectura>(
-        "SELECT ... FROM CURSONORMADM.VRES_TIPO_RECURSO WHERE ID_TIPO_RECURSO = :id",
-        new { id }, idioma);
-
-    return fila is null
-        ? Result<TipoRecursoLectura>.NotFound(
-            "TIPO_RECURSO_NO_ENCONTRADO",
-            $"No existe un tipo de recurso con id {id}.")
-        : Result<TipoRecursoLectura>.Success(fila);
-}
-```
-
-Y la acción del controlador queda **a una línea**:
-
-```csharp
-[HttpGet("{id:int}")]
-public async Task<ActionResult> ObtenerPorId(int id) =>
-    HandleResult(await _tiposRecurso.ObtenerPorIdAsync(id, ObtenerIdiomaPeticion()));
-```
-
-::: info CONTEXTO — ¿se ha "ido" el `if`?
-No, está en `HandleResult`. Pero está **escrito una sola vez**, en la clase base. Cada controlador deja de tener `if` repetidos, y los códigos HTTP dejan de salpicar el código de dominio.
-:::
-
-### 1.3.bis.5 Comparativa antes / ahora
-
-| Aspecto                           | Antes                                                      | Con `Result<T>` + `HandleResult`                       |
-| --------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------ |
-| Lo que devuelve el servicio       | `T?` con `null` significa "no existe"                      | `Result<T>` explícito (`Success`, `NotFound`, ...)     |
-| Qué hace el controlador           | `if (x == null) return NotFound(new ProblemDetails {...})` | `return HandleResult(await _svc.Algo(...))`            |
-| Coherencia de respuestas          | Cada acción improvisa su `ProblemDetails`                  | Centralizado en una sola clase base                    |
-| Tests del servicio                | Tests "happy path"; el `null` cuesta interpretarlo         | Tests asertan `IsSuccess` y `Error.Type` directamente  |
-| Mezcla de capas                   | El servicio "sabe" que un null se traducirá a 404          | El servicio expresa el dominio; HTTP lo decide la base |
-
-::: tip BUENA PRÁCTICA — cuándo NO usar `Result<T>`
-No todo necesita `Result<T>`. Para una operación que **siempre tiene éxito o no aplica** (por ejemplo `ExisteAsync` que devuelve `bool`), un tipo simple es más claro. Reserva `Result<T>` para acciones que pueden fallar de **varias formas distintas** (no encontrado, validación, conflicto, etc.).
-:::
 
 ## 1.4 Probando la API sin base de datos
 
-Antes de conectar con Oracle, es útil probar con datos hardcodeados. Así validamos que el controlador, las rutas y los códigos de estado funcionan correctamente. **Y de paso vemos en la práctica que el DTO de salida (`RecursoConTipo`) no es la entidad de tabla (`Recurso`)**: el controlador hace la proyección. Esta versión usa el patrón `Result<T>` + `HandleResult` que acabamos de introducir.
+Antes de conectar con Oracle, es útil probar con datos hardcodeados. Así validamos que el controlador, las rutas y los códigos de estado funcionan correctamente. **Y de paso vemos en la práctica que el DTO de salida (`RecursoConTipo`) no es la entidad de tabla (`Recurso`)**: el controlador hace la proyección. En esta sesión todavía no usamos `Result<T>` — devolvemos `Ok(...)` / `NotFound(...)` directamente. El patrón `Result<T>` + `HandleResult` que centraliza esa decisión llega en la **sesión 5**.
 
 ```csharp
 // Controllers/Apis/RecursosController.cs
@@ -2450,1035 +2302,209 @@ Si tu API cumple eso, **el código Vue se reduce a casi nada**: una rama feliz (
 
 Por eso lo importante es **devolver el status correcto desde .NET**: lo demás lo gestiona el cliente con un patrón único.
 
-## 1.8 Mapeo automático de `ClaseOracleBD3` (y cómo nos simplifica el multiidioma)
 
-Cuando un servicio llama a `bd.ObtenerTodosMapAsync<T>(sql, param, idioma)`, la librería **rellena el objeto `T` por su cuenta** leyendo columna a columna del cursor que devuelve Oracle. No hace falta escribir un mapeador manual. Vemos **cómo funciona** ese mapeo y cómo aprovecharlo para escribir menos código.
+## 1.8 Probar la API sin Vue: Chrome DevTools + `Home.vue`
 
-::: info CONTEXTO
-La vista `VRES_RECURSO` trae las tres versiones (`NOMBRE_ES`, `NOMBRE_CA`, `NOMBRE_EN`). Pero **no siempre** es así: muchos procedimientos PL/SQL devuelven un cursor con una sola columna `NOMBRE` (ya resuelta al idioma del usuario), y muchas vistas de solo lectura tampoco se molestan en exponer las tres columnas si solo van a alimentar listados.
+Hemos visto cómo se diseña la API, qué responde cada endpoint y cómo lo documenta Scalar. Antes de meternos con Oracle, vamos a **probarla en vivo** sin tocar nada de Vue.
 
-Cuando la fuente trae **una** columna `NOMBRE`, nuestro DTO también puede tener **una** propiedad `Nombre`. Cuando la fuente trae **tres** (`NOMBRE_ES/CA/EN`), `ClaseOracleBD3` nos deja elegir: o las tres en el DTO (típico para edición), o una sola `Nombre` que se resuelve por idioma (típico para lectura).
-:::
-
-### 1.8.1 Cómo resuelve los nombres de columna
-
-`ClaseOracleBD3` recorre cada propiedad pública del tipo `T` y, para cada una, busca su columna en el `OracleDataReader` por **prioridad**:
-
-| Prioridad | Regla                          | Ejemplo                                          |
-| --------- | ------------------------------ | ------------------------------------------------ |
-| 1ª        | Atributo `[Columna("...")]`    | `[Columna("COD_USR")] string Usuario;` → `COD_USR` |
-| 2ª        | Nombre exacto en mayúsculas    | `Email` → `EMAIL`                                |
-| 3ª        | Conversión PascalCase → SNAKE  | `FechaModificacion` → `FECHA_MODIFICACION`       |
-| 4ª        | Sufijo de idioma (si se pasa)  | `Nombre` + `idioma="ES"` → `NOMBRE_ES`           |
-
-Si una propiedad lleva `[IgnorarMapeo]`, se salta (útil para propiedades calculadas o subobjetos rellenados por `funcionPostMapeo`).
-
-### 1.8.2 Conversiones de tipo "gratis"
-
-El mismo mapeo se ocupa de convertir tipos Oracle ↔ .NET sin que escribamos `Convert.ToXxx`:
-
-| Columna Oracle             | Propiedad C# permitida                     |
-| -------------------------- | ------------------------------------------ |
-| `NUMBER`                   | `int`, `long`, `decimal`, `double`         |
-| `VARCHAR2('S'/'N')`        | `bool` (`'S'`,`'Y'`,`'1'`,`'SI'` → `true`) |
-| `VARCHAR2` con texto       | `string`                                   |
-| `VARCHAR2` con número      | `int`, `decimal`                           |
-| `DATE`, `TIMESTAMP`        | `DateTime`, `DateTime?`                    |
-| `BLOB`                     | `byte[]`                                   |
-
-Por eso `Recurso.Activo` se declara `bool` aunque la columna sea `VARCHAR2(1)`: la conversión `'S'`/`'N'` ↔ `true`/`false` la hace la librería.
-
-### 1.8.3 Multiidioma con un solo `Nombre`
-
-Aquí está el truco que ahorra columnas en el DTO. Si pasamos `idioma` a los métodos de mapeo, **al no encontrar la columna `NOMBRE` exacta**, la librería intenta añadir el sufijo:
-
-```mermaid
-flowchart TD
-    A["Propiedad C#: Nombre"] --> B{"¿Existe columna<br/>'NOMBRE' en el reader?"}
-    B -- "Sí" --> OK1[Mapea NOMBRE → Nombre]
-    B -- "No" --> C{"¿Se pasó idioma?"}
-    C -- "Sí (p.ej. ES)" --> D{"¿Existe NOMBRE_ES?"}
-    D -- "Sí" --> OK2[Mapea NOMBRE_ES → Nombre]
-    D -- "No" --> E["Fallback a NOMBRE_ES (es)"]
-    C -- "No" --> F[Propiedad sin valor]
-```
-
-<!-- diagram id="resolucion-multiidioma-oraclebd3" caption: "Resolución de columnas con sufijo de idioma" -->
-
-### 1.8.4 La clase ligera de lectura: `RecursoLectura`
-
-Si solo vamos a **consumir** recursos (listado, autocompletado, combo), no necesitamos `NombreEs`, `NombreCa` y `NombreEn`. Una propiedad `Nombre` basta:
-
-```csharp
-// Models/Reservas/RecursoLectura.cs
-namespace ua.Models.Reservas
-{
-    // DTO ligero pensado SOLO para lectura.
-    // Tiene una sola propiedad Nombre (no las tres por idioma).
-    // El idioma se resuelve al llamar a ObtenerTodosMapAsync(..., idioma).
-    public class RecursoLectura
-    {
-        public int IdRecurso { get; set; }
-        public string Nombre { get; set; } = string.Empty;        // ← NOMBRE_{idioma}
-        public string? Descripcion { get; set; }                  // ← DESCRIPCION_{idioma}
-
-        public int? Granulidad { get; set; }
-        public int? Duracion { get; set; }
-
-        public int? IdTipoRecurso { get; set; }
-        public string? TipoCodigo { get; set; }
-        public string? TipoNombre { get; set; }                   // ← TIPO_NOMBRE_{idioma}
-    }
-}
-```
-
-Y la consulta se reduce a una llamada:
-
-```csharp
-public async Task<List<RecursoLectura>> ObtenerLecturaAsync(string idioma)
-{
-    const string sql = @"
-        SELECT ID_RECURSO,
-               NOMBRE_ES, NOMBRE_CA, NOMBRE_EN,
-               DESCRIPCION_ES, DESCRIPCION_CA, DESCRIPCION_EN,
-               GRANULIDAD, DURACION,
-               ID_TIPO_RECURSO, TIPO_CODIGO,
-               TIPO_NOMBRE_ES, TIPO_NOMBRE_CA, TIPO_NOMBRE_EN
-        FROM CURSONORMADM.VRES_RECURSO
-        ORDER BY NOMBRE_" + idioma;
-
-    var filas = await bd.ObtenerTodosMapAsync<RecursoLectura>(
-        sql,
-        param: null,
-        idioma: idioma);          // ← resuelve Nombre, Descripcion, TipoNombre
-
-    return filas?.ToList() ?? new List<RecursoLectura>();
-}
-```
-
-::: tip BUENA PRÁCTICA — clase pesada vs clase ligera
-Sobre la misma tabla podemos convivir con **dos modelos** según el uso:
-
-| Uso                                       | Clase            | `Nombre*`                          |
-| ----------------------------------------- | ---------------- | ---------------------------------- |
-| Edición (necesita guardar los 3 idiomas)  | `Recurso`        | `NombreEs`, `NombreCa`, `NombreEn` |
-| Listado/combo (solo lectura)              | `RecursoLectura` | `Nombre` (resuelto por idioma)     |
-
-No es duplicación: cada clase es el **contrato adecuado para una operación**. Si una pantalla solo lee, no la obligues a cargar columnas que va a ignorar. **Estos modelos los construiremos desde cero en la próxima sección.**
-:::
-
-### 1.8.5 Antes (constructor `IDataRecord`) vs ahora (`ObtenerTodosMapAsync<T>`)
-
-Esto importa porque en proyectos antiguos de la UA es probable que veas todavía el patrón **legacy**: cada modelo tenía un constructor que recibía `IDataRecord` y rellenaba las propiedades una a una.
-
-::: code-group
-
-```csharp [Antes (legacy)]
-// Models/Reservas/RecursoLectura.cs — patrón antiguo
-public class RecursoLectura
-{
-    public int IdRecurso { get; set; }
-    public string Nombre { get; set; } = "";
-    public string? Descripcion { get; set; }
-    public bool Activo { get; set; }
-
-    public RecursoLectura() { }
-
-    // Constructor especial: mapeo MANUAL columna a columna
-    public RecursoLectura(IDataRecord r)
-    {
-        IdRecurso  = Convert.ToInt32(r["ID_RECURSO"]);
-        Nombre     = r["NOMBRE_ES"].ToString() ?? "";
-        Descripcion= r["DESCRIPCION_ES"]?.ToString();
-        Activo     = r["ACTIVO"]?.ToString() == "S";
-    }
-}
-
-// Uso:
-bd.TextoComando = "SELECT * FROM VRES_RECURSO";
-var lista = bd.GetAllObjects<RecursoLectura>();  // usa el constructor
-```
-
-```csharp [Ahora (mapeo automático)]
-// Models/Reservas/RecursoLectura.cs — sin constructor especial
-public class RecursoLectura
-{
-    public int IdRecurso { get; set; }
-    public string Nombre { get; set; } = "";        // ← multiidioma automático
-    public string? Descripcion { get; set; }
-    public bool Activo { get; set; }                // ← 'S'/'N' → bool automático
-}
-
-// Uso:
-var lista = await bd.ObtenerTodosMapAsync<RecursoLectura>(
-    "SELECT * FROM VRES_RECURSO",
-    param: null,
-    idioma: "ES");
-```
-
-:::
-
-::: warning IMPORTANTE — ventajas del enfoque actual
-- **Menos código**: desaparece el constructor `IDataRecord` y los `Convert.ToXxx` manuales.
-- **Menos errores**: si añades una columna a la vista, el viejo constructor seguía sin leerla; ahora se mapea sola con solo añadir la propiedad.
-- **Asíncrono**: `ObtenerTodosMapAsync<T>` no bloquea el hilo (importante en APIs con concurrencia).
-- **Multiidioma de regalo**: el parámetro `idioma` cambia el sufijo en runtime sin tocar el modelo.
-
-El patrón legacy sigue funcionando (`GetAllObjects<T>`, `GetObject<T>` están disponibles) pero está en el apéndice de la guía y se conserva solo por compatibilidad. **Para código nuevo, usa siempre `ObtenerTodosMap[Async]<T>` / `ObtenerPrimeroMap[Async]<T>`**.
-:::
-
-### 1.8.6 Cuándo necesitas `[Columna]` o `[IgnorarMapeo]`
-
-| Atributo                | Cuándo usarlo                                                                            |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| `[Columna("NOMBRE")]`   | La columna **no** sigue SNAKE_CASE (`IDDOC`, `FECALTA`, `CODPER`, etc.).                  |
-| `[IgnorarMapeo]`        | Propiedad **calculada** (`get => $"{Nombre} ({Codigo})"`) o subobjeto rellenado a mano. |
-
-Ejemplo combinando ambos:
-
-```csharp
-public class RecursoLectura
-{
-    public int IdRecurso { get; set; }
-
-    [Columna("NOMBRE_ES")]   // forzamos columna concreta, ignoramos el idioma
-    public string NombreOriginal { get; set; } = "";
-
-    public string Nombre { get; set; } = "";  // resuelta por idioma
-
-    [IgnorarMapeo]
-    public string NombreConCodigo => $"{Nombre} ({TipoCodigo})";
-
-    public string? TipoCodigo { get; set; }
-}
-```
-
-::: danger ZONA PELIGROSA
-Sin `[IgnorarMapeo]`, una propiedad como `NombreConCodigo` haría que `ClaseOracleBD3` buscase una columna `NOMBRE_CON_CODIGO` que **no existe** → excepción en runtime. Si una propiedad no proviene de la BD, márcala explícitamente.
-:::
-
-### 1.8.7 Documentación de referencia
-
-La documentación completa de `ClaseOracleBD3` está en:
-
-- [Guía de uso (Markdown)](https://preproddesa.campus.ua.es/docu-aplicaciones/guias/dotnet/nugets/claseoraclebd3.html)
-- En el repositorio del NuGet: `ClaseOracleBD3/Documentacion/GUIA-DE-USO.md`
-
-Allí se cubren transacciones, `REF CURSOR`, UDT, `funcionPostMapeo` para subobjetos y el apéndice "Código Legacy" con la tabla comparativa legacy/actual.
-
-## 1.9 Cuando DataAnnotations se queda corto: FluentValidation
-
-Las DataAnnotations (`[Required]`, `[StringLength]`, `[Range]`) que vimos antes son perfectas para validación **de campo aislado**. Pero hay reglas que las exceden:
-
-- **Cruces entre campos**: si `FechaReserva` es hoy, entonces `HoraInicio` debe ser futura.
-- **Reglas contra base de datos**: `IdRecurso` debe existir y estar activo.
-- **Reglas de negocio**: la duración debe ser múltiplo de la `Granulidad` del recurso.
-- **Detección de conflictos**: no puede solapar con otra reserva existente.
-
-Para esto en la UA usamos **FluentValidation**.
-
-::: info CONTEXTO
-FluentValidation es una librería que separa las reglas del DTO. El DTO queda como una clase plana de propiedades; las reglas viven en un **`Validator`** dedicado, con API fluida (`RuleFor(x => x.Campo).NotEmpty().GreaterThan(0)`) y soporte nativo de **async** para tocar la BD.
-:::
-
-### 1.8.1 El caso real: crear una reserva
-
-La tabla `TRES_RESERVA` tiene esta forma (resumida):
-
-| Columna           | Tipo            | ¿Quién lo aporta?                                  |
-| ----------------- | --------------- | -------------------------------------------------- |
-| `ID_RESERVA`      | NUMBER (PK)     | Oracle (secuencia)                                 |
-| `ID_RECURSO`      | NUMBER          | Cliente                                            |
-| `FECHA_RESERVA`   | DATE            | Cliente                                            |
-| `HORA_INICIO`     | NUMBER 0..23    | Cliente                                            |
-| `MINUTO_INICIO`   | NUMBER 0..59    | Cliente                                            |
-| `MINUTOS_RESERVA` | NUMBER > 0      | Cliente                                            |
-| `OBSERVACIONES`   | VARCHAR2(1000)  | Cliente (opcional)                                 |
-| **`CODPER`**      | **NUMBER**      | **Servidor (token JWT) — NUNCA el cliente**        |
-| `FECHA_ALTA`      | DATE            | Oracle (`DEFAULT sysdate`)                         |
-| `FECHA_CONFIRMACION` | DATE         | Servidor cuando se confirma                        |
-
-Aplicando lo de 1.2, el DTO de entrada **solo** lleva los campos del cliente:
-
-```csharp
-// Models/Reservas/ReservaCrear.cs
-public class ReservaCrear
-{
-    public int IdRecurso { get; set; }
-    public DateTime FechaReserva { get; set; }
-    public int HoraInicio { get; set; }      // 0..23
-    public int MinutoInicio { get; set; }    // 0..59
-    public int MinutosReserva { get; set; }  // > 0
-    public string? Observaciones { get; set; }
-}
-```
-
-::: danger ZONA PELIGROSA — `CODPER` no está en el DTO
-El `CODPER` **no aparece** en `ReservaCrear`. Aunque la tabla lo necesite, el cliente nunca lo envía: lo inyecta el controlador desde el token JWT. Si lo pusiéramos en el DTO, un usuario podría crear reservas en nombre de **otra persona**.
-
-> *"No puedes validar lo que no puedes recibir."* La forma más segura de validar `CODPER` es **no aceptarlo nunca como entrada**.
-:::
-
-### 1.8.2 Instalación y registro
-
-```bash
-dotnet add package FluentValidation.AspNetCore
-```
-
-```csharp
-// Program.cs
-
-// Registra todos los AbstractValidator<T> del ensamblado
-builder.Services.AddValidatorsFromAssemblyContaining<ReservaCrearValidator>();
-builder.Services.AddFluentValidationAutoValidation();   // integra con [ApiController]
-```
-
-Con `AddFluentValidationAutoValidation`, el `[ApiController]` ejecuta el validator antes de entrar al método. Si falla, ASP.NET devuelve **400 Bad Request** con el mismo formato `ValidationProblemDetails` que ya conocemos.
-
-### 1.8.3 El validator: patrones que vas a repetir
-
-Un validator es una clase que hereda de `AbstractValidator<T>` y declara las reglas en el constructor. Veamos los **tres patrones síncronos** (los asíncronos contra BD los veremos al construir los servicios desde cero):
-
-**Patrón 1 — Rangos simples por campo** (equivalente a `[Range]` pero más legible):
-
-```csharp
-RuleFor(r => r.HoraInicio)
-    .InclusiveBetween(0, 23)
-    .WithMessage("La hora de inicio debe estar entre 0 y 23.");
-
-RuleFor(r => r.MinutosReserva)
-    .GreaterThan(0).WithMessage("La duracion debe ser mayor que 0.")
-    .LessThanOrEqualTo(8 * 60).WithMessage("Maximo 8 horas.");
-```
-
-**Patrón 2 — Regla con `Must` (cruce de campos, síncrono):**
-
-```csharp
-RuleFor(r => r.FechaReserva)
-    .NotEmpty().WithMessage("La fecha es obligatoria.")
-    .Must(f => f.Date >= DateTime.Today)
-        .WithMessage("La fecha no puede ser pasada.");
-```
-
-**Patrón 3 — `When` para reglas condicionales:**
-
-```csharp
-// Solo si la fecha es HOY exigimos que la hora sea futura.
-When(r => r.FechaReserva.Date == DateTime.Today, () =>
-{
-    RuleFor(r => r)
-        .Must(r =>
-            r.FechaReserva.Date
-             .AddHours(r.HoraInicio)
-             .AddMinutes(r.MinutoInicio) > DateTime.Now)
-        .WithName("HoraInicio")
-        .WithMessage("La hora de inicio ya ha pasado.");
-});
-```
-
-**Patrón 4 (avanzado) — `MustAsync` contra la base de datos:** la pieza que DataAnnotations **no** puede hacer. Permite preguntar a Oracle si una FK existe, si hay solapamiento, etc. **Se verá cuando construyamos los servicios desde cero**, porque requiere inyectar un servicio que sepa consultar Oracle.
-
-::: tip BUENA PRÁCTICA — `WithName` cuando la regla es a nivel de objeto
-Las reglas tipo `RuleFor(r => r).Must(...)` validan **todo el DTO**, no un campo concreto. Sin `WithName`, el error aparecería en una propiedad genérica. Usamos `WithName("HoraInicio")` para que el error se asocie al campo correcto.
-:::
-
-### 1.8.4 Lo que devuelve la API cuando falla la validación
-
-Misma forma `ValidationProblemDetails` que con DataAnnotations — el cliente Vue no nota la diferencia:
-
-```json
-// POST /api/Reservas
-{
-  "idRecurso": 1,
-  "fechaReserva": "2026-05-14",
-  "horaInicio": 10,
-  "minutoInicio": 15,        // ← granulidad del recurso = 30 min
-  "minutosReserva": 45,      // ← no es multiplo de 30
-  "observaciones": null
-}
-
-// Respuesta: 400 Bad Request
-{
-  "status": 400,
-  "title": "One or more validation errors occurred.",
-  "errors": {
-    "MinutoInicio":   ["El minuto de inicio debe coincidir con la granulidad."],
-    "MinutosReserva": ["La duracion debe ser multiplo de la granulidad del recurso."]
-  }
-}
-```
-
-### 1.8.5 DataAnnotations vs FluentValidation: cuándo cada uno
-
-| Aspecto                            | DataAnnotations                 | FluentValidation                    |
-| ---------------------------------- | ------------------------------- | ----------------------------------- |
-| Reglas simples por campo           | ✅ Cómodo                       | ✅ Cómodo                           |
-| Cruces entre campos                | ❌ Difícil                      | ✅ `Must`, `When`                   |
-| Validación contra BD               | ❌ Imposible (sin código extra) | ✅ `MustAsync` con DI               |
-| Mensaje localizado dinámico        | ⚠️ Limitado                    | ✅ Completo (`IStringLocalizer`)   |
-| Reutilización de reglas            | ❌ Vive en el DTO              | ✅ Composición de validators       |
-| Testabilidad                       | ⚠️ Mediante el controlador     | ✅ Test unitario directo           |
-| Curva de aprendizaje               | ✅ Mínima                       | ⚠️ API nueva                       |
-
-::: tip BUENA PRÁCTICA — combinar las dos
-- **DataAnnotations** para rangos triviales y `[Required]` evidentes (descubrirles enseguida en Swagger).
-- **FluentValidation** en cuanto aparece una regla que cruza campos o toca la BD.
-
-No son excluyentes: puedes tener `[Required]` en el DTO y, además, un validator con reglas asíncronas. `[ApiController]` ejecuta ambos.
-:::
-
-### 1.8.6 Test unitario del validator (regalo casi gratis)
-
-Una de las grandes ventajas: el validator **se prueba en aislamiento**, sin levantar Web ni HTTP. Para los patrones síncronos no necesitas ni base de datos: instancias el validator, le pasas un DTO con datos inválidos, y compruebas los errores. Esto se ampliará en la sesión de testing del curso, pero conviene saber desde ya que **cada regla que metes en el validator es una regla que podrás probar sin Oracle ni `WebApplicationFactory`**.
-
-## 1.10 Probando el código: introducción a xUnit
-
-A medida que construimos modelos, servicios y controladores, hace falta una red de seguridad: **una colección de pruebas automáticas que confirme que todo sigue funcionando** cuando cambies algo mañana. En .NET el estándar de facto es **xUnit**, y todo lo que has visto construir hasta aquí (`TiposRecursoServicio`, `TipoRecursosController`, `RecursosServicio`, `RecursosController`) lleva su correspondiente test.
-
-::: info CONTEXTO — qué gano probando
-- **Confianza para tocar código**: si rompes algo, los tests lo dicen en segundos.
-- **Documentación viva**: un test bien escrito es el mejor ejemplo de cómo se usa una clase.
-- **Diseño más limpio**: si una clase es difícil de probar, probablemente está mal diseñada (acoplamiento, dependencias rígidas, métodos demasiado largos).
-:::
-
-### 1.10.1 Lo mínimo que tienes que saber de xUnit
-
-Un **test xUnit** es simplemente un método público de una clase pública marcado con un atributo:
-
-```csharp
-public class CalculadoraTests
-{
-    [Fact]
-    public void Sumar_DosMasDos_DevuelveCuatro()
-    {
-        // ARRANGE: preparar
-        var calc = new Calculadora();
-
-        // ACT: ejecutar
-        var resultado = calc.Sumar(2, 2);
-
-        // ASSERT: verificar
-        Assert.Equal(4, resultado);
-    }
-}
-```
-
-Tres bloques siempre presentes (patrón **AAA**: *Arrange, Act, Assert*):
-
-| Bloque   | Qué hace                                              |
-| -------- | ------------------------------------------------------ |
-| Arrange  | Prepara los datos y dependencias.                      |
-| Act      | Llama al método que se quiere probar.                  |
-| Assert   | Verifica que el resultado coincide con lo esperado.    |
-
-#### Los atributos que vas a ver
-
-| Atributo                | Para qué                                                             |
-| ----------------------- | -------------------------------------------------------------------- |
-| `[Fact]`                | Un test "normal". Sin parámetros.                                    |
-| `[Theory] + [InlineData(...)]` | Mismo test ejecutado varias veces con datos distintos.        |
-| `[SkippableFact]`       | Test que puede saltarse si no hay condiciones (de `Xunit.SkippableFact`). Lo usamos cuando no hay BD configurada. |
-| `IClassFixture<T>`      | Interfaz que comparte un objeto pesado entre todos los tests de la clase (p.ej. una conexión Oracle). |
-
-#### Los asserts más habituales
-
-```csharp
-Assert.Equal(esperado, actual);             // igualdad
-Assert.True(condicion);                      // true / false
-Assert.Null(valor);          Assert.NotNull(valor);
-Assert.Empty(coleccion);     Assert.NotEmpty(coleccion);
-Assert.Single(coleccion);                    // exactamente 1 elemento
-Assert.Contains(elemento, coleccion);        // contiene
-Assert.IsType<T>(objeto);                    // tipo exacto
-Assert.Throws<ExcepcionConcreta>(() => ...); // lanza esa excepción
-```
-
-#### Cómo se ejecutan los tests
-
-```powershell
-# Desde la solución
-dotnet test
-
-# Solo un proyecto
-dotnet test uaReservas.Tests
-
-# Filtrando por nombre
-dotnet test --filter "FullyQualifiedName~TiposRecurso"
-```
-
-Visual Studio y Rider tienen además **Test Explorer**, que muestra los tests como un árbol y permite ejecutar / depurar uno a uno.
-
-### 1.10.2 Cómo hemos probado lo que llevamos construido
-
-El proyecto `uaReservas.Tests` que acompaña al curso tiene **dos sabores** de tests, separados por carpeta. Son intencionadamente distintos porque responden a preguntas distintas:
+### 1.8.1 Dos formas equivalentes de hacer la misma llamada
 
 ```mermaid
 flowchart LR
-    A[Cambio en el código] --> B[dotnet test]
-    B --> C[Tests SIMULADOS]
-    B --> D[Tests REALES]
+    subgraph Navegador
+        Chrome[Chrome DevTools<br/>pestaña Network]
+        Scalar[/uareservas/scalar<br/>botón Try it out]
+        Home["Home.vue<br/>botón GET /api/Recursos"]
+    end
+    subgraph Servidor
+        API[ASP.NET Core<br/>RecursosController]
+    end
+    Chrome -.cookie X-Access-Token.-> API
+    Scalar -- click Send --> API
+    Home   -- "peticion<T>" --> API
+    API -- 200 + JSON --> Chrome
+    API -- 200 + JSON --> Scalar
+    API -- 200 + JSON --> Home
 
-    C --> C1[Controllers/<br/>TipoRecursosControllerSimuladoTests<br/>RecursosControllerSimuladoTests]
-    D --> D1[Servicios/<br/>TiposRecursoServicioRealTests<br/>RecursosServicioRealTests]
-
-    C1 -- "¿la lógica del controlador<br/>es correcta?" --> R1[200/401/404<br/>idioma del claim<br/>parámetros pasados]
-    D1 -- "¿el SQL funciona<br/>contra Oracle real?" --> R2[mapeo multiidioma<br/>columnas existen<br/>tipos correctos]
+    style Chrome fill:#d1ecf1,stroke:#0c5460
+    style Scalar fill:#d4edda,stroke:#155724
+    style Home   fill:#fff3cd,stroke:#856404
 ```
 
-<!-- diagram id="dos-tipos-tests" caption: "Dos tipos de tests con propósitos distintos: simulados (controladores) vs reales (servicios)." -->
+<!-- diagram id="probador-api" caption: "Tres formas de invocar la API en local. Las tres reciben exactamente la misma respuesta." -->
 
-| Carpeta            | Tipo       | Qué prueban                              | Velocidad        | Necesitan Oracle |
-| ------------------ | ---------- | ---------------------------------------- | ---------------- | ---------------- |
-| `Controllers/`     | Simulados  | Lógica del **controlador** sin tocar BD. | Milisegundos.    | No.              |
-| `Servicios/`       | Reales     | SQL del **servicio** contra el esquema.  | Segundos.        | Sí (esquema test). |
+::: tip BUENA PRÁCTICA — DevTools es tu mejor amigo en estas sesiones
+Mientras desarrollas la API, **deja siempre abierta la pestaña Network de Chrome DevTools** (`F12 → Network`). Ahí ves:
 
-### 1.10.3 Tests SIMULADOS: el patrón "fake" para los controladores
+- La URL completa, las cabeceras (`Cookie`, `Accept`, `X-Idioma`).
+- El **payload JSON** (en pestaña *Response*) tal cual lo serializa .NET.
+- El **status** (200, 401, 404, 500) sin tener que mirar el código.
+- El **tiempo** de cada llamada (latencia, tamaño del payload).
 
-Para probar un controlador, **lo único que nos interesa** es:
+Si algo falla, **lo verás en Network antes que en la consola**.
+:::
 
-- ¿Devuelve `200` cuando el servicio devuelve datos?
-- ¿Devuelve `404` cuando el servicio devuelve `null`?
-- ¿Pasa al servicio el **idioma correcto** del usuario?
-- ¿Pasa al servicio el **id correcto**?
+### 1.8.2 El "probador de API" que ya tienes en `Home.vue`
 
-No queremos que esos tests toquen Oracle: eso sería frágil y lento. La técnica clásica es **inyectar un doble del servicio** (un "fake") que devuelve datos pre-calculados y registra las llamadas que recibe.
+El componente `ClientApp/src/views/Home.vue` ya viene con una sección de botones que llama a cada endpoint usando `peticion<T>` de `@vueua/components/composables/use-axios`:
 
-```csharp
-// uaReservas.Tests/Infraestructura/FakeTiposRecursoServicio.cs (resumido)
-public class FakeTiposRecursoServicio : ITiposRecursoServicio
-{
-    // Cada test rellena estas propiedades antes de actuar
-    public List<TipoRecursoLectura> ListaParaDevolver { get; set; } = new();
+```ts
+import { peticion, verbosAxios } from "@vueua/components/composables/use-axios";
 
-    // El fake registra todo lo que recibe para que el test pueda verificarlo
-    public List<string> IdiomasPedidos { get; } = new();
-
-    public Task<List<TipoRecursoLectura>> ObtenerTodosAsync(string idioma)
-    {
-        IdiomasPedidos.Add(idioma);
-        return Task.FromResult(ListaParaDevolver);
-    }
-    // ... resto de métodos de la interfaz
+// Tipo "espejo" de lo que devuelve la API (solo lo necesario):
+interface RecursoLectura {
+    idRecurso: number;
+    nombre: string;
+    tipoCodigo?: string | null;
+    tipoNombre?: string | null;
 }
-```
 
-Un test típico tiene esta forma:
-
-```csharp
-[Fact]
-public async Task Listar_LaCabeceraXIdioma_ManaPorEncimaDelClaim()
-{
-    // ARRANGE
-    // 1) Creamos un controlador con:
-    //    - un fake del servicio
-    //    - un usuario "autenticado" con claim LENGUA=es Y cabecera X-Idioma=en
-    var (controller, fakeServicio) = CrearControlador(
-        idiomaClaim: "es",
-        cabeceraXIdioma: "en");
-
-    // ACT
-    await controller.Listar();
-
-    // ASSERT
-    // El controlador debe haber pasado al servicio el idioma "en" (cabecera gana)
-    Assert.Equal("en", fakeServicio.IdiomasPedidos[0]);
+async function listarRecursos() {
+    // peticion<T> hace GET, espera 200, y devuelve directamente T.
+    // El navegador adjunta solo la cookie X-Access-Token.
+    const recursos = await peticion<RecursoLectura[]>("Recursos", verbosAxios.GET);
+    console.log(recursos);          // ← se ve en la pestaña Console de DevTools
 }
 ```
 
-::: tip BUENA PRÁCTICA — qué es un "fake" y qué no
-- **Fake**: implementación a mano de una interfaz, con comportamiento controlado por el test. Es lo que usamos aquí.
-- **Mock**: un fake generado por una librería (Moq, NSubstitute) con sintaxis declarativa.
-- **Stub**: un fake que solo devuelve datos canned, sin verificar nada.
+En el template hay botones por endpoint (Tipos de recurso, Recursos, Reservas, Observaciones del ejercicio, Usuario actual, Error simulado) y un `<pre>` que vuelca la respuesta JSON.
 
-Para los tests del curso usamos **fakes a mano**. Son más verbosos pero infinitamente más claros para alguien que está empezando: no hay magia, ves exactamente qué devuelve.
+::: info CONTEXTO — `peticion<T>` vs `llamadaAxios` vs `HttpApi`
+La librería `@vueua/components/composables/use-axios` expone **tres modos** de llamar a la API:
+
+| Modo                  | Devuelve                       | Cuándo se usa                                          |
+| --------------------- | ------------------------------ | ------------------------------------------------------ |
+| **`peticion<T>(...)`**| `Promise<T>` (dato directo)    | Caso general: CRUD, acciones, formularios.            |
+| `llamadaAxios(...)`   | `{ data, isLoading, ... }`     | Listados reactivos con estado de carga visible.       |
+| `HttpApi`             | `Promise<AxiosResponse<T>>`    | Necesitas cabeceras, status exacto, config avanzada.  |
+
+Para el "probador" usamos **`peticion<T>`** porque es el modo más cercano a un `fetch` clásico: tipado, async/await, sin `.value`.
 :::
 
-### 1.10.4 Tests REALES: contra el esquema de Oracle de test
+### 1.8.3 Recorrido guiado de una llamada (lo que vais a ver en clase)
 
-Una vez sabemos que el controlador delega bien, queremos verificar que el **servicio** (que es quien habla con Oracle) cumple lo prometido: que sus SQL son correctos, que las columnas existen, que el multiidioma funciona.
+1. Arrancar `dotnet watch` y `pnpm dev` (o lanzar el proyecto desde Visual Studio).
+2. Abrir `https://localhost:44306/uareservas/` → login CAS si no estás autenticado.
+3. Abrir DevTools en la pestaña **Network**.
+4. En la página Home, pulsar **`GET /api/TipoRecursos`**:
+   - Aparece una entrada `TipoRecursos` en Network.
+   - Status `200 OK`.
+   - **Headers → Request Headers**: ves la `Cookie: X-Access-Token=...`, la cabecera `Accept: application/json` que pone axios.
+   - **Response**: el array JSON.
+5. En otra pestaña, abrir `https://localhost:44306/uareservas/scalar`:
+   - Buscar `TipoRecursos` en la sidebar.
+   - Pulsar **"Try it out"** y luego **"Send"**.
+   - Comparar el JSON: es **idéntico** al que vimos en Network.
+6. Pulsar el botón **`GET /api/Info/MessageError`** del Home:
+   - Status `400`.
+   - En la respuesta hay un `ProblemDetails` con `title` y `detail`.
+   - `gestionarError` muestra un toast rojo en la pantalla.
 
-Para esto **no hay sustituto a probar contra Oracle de verdad**. Pero contra el esquema de **test**, no el de producción.
+::: tip BUENA PRÁCTICA — la sesión 5 conecta esto con Oracle
+Mientras devolvemos datos hardcodeados, los botones funcionan igual. **Cuando en la sesión 5 conectemos el controlador a un servicio que llama a `ClaseOracleBD3`, los botones siguen funcionando sin tocar Vue.** Ese es el sentido del DTO como contrato: a Vue solo le importa qué JSON recibe, no quién lo genera.
+:::
 
-#### La fixture compartida
+## 1.9 Ejercicio: API de `Observaciones` de reservas
 
-xUnit crea **una instancia nueva de la clase de tests** por cada `[Fact]`. Si cada test abriese su conexión Oracle, sería costosísimo. Por eso usamos un **fixture compartido**: un objeto que se crea **una vez** y vive el tiempo de toda la suite.
+### 1.9.1 Contexto
 
-```csharp
-// Marcador IClassFixture<T>: "comparte una OracleTestFixture entre todos
-// los tests de esta clase"
-public class TiposRecursoServicioRealTests : IClassFixture<OracleTestFixture>
-{
-    private readonly OracleTestFixture _fixture;
+Una reserva (`TRES_RESERVA`) puede tener varias **observaciones**: notas o comentarios que añade quien la creó (o un administrador). Cada observación tiene:
 
-    public TiposRecursoServicioRealTests(OracleTestFixture fixture)
-    {
-        _fixture = fixture;
-    }
-    // ...
-}
+- texto en los tres idiomas (`TEXTO_ES`, `TEXTO_CA`, `TEXTO_EN`),
+- `CODPER_AUTOR` (quién la escribió — saldrá del token JWT, **no del body**),
+- `FECHA_ALTA` (auditoría, la pone Oracle),
+- `ACTIVO` (`S`/`N`, borrado lógico).
+
+```erd
+[TRES_RESERVA]
+*ID_RESERVA {label: "PK"}
+
+[TRES_OBSERVACION_RESERVA]
+*ID_OBSERVACION_RESERVA {label: "PK"}
++ID_RESERVA {label: "FK"}
+CODPER_AUTOR
+TEXTO_ES
+TEXTO_CA
+TEXTO_EN
+FECHA_ALTA
+ACTIVO
+
+TRES_RESERVA 1--* TRES_OBSERVACION_RESERVA
 ```
 
-La `OracleTestFixture`:
-1. Lee la cadena `oradb` de **user-secrets** (recuerda 0.3).
-2. Si no hay cadena, marca `HayConexion = false` y los tests se **saltan**.
-3. Si la hay, monta un mini-`ServiceProvider` con `ClaseOracleBd` registrado, como en la app real.
+<!-- diagram id="erd-observacion-reserva" caption: "Una reserva tiene N observaciones; cada observación es de un autor (codper) y se borra lógicamente con ACTIVO='N'." -->
 
-#### Tests que se saltan si no hay BD
+### 1.9.2 Lo que se entrega ya hecho
 
-```csharp
-[SkippableFact]
-public async Task ObtenerTodosAsync_Devuelve_AlMenosUnTipo()
-{
-    Skip.IfNot(_fixture.HayConexion, _fixture.MotivoSinConexion);
+| Pieza       | Ruta                                                                | Qué hace                                                                                              |
+| ----------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Tabla**   | `SQL/CURSONORMADM/TABLAS/TRES_OBSERVACION_RESERVA.sql`              | PK, FK a `TRES_RESERVA`, `NOT NULL` en los tres textos, `ACTIVO` con check `S/N`, índice por `ID_RESERVA`. |
+| **Vista**   | `SQL/CURSONORMADM/VISTAS/VRES_OBSERVACION_RESERVA.sql`              | Filtra `ACTIVO='S'`. No expone la columna `ACTIVO`.                                                  |
+| **Paquete** | `SQL/CURSONORMADM/PAQUETES/PKG_RES_OBSERVACION_RESERVA.{pks,pkb}`   | `CREAR` y `ELIMINAR` (SOFT: `ACTIVO='N'`) con el contrato `P_CODIGO_ERROR / P_MENSAJE_ERROR` OUT.    |
 
-    // ... el test usa el ClaseOracleBd real ...
-}
-```
-
-`Skip.IfNot(...)` **no falla** el test si la condición no se cumple: lo marca como **skipped**. En CI sin BD, la suite queda verde con un mensaje claro. En tu equipo con BD configurada, los tests se ejecutan de verdad.
-
-#### Qué cazan estos tests
-
-| Bug que solo se detecta con BD real      | Ejemplo                                            |
-| ---------------------------------------- | -------------------------------------------------- |
-| SQL con error de sintaxis                 | Olvidé una coma, alias mal puesto.                 |
-| Columna que no existe en la vista         | Renombramos `NOMBRE_ES` a `NOM_ES` y se nos olvidó. |
-| Tipo de columna que no encaja             | `GRANULIDAD` es `NUMBER` y el DTO la tiene `string`. |
-| Mapeo multiidioma fallido                 | `idioma="ca"` pero la vista no expone `NOMBRE_CA`. |
-| Conversión `'S'/'N'` ↔ `bool` rota        | `Activo` viene como string crudo.                  |
-
-### 1.10.5 Mapa de los tests creados hasta ahora
-
-Resumen rápido de qué hemos probado en cada pieza:
-
-| Pieza bajo test               | Tipo de test    | Casos cubiertos                                                                       |
-| ----------------------------- | --------------- | ------------------------------------------------------------------------------------- |
-| `TipoRecursosController`      | Simulado        | `Listar` 200 con datos; idioma del claim; cabecera `X-Idioma` gana al claim; `va→ca`. |
-| `TipoRecursosController`      | Simulado        | `ObtenerPorId` 200 si existe; 404 con `ProblemDetails` si no; paso del id al servicio. |
-| `RecursosController`          | Simulado        | `Listar` sin filtro vs `?idTipoRecurso=N`; idioma del claim; paso correcto del id.    |
-| `TiposRecursoServicio`        | Real (Oracle)   | Listar trae registros; multiidioma; normalización `va→ca`; `ObtenerPorId` con null y con valor. |
-| `RecursosServicio`            | Real (Oracle)   | Listar; filtrar por tipo; multiidioma; `ExisteAsync` true/false; detalle por id.      |
-
-::: warning IMPORTANTE
-Los tests **simulados** se ejecutan SIEMPRE: en tu equipo, en CI, en cualquier máquina. Los tests **reales** solo si has configurado `ConnectionStrings:oradb` en user-secrets del proyecto de tests (ver 0.3). Esa separación es deliberada:
-- En CI corremos solo simulados (rápidos, deterministas).
-- En tu equipo de desarrollo corres ambos cuando vayas a hacer un merge.
+::: info CONTEXTO — el paquete es minimalista a propósito
+Solo expone **CREAR** y **ELIMINAR**. La lectura se hace desde .NET contra la vista `VRES_OBSERVACION_RESERVA` (no hay procedimiento `OBTENER_TODOS`). Es el patrón que vamos a defender todo el curso: las vistas son el "GET" del paquete.
 :::
 
-### 1.10.6 Pequeño glosario para no perderse
-
-| Término             | Qué significa                                                            |
-| ------------------- | ------------------------------------------------------------------------ |
-| **xUnit**           | El framework de tests de .NET que usamos.                                |
-| **Fact**            | Un test individual.                                                      |
-| **Theory**          | Un test ejecutado N veces con N juegos de datos (`[InlineData(...)]`).   |
-| **Assert**          | Comprobación de que algo es como esperamos.                              |
-| **AAA**             | Arrange, Act, Assert — la estructura de cualquier test.                  |
-| **Fake / Mock**     | Objeto que sustituye a una dependencia real durante el test.             |
-| **Fixture**         | Objeto compartido entre los tests de una clase (conexión BD, etc.).      |
-| **Skip**            | Marcar un test como "no se ejecuta" sin que cuente como fallo.            |
-| **Test runner**     | Visual Studio Test Explorer, `dotnet test`, Rider — quien ejecuta y reporta. |
-
-Esto es lo justo para entender los tests del curso. Cuando llegue la sesión dedicada a testing avanzado, profundizaremos en `[Theory]` con `MemberData`, mocks generados con Moq, `WebApplicationFactory` para tests de integración HTTP completos, y cobertura de código.
-
-## 1.11 Práctica guiada: Rojo-Verde-Refactor con validación
-
-::: tip SESIÓN DE INTEGRACIÓN
-Esta práctica introduce DataAnnotations como primer contacto con la validación. El tema se amplía en la **Sesión 12 — Validación en todas las capas**, donde se cubre FluentValidation, localización de mensajes y validación end-to-end con Vue.
-:::
-
-En esta sección practicamos el ciclo **Rojo-Verde-Refactor** usando el `EcoController`: un controlador que devuelve exactamente el mismo DTO que recibe. No necesita base de datos, así que podemos centrarnos en la validación.
-
-### Paso 1: ROJO — Sin validación, todo pasa
-
-Nuestro DTO inicial no tiene ninguna validación:
-
-```csharp
-// Models/Eco/ClaseEcoUnidad.cs
-public class ClaseEcoUnidad
-{
-    public string? NombreEs { get; set; }
-    public string? NombreCa { get; set; }
-    public string? NombreEn { get; set; }
-    public int Granularidad { get; set; }
-    public string? EmailContacto { get; set; }
-}
-```
-
-Y el controlador simplemente devuelve lo que recibe:
-
-```csharp
-// Controllers/Apis/EcoController.cs
-[Route("api/[controller]")]
-[ApiController]
-public class EcoController : ControllerBase
-{
-    [HttpPost]
-    public ActionResult<ClaseEcoUnidad> Eco([FromBody] ClaseEcoUnidad dto)
-    {
-        return Ok(dto);
-    }
-
-    [HttpPost("validar")]
-    public ActionResult<ClaseEcoUnidad> Validar([FromBody] ClaseEcoUnidad dto)
-    {
-        return Ok(dto);
-    }
-}
-```
-
-**Probamos en Vue** enviando un DTO con campos vacíos al endpoint `/api/Eco/validar`:
-
-```json
-// Enviamos esto:
-{
-  "nombreEs": "",
-  "nombreCa": "",
-  "nombreEn": "",
-  "granularidad": 0,
-  "emailContacto": ""
-}
-
-// Recibimos 200 OK con el mismo DTO vacío:
-{
-  "nombreEs": "",
-  "nombreCa": "",
-  "nombreEn": "",
-  "granularidad": 0,
-  "emailContacto": ""
-}
-```
-
-::: danger ESTO ES ROJO
-La API acepta datos completamente vacíos. Un nombre vacío, una granularidad de 0 minutos y un email vacío no deberían ser válidos. Necesitamos **validación**.
-:::
-
-Desde el cliente (Vue) el endpoint `/api/Eco/validar` se prueba como cualquier POST. Cuando los datos son válidos llega `200 OK` con el DTO; cuando no, llega `400 Bad Request` con `ValidationProblemDetails`. El código Vue se aborda en sesiones siguientes; aquí nos centramos en **lo que la API devuelve**.
-
-### Paso 2: VERDE — Añadimos [Required] y .NET rechaza datos vacíos
-
-Añadimos `[Required]` a los tres campos de nombre:
-
-```csharp
-// Models/Eco/ClaseEcoUnidad.cs — Fase VERDE
-using System.ComponentModel.DataAnnotations;
-
-public class ClaseEcoUnidad
-{
-    [Required(ErrorMessage = "El nombre en español es obligatorio")]
-    public string? NombreEs { get; set; }
-
-    [Required(ErrorMessage = "El nombre en valenciano es obligatorio")]
-    public string? NombreCa { get; set; }
-
-    [Required(ErrorMessage = "El nombre en inglés es obligatorio")]
-    public string? NombreEn { get; set; }
-
-    public int Granularidad { get; set; }
-    public string? EmailContacto { get; set; }
-}
-```
-
-**Enviamos el mismo DTO vacío** y ahora la API devuelve `400 Bad Request` con un `ValidationProblemDetails`:
-
-```json
-// POST /api/Eco/validar con campos vacíos
-// Respuesta: 400 Bad Request
-{
-  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-  "title": "One or more validation errors occurred.",
-  "status": 400,
-  "errors": {
-    "NombreEs": ["El nombre en español es obligatorio"],
-    "NombreCa": ["El nombre en valenciano es obligatorio"],
-    "NombreEn": ["El nombre en inglés es obligatorio"]
-  }
-}
-```
-
-::: tip ESTO ES VERDE
-Ahora la API rechaza datos vacíos con mensajes claros por cada campo. El `[ApiController]` se encarga de validar automáticamente el `ModelState` y devolver el `ValidationProblemDetails` estándar (RFC 7807). **No hemos escrito ni una línea de código de validación en el controlador**.
-:::
-
-Desde el cliente, la clave `errors` del `ValidationProblemDetails` lleva un diccionario `campo → lista de mensajes`. Eso es exactamente lo que cualquier formulario necesita para pintar errores junto a cada campo — pero ese código del lado del cliente lo dejamos para más adelante.
-
-### Paso 3: REFACTOR — Validaciones más específicas
-
-Ahora mejoramos las validaciones añadiendo restricciones de longitud, rango numérico y expresión regular para el email:
-
-```csharp
-// Models/Eco/ClaseEcoUnidad.cs — Fase REFACTOR
-public class ClaseEcoUnidad
-{
-    [Required(ErrorMessage = "El nombre en español es obligatorio")]
-    [StringLength(200, MinimumLength = 3,
-        ErrorMessage = "El nombre en español debe tener entre 3 y 200 caracteres")]
-    public string? NombreEs { get; set; }
-
-    [Required(ErrorMessage = "El nombre en valenciano es obligatorio")]
-    [StringLength(200, MinimumLength = 3,
-        ErrorMessage = "El nombre en valenciano debe tener entre 3 y 200 caracteres")]
-    public string? NombreCa { get; set; }
-
-    [Required(ErrorMessage = "El nombre en inglés es obligatorio")]
-    [StringLength(200, MinimumLength = 3,
-        ErrorMessage = "El nombre en inglés debe tener entre 3 y 200 caracteres")]
-    public string? NombreEn { get; set; }
-
-    [Range(5, 120, ErrorMessage = "La granularidad debe estar entre 5 y 120 minutos")]
-    public int Granularidad { get; set; }
-
-    [EmailAddress(ErrorMessage = "El formato del email no es válido")]
-    [RegularExpression(@"^[^@]+@(ua\.es|alu\.ua\.es)$",
-        ErrorMessage = "El email debe ser de @ua.es o @alu.ua.es")]
-    public string? EmailContacto { get; set; }
-}
-```
-
-**Probamos con datos inválidos:**
-
-```json
-// POST /api/Eco/validar
-{
-  "nombreEs": "AB",
-  "nombreCa": "Unitat de prova",
-  "nombreEn": "Test unit",
-  "granularidad": 3,
-  "emailContacto": "usuario@gmail.com"
-}
-
-// Respuesta: 400 Bad Request
-{
-  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-  "title": "One or more validation errors occurred.",
-  "status": 400,
-  "errors": {
-    "NombreEs": ["El nombre en español debe tener entre 3 y 200 caracteres"],
-    "Granularidad": ["La granularidad debe estar entre 5 y 120 minutos"],
-    "EmailContacto": ["El email debe ser de @ua.es o @alu.ua.es"]
-  }
-}
-```
-
-::: tip ESTO ES REFACTOR
-Cada atributo de validación añade una capa más de seguridad. Observa cómo se acumulan los errores: un mismo campo puede tener varios mensajes (por ejemplo, `EmailContacto` primero valida formato y luego dominio). Los atributos más comunes son:
-
-| Atributo                                   | Propósito            | Ejemplo                  |
-| ------------------------------------------ | -------------------- | ------------------------ |
-| `[Required]`                               | Campo obligatorio    | Nombres, códigos         |
-| `[StringLength(max, MinimumLength = min)]` | Longitud de texto    | Entre 3 y 200 caracteres |
-| `[Range(min, max)]`                        | Rango numérico       | Granularidad 5-120 min   |
-| `[EmailAddress]`                           | Formato de email     | Validación RFC estándar  |
-| `[RegularExpression(pattern)]`             | Patrón personalizado | Solo emails @ua.es       |
-
-:::
-
-## Ejercicio Sesión 1
-
-**Objetivo:** Crear una API de reservas sin base de datos y consumirla desde Vue.
-
-1. Crear el DTO `ClaseReserva` con propiedades: `CodReserva`, `Descripcion`, `FechaInicio`, `FechaFin`, `Activo`
-2. Crear `ReservasController` con:
-   - `GET /api/Reservas` → Lista de reservas hardcodeadas
-   - `GET /api/Reservas/{id}` → Buscar por ID (devolver `404` si no existe)
-   - `GET /api/Reservas/error` → Devolver un `Problem` con código 500
-3. En Vue, crear una vista que:
-   - Llame a la API y muestre las reservas
-   - Tenga un botón para provocar el error 500 y comprobar que llega como `ProblemDetails`
-
-::: details Solución
-
-**DTO:**
-
-```csharp
-// Models/Reserva/ClaseReserva.cs
-public class ClaseReserva
-{
-    public int CodReserva { get; set; }
-    public string Descripcion { get; set; }
-    public DateTime FechaInicio { get; set; }
-    public DateTime FechaFin { get; set; }
-    public bool Activo { get; set; }
-}
-```
-
-**Controlador:**
-
-```csharp
-// Controllers/Apis/ReservasController.cs
-[Route("api/[controller]")]
-[ApiController]
-public class ReservasController : ControllerBase
-{
-    private static readonly List<ClaseReserva> _reservas = new()
-    {
-        new ClaseReserva
-        {
-            CodReserva = 1,
-            Descripcion = "Sala de reuniones A",
-            FechaInicio = new DateTime(2026, 3, 1, 10, 0, 0),
-            FechaFin = new DateTime(2026, 3, 1, 11, 0, 0),
-            Activo = true
-        },
-        new ClaseReserva
-        {
-            CodReserva = 2,
-            Descripcion = "Aula de formación B",
-            FechaInicio = new DateTime(2026, 3, 2, 9, 0, 0),
-            FechaFin = new DateTime(2026, 3, 2, 12, 0, 0),
-            Activo = true
-        }
-    };
-
-    [HttpGet]
-    public IActionResult Listar()
-    {
-        return Ok(_reservas.Where(r => r.Activo));
-    }
-
-    [HttpGet("{id}")]
-    public IActionResult ObtenerPorId(int id)
-    {
-        var reserva = _reservas.FirstOrDefault(r => r.CodReserva == id);
-        return reserva != null ? Ok(reserva) : NotFound();
-    }
-
-    [HttpGet("error")]
-    public IActionResult ProvocarError()
-    {
-        return Problem(detail: "Error simulado del servidor", statusCode: 500);
-    }
-}
-```
-
-**Vista Vue:** se aborda en sesiones posteriores. Conceptualmente: una llamada GET a `/api/Reservas` para la lista (que entra por `.then`) y otra GET a `/api/Reservas/error` para provocar el 500 (que entra por `.catch`).
-
-:::
-
-::: details Código con fallos para Copilot (Controlador)
-Copia este código en tu proyecto. Tiene **5 errores intencionados**. Usa Copilot para identificarlos y corregirlos:
-
-```csharp
-// ⚠️ CÓDIGO CON FALLOS - Usa Copilot para arreglarlo
-[Route("api/controller")]          // 🐛 Falta [controller] entre corchetes
-[ApiController]
-public class ReservasController    // 🐛 No hereda de ControllerBase
-{
-    private static readonly List<ClaseReserva> _reservas = new()
-    {
-        new ClaseReserva { CodReserva = 1, Descripcion = "Sala A" }
-    };
-
-    [HttpGet]
-    public IActionResult Listar()
-    {
-        return _reservas;           // 🐛 Falta Ok() para devolver IActionResult
-    }
-
-    [HttpGet("{id}")]
-    public IActionResult ObtenerPorId(string id)  // 🐛 id debería ser int
-    {
-        var reserva = _reservas.FirstOrDefault(r => r.CodReserva == id);
-        return Ok(reserva);         // 🐛 No comprueba si es null → debería devolver NotFound
-    }
-}
-```
-
-:::
-
-::: details Código con fallos para Copilot (Validación DTO)
-Este DTO tiene **4 errores** en las DataAnnotations:
-
-```csharp
-// ⚠️ CÓDIGO CON FALLOS - DTO con validaciones incorrectas
-public class ClaseEcoUnidad
-{
-    [Required]                          // 🐛 Sin ErrorMessage → mensaje genérico en inglés
-    [StringLength(200)]                 // 🐛 Falta MinimumLength → acepta strings de 1 carácter
-    public string? NombreEs { get; set; }
-
-    public string? NombreCa { get; set; }   // 🐛 Falta [Required] → acepta vacío
-
-    [Range(0, 999)]                     // 🐛 Rango incorrecto: acepta 0 min y 999 min
-    public int Granularidad { get; set; }
-
-    [RegularExpression(@"@ua.es")]      // 🐛 Regex mal: no ancla, no escapa el punto,
-    public string? EmailContacto { get; set; }  //     no contempla @alu.ua.es
-}
-```
-
-:::
-
-## Preguntas de test
-
-::: details 1. ¿Qué es un DTO?
-**a)** Un objeto que contiene lógica de negocio y accede a la base de datos
-**b)** Un objeto que transporta datos entre capas sin lógica de negocio ✅
-**c)** Un componente de Vue que muestra datos al usuario
-**d)** Un middleware de autenticación en .NET Core
-:::
-
-::: details 2. ¿Qué hace el atributo [ApiController] en un controlador?
-**a)** Registra el controlador en el contenedor de inyección de dependencias
-**b)** Habilita la autenticación JWT automáticamente
-**c)** Valida automáticamente el ModelState y devuelve 400 si no es válido ✅
-**d)** Genera documentación Swagger para todas las acciones
-:::
-
-::: details 3. ¿Qué código HTTP devuelve NotFound()?
-**a)** 400 Bad Request
-**b)** 401 Unauthorized
-**c)** 404 Not Found ✅
-**d)** 500 Internal Server Error
-:::
-
-::: details 4. ¿Cuál es la ruta generada para un controlador llamado UnidadesController con [Route("api/[controller]")]?
-**a)** `/api/UnidadesController`
-**b)** `/api/Unidades` ✅
-**c)** `/Unidades`
-**d)** `/api/controller/Unidades`
-:::
-
-::: details 5. ¿Qué verbo HTTP se usa para crear un recurso nuevo?
-**a)** GET
-**b)** PUT
-**c)** POST ✅
-**d)** DELETE
-:::
-
-::: details 6. ¿Por qué un controlador API NO debe devolver `200 OK` con un cuerpo `{ "error": "..." }`?
-**a)** Porque axios no sabe leer JSON
-**b)** Porque rompe el contrato HTTP: el cliente solo ve "todo bien" y nunca entra por la rama de error ✅
-**c)** Porque Swagger no documenta esa respuesta
-**d)** Porque `Ok()` solo admite strings, no objetos
-:::
-
-::: details 7. Si un controlador API devuelve Problem(detail: "Error", statusCode: 500), ¿qué formato tiene la respuesta?
-**a)** Un string plano con el mensaje de error
-**b)** Un JSON con formato ProblemDetails (RFC 7807) ✅
-**c)** Un HTML con la página de error del servidor
-**d)** Un código de estado sin cuerpo de respuesta
-:::
-
-::: details 8. En el proyecto UA, ¿de qué clase hereda un controlador API básico?
-**a)** `Controller`
-**b)** `ControllerBase` ✅
-**c)** `ApiController`
-**d)** `BaseApiController`
-:::
-
-::: details 9. Si un DTO tiene [Required] en una propiedad string y enviamos ese campo vacío, ¿qué ocurre con [ApiController]?
-**a)** La acción del controlador recibe el string vacío y debe validarlo manualmente
-**b)** .NET devuelve automáticamente un 400 Bad Request con ValidationProblemDetails ✅
-**c)** .NET lanza una excepción NullReferenceException
-**d)** El campo se rellena con un valor por defecto
-:::
-
-::: details 10. ¿Qué expresión regular valida que un email sea de @ua.es o @alu.ua.es?
-**a)** `@".*@ua\.es$"` — solo valida @ua.es, no @alu.ua.es
-**b)** `@"^[^@]+@(ua\.es|alu\.ua\.es)$"` ✅
-**c)** `@"@ua.es|@alu.ua.es"` — no ancla el patrón, acepta texto extra
-**d)** `@"^.+@ua\.es$"` — solo valida @ua.es
+### 1.9.3 Lo que tienes que entregar (en esta sesión 4)
+
+1. **DTOs nuevos** en `Models/Reservas/` siguiendo los nombres que usamos en clase:
+   - `ObservacionReservaLectura` (lo que la API devuelve en `GET`).
+   - `ObservacionReservaCrearDto` (lo que la API recibe en `POST`).
+
+   :::: details Pistas
+
+   **`ObservacionReservaLectura`** debe tener los campos planos que mapearán contra la vista:
+
+   ```csharp
+   public int IdObservacionReserva { get; set; }
+   public int IdReserva            { get; set; }
+   public int CodperAutor          { get; set; }
+   public string Texto             { get; set; } = string.Empty;  // ← se resuelve _ES/_CA/_EN según idioma
+   public DateTime FechaAlta       { get; set; }
+   ```
+
+   **`ObservacionReservaCrearDto`** lleva SOLO lo que el cliente debe enviar:
+
+   ```csharp
+   [Range(1, int.MaxValue)] public int IdReserva { get; set; }
+   [Required, MaxLength(2000)] public string TextoEs { get; set; } = string.Empty;
+   [Required, MaxLength(2000)] public string TextoCa { get; set; } = string.Empty;
+   [Required, MaxLength(2000)] public string TextoEn { get; set; } = string.Empty;
+   ```
+
+   ::: danger ZONA PELIGROSA — `CodperAutor` NO va en el DTO de entrada
+   Aunque la tabla lo tenga, **no lo pongas en `ObservacionReservaCrearDto`**. En la sesión 5 lo rellenará el controlador con `CodPer` (del token). Si lo aceptas en el body, un usuario malicioso podría crear observaciones a nombre de otro.
+   :::
+
+   ::::
+
+2. **`ObservacionesController`** en `Controllers/Apis/`:
+   - Hereda `ControladorBase`.
+   - `[Authorize]`, `[Tags("Observaciones")]`, XML `<summary>` y `[ProducesResponseType<T>(...)]` en cada acción.
+   - **Tres endpoints**:
+     - `GET /api/Observaciones` → devuelve `Ok(...)` con **una lista hardcodeada** de 2-3 `ObservacionReservaLectura`.
+     - `GET /api/Observaciones/{id:int}` → devuelve la observación con ese id si está en tu lista hardcodeada, o `NotFound(...)` con un `ProblemDetails` en caso contrario.
+     - `POST /api/Observaciones` → recibe `ObservacionReservaCrearDto`, devuelve `CreatedAtAction(...)` con un id inventado (`42`, por ejemplo).
+
+3. **Comprobar en Scalar**:
+   - Abrir `/uareservas/scalar`.
+   - Verificar que aparecen los tres endpoints con la sección "Responses" completa.
+   - Ejecutar el botón **"Try it out"** del `GET /api/Observaciones` y comprobar el JSON.
+
+4. **Comprobar en el Home.vue**:
+   - El botón **"GET /api/Observaciones (ejercicio)"** ya está cableado. Tras tu trabajo, debería pintar el JSON en la zona de salida.
+   - Abrir DevTools → Network → verificar que la URL es `/uareservas/api/Observaciones` y la cookie `X-Access-Token` viaja sola.
+
+### 1.9.4 Qué se cubrirá en la sesión 5 (lo que NO tocas hoy)
+
+- Conectar `ObservacionesController` a un `IObservacionesServicio` real.
+- El servicio leerá `VRES_OBSERVACION_RESERVA` con `ObtenerTodosMapAsync<T>` y llamará a `PKG_RES_OBSERVACION_RESERVA.CREAR/ELIMINAR` con `EjecutarParamsAsync`.
+- En el `Crear` del controlador, `CodperAutor` saldrá del `CodPer` de `ControladorBase` (el del token), no del body.
+- Habrá un test xUnit "simulado" del controlador y un test "real" del servicio.
+
+::: tip BUENA PRÁCTICA — ejercicio acumulativo
+Lo que entregues hoy (DTOs + controlador con datos en memoria) **es el cimiento sobre el que la sesión 5 construirá los servicios y los tests**. Si los DTOs no tienen los nombres adecuados, las cabeceras de respuesta no son consistentes o falta `[Authorize]`, la sesión 5 se complica. Tómate el rato de leer Scalar después y comparar tus respuestas con las de `TipoRecursos`.
 :::
 
 ---
