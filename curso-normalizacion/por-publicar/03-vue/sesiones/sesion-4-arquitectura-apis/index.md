@@ -110,28 +110,35 @@ const { contador, incrementar, decrementar } = useContador(10)
 
 La arquitectura separa la aplicación en tres capas con responsabilidades claras:
 
+```c4plantuml
+@startuml
+!include <C4/C4_Component>
+
+title Arquitectura de una pantalla en uaReservas
+
+Person(usuario, "Usuario", "PDI / PTGAS / Alumno")
+
+Container_Boundary(spa, "SPA Vue 3") {
+    Component(vista, "Vista (.vue)", "Vue 3 + TypeScript", "Template + eventos UI.\nNO sabe de HTTP ni DTOs.")
+    Component(comp, "Composable\nuseRecursos.ts", "TypeScript", "Estado reactivo.\nConvierte DTOs (PascalCase) a\ninterfaces de cliente (camelCase).")
+    Component(serv, "Servicio\nrecursosServicio.ts", "TypeScript + useAxios", "Llamadas HTTP.\nConoce las URLs del backend.")
+}
+
+System_Ext(api, "API REST", ".NET 10")
+
+Rel(usuario, vista, "Interactua", "click/teclado")
+Rel(vista, comp, "Lee estado y llama acciones", "import")
+Rel(comp, serv, "Pide datos", "import")
+Rel(serv, api, "GET/POST/PUT/DELETE", "JSON/HTTPS")
+
+@enduml
 ```
-┌─────────────────┐
-│  Vista (.vue)   │  ← UI, eventos del usuario, template
-└────────┬────────┘
-         │ usa
-         ↓
-┌─────────────────┐
-│  Composable     │  ← Lógica reactiva, estado, computed, watchers
-│  useXxx.ts      │
-└────────┬────────┘
-         │ usa
-         ↓
-┌─────────────────┐
-│  Servicio       │  ← Llamadas HTTP a API (CRUD)
-│  useXxxService  │
-└────────┬────────┘
-         │ usa
-         ↓
-┌─────────────────┐
-│  useAxios       │  ← HTTP client (GET, POST, PUT, DELETE)
-└─────────────────┘
-```
+
+<!-- diagram id="s9-arquitectura-c4" caption: "Tres capas de la SPA: vista, composable y servicio. Cada una tiene una responsabilidad clara." -->
+
+::: tip REGLA DE ORO
+La **vista** no debe saber **cómo** se piden los datos. El **composable** no debe saber **a qué URL** se piden. El **servicio** no debe saber **cómo se pintan**. Si rompes esta regla, los cambios pequeños se vuelven cambios grandes.
+:::
 
 ### Ejemplo completo: gestión de usuarios
 
@@ -264,6 +271,36 @@ src/
 
 `useAxios` es el composable de la UA para peticiones HTTP. Proporciona variables reactivas, gestión de errores y notificaciones toast integradas.
 
+### Flujo completo de una petición
+
+Antes de ver la sintaxis, conviene fijar mentalmente el recorrido **completo** de una petición desde el click del usuario hasta que la tabla se pinta:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant V as Vista.vue
+    participant C as Composable<br/>useRecursos
+    participant S as Servicio<br/>useAxios
+    participant API as API .NET
+
+    U->>V: click "Recargar"
+    V->>C: cargar()
+    C->>C: cargando = true
+    C->>S: GET /api/recursos
+    S->>API: HTTP request
+    API-->>S: 200 + [RecursoDto]
+    S-->>C: dtos
+    C->>C: dtos.map(dtoARecurso)
+    C->>C: cargando = false
+    Note over V: v-model:visible="cargando"<br/>cierra el SpinnerModal solo.
+    V-->>U: tabla pintada
+```
+
+<!-- diagram id="s9-flujo-peticion" caption: "Flujo completo Vista -> Composable -> Servicio -> API" -->
+
+Fíjate en que `cargando` actúa como un **interruptor único**: lo enciende el composable al empezar y lo apaga al terminar; la vista lo lee con `v-model:visible` y la libreria UA pinta y oculta el spinner sola.
+
 ### Instalación e importación
 
 ```bash
@@ -381,30 +418,33 @@ import {
 } from 'vueua-usegestionformularios/services/useGestionFormularios'
 ```
 
-### Flujo de validación
+### Flujo de validación cross-capa
 
+La validación no vive solo en el cliente: una misma regla puede comprobarse en HTML5, en `DataAnnotations`, en `FluentValidation` y en el paquete Oracle. El diagrama recorre el camino completo desde el formulario hasta la BD y de vuelta:
+
+```mermaid
+flowchart LR
+    F["Formulario Vue<br/><code>useGestionFormularios</code>"]
+    F -->|HTTP POST| API["Controller .NET"]
+    API -->|si DataAnnotations falla| 400a["400 + ValidationProblemDetails"]
+    API -->|si pasa| FV["FluentValidation"]
+    FV -->|si falla| 400b["400 + ValidationProblemDetails"]
+    FV -->|si pasa| SVC["Servicio .NET"]
+    SVC --> ORA["Paquete Oracle PKG_*<br/>RAISE_APPLICATION_ERROR"]
+    ORA -->|si falla| EX["BDException"]
+    EX -->|ErrorHandlerMiddleware| 4xx["4xx/5xx ProblemDetails"]
+    400a & 400b & 4xx -->|adaptarProblemDetails| F
+    F -->|errores por campo<br/>+ erroresGlobales| UI[(UI: campos con error<br/>+ toast / banner)]
+    style F fill:#e3f2fd
+    style ORA fill:#fff3e0
+    style UI fill:#e8f5e9
 ```
-Usuario hace clic en "Guardar"
-         │
-         ▼
-  validarFormulario('idForm')  ← Validación HTML5
-         │
-    ¿Es válido?
-    /         \
-  ❌ No       ✅ Sí
-   │           │
-   │     llamadaAxios(url, POST)  ← Envío al servidor
-   │           │
-   │     ¿Respuesta?
-   │     /         \
-   │   200 OK    400 Error
-   │     │         │
-   │   Éxito   adaptarMensajesError()  ← Mapeo errores servidor
-   │             │
-   │           Errores en campos
-   │
-  Errores HTML5 en campos (Bootstrap)
-```
+
+<!-- diagram id="s9-validacion-cross-capa" caption: "Pipeline de validacion: Vue -> .NET (DataAnnotations + FluentValidation) -> Oracle, y vuelta con ProblemDetails" -->
+
+::: warning ANTIPATRON
+**No te fies solo de la validacion en cliente.** El alumno tentado de hacerlo descubre tarde que cualquier `curl` o herramienta DevTools puede saltarse el HTML5 trivialmente. La validacion de cliente mejora la UX; la del servidor es la que protege los datos.
+:::
 
 ### Ejemplo completo
 
@@ -545,6 +585,37 @@ Empieza por estado local. Solo sube a Pinia si el dato lo consumen varias vistas
 | `localStorage` | Permanente (hasta borrar manualmente) | Todo el sitio en ese navegador | Preferencias de usuario (tema, idioma, columnas) |
 | `sessionStorage` | Solo pestaña/sesión actual | Esa pestaña del navegador | Estado temporal de navegación (wizard, búsqueda puntual) |
 | Pinia | Memoria de ejecución | Toda la SPA mientras esté cargada | Estado compartido entre vistas/componentes |
+
+### Árbol de decisión
+
+Frente al código real, este árbol es más rápido de aplicar que la tabla:
+
+```graphviz
+digraph estado {
+    rankdir=TB;
+    node [shape=box, style=rounded, fontname="Helvetica"];
+
+    Q1 [label="¿Lo necesitan\nVARIOS componentes\nsin relacion padre/hijo?", shape=diamond, style=""];
+    Q2 [label="¿Debe sobrevivir\na un F5 / cierre\ndel navegador?", shape=diamond, style=""];
+    Q3 [label="¿Debe sobrevivir\nal cierre de pestaña?", shape=diamond, style=""];
+
+    LOCAL [label="ref / reactive\nlocal al componente", fillcolor="#e8f5e9", style="rounded,filled"];
+    PROPS [label="props + emits\no provide/inject", fillcolor="#fff3e0", style="rounded,filled"];
+    PINIA [label="Pinia store\n(solo en memoria)", fillcolor="#e3f2fd", style="rounded,filled"];
+    SESS  [label="sessionStorage\n(persiste por pestaña)", fillcolor="#e1f5fe", style="rounded,filled"];
+    LOCS  [label="localStorage\n(persiste indefinidamente)", fillcolor="#c8e6c9", style="rounded,filled"];
+
+    Q1 -> LOCAL [label=" no, mismo componente"];
+    Q1 -> PROPS [label=" padre <-> hijo"];
+    Q1 -> Q2    [label=" si, independientes"];
+    Q2 -> PINIA [label=" no"];
+    Q2 -> Q3    [label=" si"];
+    Q3 -> SESS  [label=" no"];
+    Q3 -> LOCS  [label=" si"];
+}
+```
+
+<!-- diagram id="s9-decision-estado" caption: "Decidir donde vive el estado segun alcance y persistencia" -->
 
 ### Ejemplo 1: Preferencia persistente con `localStorage`
 
@@ -724,7 +795,7 @@ Si un alumno solo prueba el "camino feliz" y no revisa errores de red o validaci
 
 ---
 
-## Ejercicio Sesión 4
+## Ejercicio Sesión 4 {#ejercicio}
 
 ::: info ENUNCIADO
 En esta práctica construirás una funcionalidad real con separación por capas: una vista para mostrar y filtrar datos, un composable para estado reactivo y derivados, y un servicio para llamadas HTTP. El objetivo no es solo que funcione, sino que cada responsabilidad quede en su sitio.
@@ -900,7 +971,7 @@ onMounted(() => cargarUnidades())
 ```
 :::
 
-## Test Sesión 4
+## Test Sesión 4 {#test}
 
 ### Preguntas (desplegables)
 

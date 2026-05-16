@@ -184,6 +184,28 @@ const mostrarModal = ref<boolean>(false)
 | **Toggle frecuente** | Más costoso (recrea el elemento) | Más eficiente (solo cambia CSS) |
 | **Cuándo usar** | Condiciones que cambian poco | Modales, tabs, toggles frecuentes |
 
+El siguiente diagrama enseña la diferencia material: con `v-if` Vue **destruye y recrea** el nodo y dispara los hooks del ciclo de vida; con `v-show` el nodo **vive todo el tiempo** en el DOM y solo cambia su CSS:
+
+```mermaid
+flowchart TB
+    subgraph vif["v-if (condicional)"]
+        VIF_T["condicion = true<br/>(montado en DOM)"] -.->|condicion = false| VIF_F["Vue DESTRUYE<br/>el nodo del DOM<br/>+ hooks onUnmounted"]
+        VIF_F -.->|condicion = true| VIF_T2["Vue CREA el nodo<br/>desde cero<br/>+ hooks onMounted"]
+    end
+    subgraph vshow["v-show (visibilidad)"]
+        VS_T["condicion = true<br/>(visible)"] -.->|condicion = false| VS_F["display: none<br/>(sigue en DOM)"]
+        VS_F -.->|condicion = true| VS_T2["display restaurado<br/>(sigue en DOM)"]
+    end
+    style vif fill:#fff3e0
+    style vshow fill:#e8f5e9
+```
+
+<!-- diagram id="s7-vif-vshow-ciclo" caption: "v-if destruye/recrea el nodo; v-show solo cambia su display" -->
+
+::: tip CONSECUENCIA PRACTICA
+Si un componente hijo dentro de `v-if` tiene `onMounted` con una llamada a la API, esa llamada se repetira CADA vez que `condicion` pase de false a true. Con `v-show` solo ocurre una vez (cuando se monta el padre).
+:::
+
 ## 2.5 Renderizado de listas: `v-for` {#listas}
 
 Itera sobre arrays, objetos o rangos numéricos:
@@ -263,6 +285,29 @@ No uses `:key="index"` en listas que se reordenan o eliminan elementos. Vue reut
   <input type="checkbox" /> {{ tarea.texto }}
 </div>
 ```
+:::
+
+::: details Por que :key="index" mezcla los estados
+
+```svgbob
+ANTES                            DESPUES de borrar B
+                                 (con :key="index")
+
++----+---+                       +----+---+
+| 0  | A |  foco activo          | 0  | A |  foco activo
++----+---+                       +----+---+
+| 1  | B |  texto "editando"     | 1  | C |  texto "editando" (!)
++----+---+                       +----+---+      (era de B)
+| 2  | C |  -                
++----+---+                       
+
+Vue ve la misma clave 1, decide REUTILIZAR el <input>,
+y conserva el estado interno de B en lo que ahora es C.
+```
+
+<!-- diagram id="s7-key-index-bug" caption: "Reutilizacion erronea de nodos cuando la key cambia de significado" -->
+
+Con `:key="item.id"` no pasa: Vue ve que la id de B ya no esta y monta un nodo nuevo para C.
 :::
 
 ### No mezcles `v-if` y `v-for`
@@ -648,7 +693,7 @@ En esta sesión trabajamos `v-model`, handlers y validaciones básicas. En la se
 
 ---
 
-## Ejercicio Sesión 2
+## Ejercicio Sesión 2 {#ejercicio}
 
 ::: info ENUNCIADO
 Debes implementar una mini lista de tareas para validar que dominas el flujo completo de esta sesión: tipado de datos con interface, renderizado de listas, formulario con `v-model`, eventos de usuario y transformación de arrays para actualizar estado.
@@ -755,7 +800,7 @@ const pendientes = (): number => {
 ```
 :::
 
-## Test Sesión 2
+## Test Sesión 2 {#test}
 
 ### Preguntas (desplegables)
 

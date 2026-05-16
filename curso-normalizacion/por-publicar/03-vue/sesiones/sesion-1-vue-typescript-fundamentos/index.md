@@ -72,6 +72,27 @@ Un archivo `.vue` se divide en tres secciones:
 </style>
 ```
 
+```svgbob
++---------------------------+
+| <script setup lang="ts">  |   <- LOGICA TypeScript
+|   imports                 |      (lo que el componente sabe hacer)
+|   ref / reactive          |
+|   funciones               |
+| </script>                 |
++---------------------------+
+| <template>                |   <- VISTA (HTML + directivas)
+|   {{ interpolacion }}     |      (lo que el componente pinta)
+|   v-if / v-for / @click   |
+| </template>               |
++---------------------------+
+| <style scoped lang="scss">|   <- ESTILO local
+|   .clase { ... }          |      (CSS encapsulado al componente)
+| </style>                  |
++---------------------------+
+```
+
+<!-- diagram id="s6-anatomia-vue" caption: "Las tres secciones de un componente .vue" -->
+
 | Sección | Qué contiene | Notas |
 |---------|-------------|-------|
 | `<script setup lang="ts">` | Imports, variables, funciones, lógica | `setup` activa Composition API, `lang="ts"` activa TypeScript |
@@ -250,6 +271,20 @@ Nunca uses `any` salvo en casos muy justificados (librerías sin tipos, migraci�
 ## 1.4 Reactividad: ref y reactive {#reactividad}
 
 La reactividad es la capacidad de Vue de **actualizar automáticamente** el DOM cuando cambian los datos. Es la característica más poderosa de Vue.
+
+```mermaid
+flowchart LR
+    A["<code>ref(0)</code><br/>Variable reactiva"] -->|usada en| T["Template<br/><code>{{ contador }}</code>"]
+    T -->|registra dependencia| V[("Sistema reactivo<br/>de Vue")]
+    A -->|<code>.value++</code><br/>cambia| V
+    V -->|dispara| R["Re-renderizado<br/>solo de los nodos<br/>que dependen"]
+    R --> D["DOM actualizado"]
+    style A fill:#e3f2fd,stroke:#1976d2
+    style V fill:#fff3e0,stroke:#f57c00
+    style D fill:#e8f5e9,stroke:#388e3c
+```
+
+<!-- diagram id="s6-ciclo-reactividad" caption: "Ciclo de reactividad de Vue: dependencias, cambio y re-render selectivo" -->
 
 ### ¿Por qué usamos `const` con variables reactivas?
 
@@ -483,7 +518,7 @@ Estructuraremos nuestra aplicación con el patrón Vista → Composable → Serv
 
 ---
 
-## Ejercicio Sesión 1
+## Ejercicio Sesión 1 {#ejercicio}
 
 ::: info ENUNCIADO
 Acabas de incorporarte a un proyecto Vue y tu primera tarea es crear una tarjeta de presentación de un miembro del equipo. El objetivo no es el diseño visual, sino demostrar que sabes declarar estado reactivo con `ref` y pintarlo correctamente en el template con interpolación y expresiones simples.
@@ -544,7 +579,7 @@ const activo = ref<boolean>(true)
 ```
 :::
 
-## Test Sesión 1
+## Test Sesión 1 {#test}
 
 ### Preguntas (desplegables)
 

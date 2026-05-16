@@ -94,12 +94,12 @@ c) 404 Not Found
 d) 500 Internal Server Error
 
 ## Pregunta 9
-¿De que clase debe heredar un controlador API basico en el patron UA?
+¿De que clase debe heredar un controlador API en el patron UA?
 
 a) `Controller`
 b) `ApiController`
 c) `ControllerBase`
-d) `BaseApiController`
+d) `ControladorBase`
 
 ## Pregunta 10
 ¿Que formato de respuesta devuelve `Problem(detail: "Error", statusCode: 500)` segun la especificacion?
@@ -192,26 +192,26 @@ c) 500 Internal Server Error
 d) 204 No Content
 
 ## Pregunta 17
-En Vue, ¿que funcion de `vueua-useaxios` se usa para realizar una llamada HTTP?
+En Vue, ¿que funcion de `@vueua/components` se usa para realizar una llamada HTTP tipada?
 
 a) `fetchAxios`
 b) `axiosRequest`
-c) `llamadaAxios`
-d) `httpCall`
+c) `peticion<T>()`
+d) `llamadaAxios`
 
 ## Pregunta 18
-¿Cual es el error en este codigo Vue?
+¿Cual es el error en este codigo Vue que intenta crear un tipo de recurso?
 
 ```typescript
-llamadaAxios("Eco/validar", verbosAxios.GET, formulario)
+peticion<TipoRecursoCrearDto>("api/TipoRecursos", verbosAxios.GET, formulario)
   .then(({ data }) => {
-    respuesta.value = data.value;
+    resultado.value = data;
   })
 ```
 
 a) Falta el `.catch()` para gestionar errores
 b) El verbo deberia ser `verbosAxios.POST` ya que envia datos en el body
-c) `data.value` deberia ser `data`
+c) Falta importar `verbosAxios` de `@vueua/components`
 d) Falta indicar el tipo de contenido JSON
 
 ## Pregunta 19

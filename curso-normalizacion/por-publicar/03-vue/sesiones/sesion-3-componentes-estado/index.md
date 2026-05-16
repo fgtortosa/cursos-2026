@@ -150,7 +150,28 @@ Si un valor depende de estado reactivo y se muestra en pantalla, empieza pensand
 
 ## 3.2 Comunicación Padre → Hijo: Props {#props}
 
-Los **props** pasan datos de un componente padre a un componente hijo. Se definen con `defineProps`:
+Los **props** pasan datos de un componente padre a un componente hijo. Antes de ver la sintaxis, fija la regla básica de comunicación en Vue: **los datos bajan, los eventos suben**.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as Padre (vista)
+    participant H as Hijo (componente)
+    participant U as Usuario
+
+    P->>H: prop titulo="Reserva"
+    Note over H: defineProps lee el valor.<br/>El hijo NO debe modificarlo.
+    U->>H: click en boton
+    H->>H: contador.value++
+    H-->>P: emit('cambio', contador.value)
+    Note over P: El padre actualiza<br/>su propio estado.
+    P->>H: prop titulo="Reserva confirmada"<br/>(nuevo valor)
+    Note over H: El hijo reacciona<br/>al cambio de prop.
+```
+
+<!-- diagram id="s8-props-emits" caption: "Datos bajan via props, eventos suben via emits" -->
+
+Los props se definen con `defineProps`:
 
 **Componente Hijo** (`TarjetaUsuario.vue`):
 
@@ -305,6 +326,20 @@ const contador = ref<number>(0)
 
 El patrón Props + Emits funciona, pero es repetitivo para `v-model`. **`defineModel`** (Vue 3.4+) lo simplifica a una sola línea:
 
+```mermaid
+flowchart LR
+    subgraph manual["Sin defineModel (manual)"]
+        P1[Padre<br/>v-model='nombre'] -->|prop modelValue| H1[Hijo]
+        H1 -->|emit update:modelValue| P1
+    end
+    subgraph automatico["Con defineModel"]
+        P2[Padre<br/>v-model='nombre'] <-->|defineModel| H2["Hijo<br/><code>const v = defineModel()</code>"]
+    end
+    style manual stroke-dasharray: 5 5
+```
+
+<!-- diagram id="s8-define-model" caption: "defineModel compacta prop + emit en una sola declaracion bidireccional" -->
+
 ### Comparación
 
 | Aspecto | Props + Emits | `defineModel` |
@@ -385,7 +420,7 @@ const apellido = defineModel<string>('apellido')
 - **Comunicación bidireccional** (`v-model`) → `defineModel` ✅
 :::
 
-## Ejercicio 1: Contador con componentes
+## Ejercicio 1: Contador con componentes {#ejercicio-1}
 
 ::: info ENUNCIADO
 Vas a resolver el mismo problema funcional con dos patrones de comunicación entre componentes. La práctica busca que comprendas cuándo usar Props+Emits y cuándo `defineModel`, manteniendo en ambos casos una única fuente de verdad del estado en el padre.
@@ -536,7 +571,32 @@ No uses `watch` para calcular valores derivados que podrían ser `computed`.
 
 ## 3.6 Lifecycle Hooks y async/await {#lifecycle}
 
-Vue ejecuta funciones en momentos concretos de la vida del componente. El hook más usado en frontend de negocio es `onMounted`.
+Vue ejecuta funciones en momentos concretos de la vida del componente. Antes de ver `onMounted` en código, fija el orden de los hooks:
+
+```mermaid
+flowchart LR
+    A([Crear instancia]) --> B[setup<br/>script setup se ejecuta]
+    B --> C[onBeforeMount<br/>render todavia no en DOM]
+    C --> D[onMounted<br/>nodos en DOM. AQUI van<br/>las cargas iniciales async]
+    D --> E[Usuario interactua...]
+    E --> F[onBeforeUpdate<br/>reactividad detecto cambio]
+    F --> G[onUpdated<br/>DOM ya refleja el cambio]
+    G --> E
+    E --> H[onBeforeUnmount<br/>desuscribir, limpiar]
+    H --> I([Componente destruido])
+    style D fill:#e8f5e9,stroke:#388e3c
+    style H fill:#ffebee,stroke:#c62828
+```
+
+<!-- diagram id="s8-lifecycle" caption: "Hooks de ciclo de vida de un componente Vue 3" -->
+
+::: tip CUANDO USAR CADA HOOK
+- `onMounted`: cargas iniciales que necesitan el DOM montado (peticiones HTTP, foco, integraciones con librerias DOM).
+- `onUpdated`: rarisimo en codigo de la UA. Si crees que lo necesitas, casi seguro hay un `computed` o `watch` que encaja mejor.
+- `onBeforeUnmount`: limpiar suscripciones, intervalos, listeners globales. Si no lo haces, hay leak.
+:::
+
+El hook más usado en frontend de negocio es `onMounted`:
 
 ```typescript
 import { ref, onMounted } from 'vue'
@@ -655,7 +715,7 @@ Si dudas entre dos enfoques, elige el que deje una única fuente de verdad del e
 
 ---
 
-## Ejercicio 2: Gestor de gastos
+## Ejercicio 2: Gestor de gastos {#ejercicio-2}
 
 ::: info ENUNCIADO
 Ahora aplicarás estado derivado y efectos secundarios en un caso realista: un formulario de gastos con resumen financiero reactivo. El foco es separar claramente entrada, cálculos (`computed`) y reacción a umbrales (`watch`).
@@ -808,7 +868,7 @@ watch(totalGastado, (nuevoTotal) => {
 ```
 :::
 
-## Test Sesión 3
+## Test Sesión 3 {#test}
 
 ### Preguntas (desplegables)
 

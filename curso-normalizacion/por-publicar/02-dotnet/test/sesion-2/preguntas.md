@@ -7,8 +7,9 @@ Dado el siguiente enum:
 ```csharp
 public enum ErrorType
 {
-    Failure = 0,
-    Validation = 1
+    Failure    = 0,   // -> HTTP 500
+    Validation = 1,   // -> HTTP 400
+    NotFound   = 2    // -> HTTP 404
 }
 ```
 
@@ -31,7 +32,8 @@ protected ActionResult HandleResult<T>(Result<T> result)
 
     return result.Error!.Type switch
     {
-        ErrorType.Validation => ValidationProblem(...),
+        ErrorType.Validation => ValidationProblem(..., Status = 400),
+        ErrorType.NotFound   => NotFound(new ProblemDetails { Status = 404 }),
         _ => Problem(detail: result.Error.Message, statusCode: 500)
     };
 }
@@ -141,7 +143,7 @@ public Result<ClaseUnidad> ObtenerPorId(int id, string idioma = "ES")
 Que problema tiene este codigo?
 
 a) No usa `EjecutarParams` para la consulta
-b) Devuelve `Success(null)` si no existe la unidad, en vez de un objeto con `Id = 0`
+b) Devuelve `Success(null)` si no existe la unidad, en vez de `Result<ClaseUnidad>.NotFound(...)`
 c) No usa `BindByName(true)`
 d) Falta el `try/catch` para `BDException`
 
@@ -150,8 +152,8 @@ d) Falta el `try/catch` para `BDException`
 Cual es la correccion adecuada del codigo de la pregunta anterior?
 
 a) `return Result<ClaseUnidad>.Failure(new Error(..., ErrorType.Failure));`
-b) `return Result<ClaseUnidad>.Success(unidad ?? new ClaseUnidad());`
-c) `return Result<ClaseUnidad>.Success(unidad ?? new ClaseUnidad { Id = 0 });`
+b) `return Result<ClaseUnidad>.Success(unidad ?? new ClaseUnidad { Id = 0 });`
+c) `return unidad is null ? Result<ClaseUnidad>.NotFound("UNIDAD_NO_ENCONTRADA", $"No existe una unidad con id {id}") : Result<ClaseUnidad>.Success(unidad);`
 d) Lanzar una `NotFoundException` si `unidad` es null
 
 ## Pregunta 11
@@ -393,14 +395,16 @@ public Result<ClaseUnidad> ObtenerPorId(int id, string idioma = "ES")
 {
     const string sql = "SELECT * FROM VCTS_UNIDADES WHERE ID = :id";
     var unidad = bd.ObtenerPrimeroMap<ClaseUnidad>(sql, new { id }, idioma: idioma);
-    return Result<ClaseUnidad>.Success(unidad ?? new ClaseUnidad { Id = 0 });
+    return unidad is null
+        ? Result<ClaseUnidad>.NotFound("UNIDAD_NO_ENCONTRADA", $"No existe una unidad con id {id}")
+        : Result<ClaseUnidad>.Success(unidad);
 }
 ```
 
-a) `Result` con `IsSuccess = false` y `Error` con `ErrorType.Failure`
-b) `Result` con `IsSuccess = true` y `Value` con un objeto `ClaseUnidad` cuyo `Id = 0`
+a) `Result` con `IsSuccess = true` y `Value` igual a `null`
+b) `Result` con `IsSuccess = false` y `Error.Type = ErrorType.NotFound`
 c) Una excepcion `NullReferenceException`
-d) `Result` con `IsSuccess = false` y HTTP 404
+d) `Result` con `IsSuccess = true` y `Value` con un objeto cuyo `Id = 0`
 
 ## Pregunta 27
 
@@ -594,20 +598,21 @@ d) Para reemplazar completamente el mapeo automatico
 
 ## Pregunta 41
 
-Dado el siguiente contrato simplificado de errores UA, que afirmacion es correcta?
+Dado el contrato de errores UA en `HandleResult`, que afirmacion es correcta?
 
 ```csharp
 return result.Error!.Type switch
 {
     ErrorType.Validation => ValidationProblem(..., Status = 400),
+    ErrorType.NotFound   => NotFound(new ProblemDetails { Status = 404 }),
     _ => Problem(detail: result.Error.Message, statusCode: 500)
 };
 ```
 
-a) Si el servicio no encuentra un recurso, el controlador devuelve 404
-b) El wildcard `_` captura cualquier `ErrorType` que no sea `Validation` y devuelve 500
+a) Si el servicio devuelve `Result.NotFound(...)`, el controlador devuelve 404
+b) El wildcard `_` captura cualquier `ErrorType` incluyendo `NotFound` y devuelve 500
 c) `ErrorType.Failure` devuelve 400
-d) Hay un caso especifico para `ErrorType.NotFound` que devuelve 404
+d) No existe un caso especifico para `ErrorType.NotFound` en `HandleResult`
 
 ## Pregunta 42
 

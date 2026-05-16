@@ -16,9 +16,9 @@
 
 8. **c)** 404 Not Found. `FirstOrDefault` devuelve null si no encuentra el elemento, y el `if` comprueba null para devolver `NotFound()`.
 
-9. **c)** `ControllerBase`. En el patron UA, los controladores API heredan de `ControllerBase` (no de `Controller`, que anade soporte para vistas MVC innecesario en APIs).
+9. **d)** `ControladorBase`. Es la clase base UA que extiende `ControllerBase` y agrega `HandleResult`, `CodPer`, `Idioma`, `Roles` y `NombrePersona`. `ControllerBase` es la clase estandar de ASP.NET Core, pero el patron UA requiere la subclase `ControladorBase`.
 
-10. **b)** Un JSON con formato `ProblemDetails` (RFC 7807). El metodo `Problem()` genera una respuesta estandar con campos `type`, `title`, `status` y `detail`.
+10. **b)** Un JSON con formato `ProblemDetails` (RFC 9457). El metodo `Problem()` genera una respuesta estandar con campos `type`, `title`, `status` y `detail`.
 
 11. **b)** .NET devuelve automaticamente un 400 Bad Request con `ValidationProblemDetails`. El atributo `[ApiController]` intercepta el ModelState invalido antes de que se ejecute la accion del controlador.
 
@@ -32,9 +32,9 @@
 
 16. **b)** 400 Bad Request con `ValidationProblemDetails`. El atributo `[ApiController]` valida el ModelState automaticamente antes de ejecutar la accion, por lo que el codigo dentro de `Validar` nunca llega a ejecutarse.
 
-17. **c)** `llamadaAxios`. Es la funcion principal de `vueua-useaxios/services/useAxios` para realizar llamadas HTTP en el patron Vue UA.
+17. **c)** `peticion<T>()`. Es la funcion principal de `@vueua/components/composables/use-axios` para realizar llamadas HTTP tipadas en el patron Vue UA. Recibe la URL, el verbo (`verbosAxios.GET/POST/PUT/DELETE`) y opcionalmente el body.
 
-18. **b)** El verbo deberia ser `verbosAxios.POST` ya que envia datos en el body. El endpoint `Eco/validar` es un `[HttpPost]` y se envia un formulario como tercer parametro.
+18. **b)** El verbo deberia ser `verbosAxios.POST` ya que se envian datos como tercer parametro (body JSON). El endpoint de creacion es un `[HttpPost]` y usar `verbosAxios.GET` ignoraria el body.
 
 19. **b)** `error.response.data.errors`. El `ValidationProblemDetails` tiene la propiedad `errors` que es un diccionario campo-mensajes. No confundir con `error.response.data` que contiene todo el ProblemDetails.
 

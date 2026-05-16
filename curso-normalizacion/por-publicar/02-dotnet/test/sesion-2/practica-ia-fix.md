@@ -17,5 +17,5 @@ public ClaseUnidad ObtenerPorId(int id)
 
 1. Parametrizar query (`:id`) y usar vista `VCTS_UNIDADES`.
 2. Devolver `Result<ClaseUnidad>`.
-3. Devolver un objeto vacío con `Id = 0` cuando no exista (el frontend valida `Id == 0`).
+3. Devolver `Result<ClaseUnidad>.NotFound(...)` cuando no exista (el controlador lo convierte en `404 Not Found` vía `HandleResult`).
 4. Añadir logging contextual.

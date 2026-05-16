@@ -1,6 +1,6 @@
 # Respuestas -- Test Sesion 2: Servicios y Oracle
 
-1. **d)** 500 Internal Server Error. El contrato simplificado de la UA solo tiene dos codigos: 400 para `Validation` y 500 para todo lo demas. El `switch` usa `_ =>` (wildcard) que captura `Failure` y cualquier otro tipo, devolviendo siempre 500.
+1. **d)** 500 Internal Server Error. `HandleResult` define tres ramas de error: `Validation` → 400, `NotFound` → 404, y el wildcard `_` (que captura `Failure` y cualquier tipo adicional) → 500. El tipo `Failure` cae siempre en el wildcard y devuelve 500.
 
 2. **b)** `ValidationProblemDetails` con status 400. Cuando `ErrorType` es `Validation`, `HandleResult` genera un `ValidationProblemDetails` que incluye un diccionario `errors` con los errores agrupados por campo y status 400.
 
@@ -10,15 +10,15 @@
 
 5. **c)** `bd.ObtenerTodosMap<ClaseUnidad>(sql, param: null, idioma: "ES")`. Para obtener una lista de objetos se usa `ObtenerTodosMap<T>`. `ObtenerPrimeroMap` devuelve un solo objeto, `EjecutarParams` es para procedimientos almacenados sin retorno, y `GetObject` es el metodo legacy.
 
-6. **b)** Devolver 200 OK con un objeto cuyo `Id = 0`. En el contrato UA no se usa 404. Si un recurso no existe, se devuelve 200 OK con un objeto vacio (`Id = 0`) y el frontend detecta esa condicion para mostrar el mensaje adecuado.
+6. **a)** Devolver 404 Not Found. Cuando `ObtenerPrimeroMapAsync` devuelve `null`, el servicio retorna `Result<T>.NotFound(codigo, mensaje)`. `HandleResult` tiene un caso explícito para `ErrorType.NotFound` que genera un `404 Not Found` con `ProblemDetails`. El frontend recibe el 404 y muestra el mensaje de error adecuado.
 
 7. **b)** Error de mapeo: la libreria buscara una columna `TIENE_CONTENIDO` que no existe. ClaseOracleBD3 intenta mapear TODAS las propiedades publicas del modelo a columnas Oracle. Sin `[IgnorarMapeo]`, buscara una columna para `TieneContenido` y fallara al no encontrarla.
 
 8. **c)** `[IgnorarMapeo]`. Es el atributo propio de ClaseOracleBD3 que indica que una propiedad no corresponde a ninguna columna de la base de datos. `[JsonIgnore]` es para serializacion JSON, `[NotMapped]` es de Entity Framework, y `[Computed]` no existe en este contexto.
 
-9. **b)** Devuelve `Success(null)` si no existe la unidad, en vez de un objeto con `Id = 0`. Cuando `ObtenerPrimeroMap` devuelve `null`, el servicio pasa ese `null` directamente a `Result.Success`, y el controlador devolvera un 200 OK con `null`, confundiendo al frontend.
+9. **b)** Devuelve `Success(null)` si no existe la unidad, en vez de `Result<ClaseUnidad>.NotFound(...)`. Cuando `ObtenerPrimeroMap` devuelve `null`, el servicio pasa ese `null` directamente a `Result.Success`, y el controlador devolvera un 200 OK con `null` en el body en lugar del 404 esperado.
 
-10. **c)** `return Result<ClaseUnidad>.Success(unidad ?? new ClaseUnidad { Id = 0 });`. Se usa el operador `??` para devolver un objeto con `Id = 0` cuando la unidad no existe. El frontend comprueba `id === 0` para saber que no se encontro. No se usa `Result.Failure` porque el contrato UA no contempla 404.
+10. **c)** `return unidad is null ? Result<ClaseUnidad>.NotFound("UNIDAD_NO_ENCONTRADA", $"No existe una unidad con id {id}") : Result<ClaseUnidad>.Success(unidad);`. Cuando la unidad no existe se devuelve `Result.NotFound(...)`, que `HandleResult` convierte en 404. La opcion b) devolveria 200 OK con `Id = 0`, lo que oculta el error al frontend en vez de informarle correctamente.
 
 11. **b)** `ClaseReserva.cs`, `ClaseReservas.cs`, `IClaseReservas.cs`. La convencion UA usa prefijo `Clase` + singular para el DTO, `Clase` + plural para el servicio, e `I` + `Clase` + plural para la interfaz.
 
@@ -50,11 +50,11 @@
 
 25. **b)** Porque no existe como columna en la base de datos y es calculada a partir de otras propiedades. `NombreCompleto` se calcula concatenando `Nombre` y `Apellidos`. Sin `[IgnorarMapeo]`, ClaseOracleBD3 buscaria una columna `NOMBRE_COMPLETO` que no existe.
 
-26. **b)** `Result` con `IsSuccess = true` y `Value` con un objeto `ClaseUnidad` cuyo `Id = 0`. Gracias al operador `??`, cuando `ObtenerPrimeroMap` devuelve `null`, se crea un nuevo `ClaseUnidad` con `Id = 0` y se envuelve en un `Result.Success`. El frontend detecta `Id === 0` para saber que no existe.
+26. **b)** `Result` con `IsSuccess = false` y `Error.Type = ErrorType.NotFound`. El operador ternario comprueba si `unidad is null` y en ese caso retorna `Result<ClaseUnidad>.NotFound(...)`, que tiene `IsSuccess = false` y el error tipado como `NotFound`. `HandleResult` lo convertira en un 404 Not Found.
 
 27. **c)** 200 OK con el valor serializado. Cuando `result.IsSuccess` es `true`, `HandleResult` ejecuta `return Ok(result.Value)`, que produce un HTTP 200 con el valor serializado a JSON.
 
-28. **c)** Si un recurso no se encuentra, se devuelve HTTP 404. FALSO. En el contrato simplificado de la UA, no se usa 404. Si un recurso no existe, se devuelve 200 OK con un objeto cuyo `Id = 0`. Solo hay dos codigos de error: 400 (validacion) y 500 (todo lo demas).
+28. **d)** El contrato solo define dos codigos de error: 400 y 500. FALSO. El contrato UA define tres codigos de error: 400 para `Validation`, 404 para `NotFound` y 500 para `Failure`. La afirmacion c) es VERDADERA: cuando un recurso no se encuentra, el servicio retorna `Result.NotFound(...)` y `HandleResult` lo convierte en 404.
 
 29. **c)** `[JsonIgnore]`. Se usa `[JsonIgnore]` para que la propiedad no se deserialice desde el JSON del cliente. El controlador asigna `CodPer` e `Ip` con valores del servidor. `[IgnorarMapeo]` es para ClaseOracleBD3, no para JSON.
 
@@ -80,7 +80,7 @@
 
 40. **b)** Para ejecutar logica de conversion personalizada despues del mapeo automatico. `funcionPostMapeo` recibe cada objeto ya mapeado junto con el `IDataRecord` original, permitiendo asignar valores que requieren logica especial (roles, campos compuestos) que el mapeo automatico no puede resolver.
 
-41. **b)** El wildcard `_` captura cualquier `ErrorType` que no sea `Validation` y devuelve 500. El `switch` solo tiene un caso explicito (`Validation` -> 400) y el wildcard `_` para todo lo demas (incluyendo `Failure`) que devuelve 500. No existe `ErrorType.NotFound` ni se usa HTTP 404.
+41. **a)** Si el servicio devuelve `Result.NotFound(...)`, el controlador devuelve 404. El `switch` tiene tres ramas: `Validation` → 400, `NotFound` → 404 (caso explicito), y el wildcard `_` para `Failure` y cualquier otro tipo → 500. La opcion b) es falsa porque `NotFound` tiene su propio caso y NO cae en el wildcard.
 
 42. **c)** Necesita `[Columna("COD_USR")]` porque la conversion PascalCase -> SNAKE_CASE no funciona con abreviaturas. `CodUsr` se convertiria a `COD_USR` solo si "Usr" se descompone correctamente, pero las abreviaturas pueden no seguir el patron esperado. En la documentacion se indica que `CodUsr` necesita `[Columna("COD_USR")]`.
 
