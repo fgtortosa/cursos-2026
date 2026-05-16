@@ -1,1359 +1,906 @@
 ---
 title: "Sesión 5: Servicios y acceso a Oracle"
-description: Arquitectura de capas, ClaseOracleBD3, mapeo automático y servicios con Oracle
+description: Arquitectura de capas, Result<T>, ClaseOracleBD3, llamada a paquetes PL/SQL desde .NET y primer test xUnit
 outline: deep
 ---
 
-# Sesión 5: Servicios y acceso a Oracle (~45 min)
+# Sesión 5: Servicios y acceso a Oracle (~1 h 30 min)
 
 [[toc]]
 
-## 2.1 Patrón Result\<T\>
-
-::: tip SESIÓN DE INTEGRACIÓN
-Aquí se introduce el patrón Result\<T\> como base de la arquitectura. La gestión completa de errores (IExceptionHandler, ProblemDetails, toasts en Vue) se cubre en la **Sesión 13 — Gestión de errores de extremo a extremo**.
+::: info DE DÓNDE VENIMOS
+En la [**sesión 4**](../sesion-1-dtos-apis/) construiste un controlador `ObservacionesController` que devolvía datos hardcodeados. En esta sesión lo conectaremos a Oracle a través de un **servicio**, usando el paquete `PKG_RES_OBSERVACION_RESERVA` que ya tienes en SQL. Al terminar, los mismos botones del `Home.vue` que probabas en clase pasada **traerán datos reales de la base de datos** sin que cambies nada en Vue.
 :::
 
-::: info CONTEXTO
-**¿Por qué no lanzar excepciones para errores de negocio?**
+## 2.1 Por qué separamos la lógica en capas
 
-Las excepciones están diseñadas para situaciones *excepcionales* (la base de datos se cae, la red falla). Pero un usuario que introduce un email duplicado o una reserva en fecha pasada es un error **esperado**. Usar excepciones para flujo de control tiene varios problemas:
-- **Rendimiento**: lanzar una excepción es 100-1000x más lento que devolver un objeto
-- **Legibilidad**: el flujo `try/catch` oculta la lógica de negocio
-- **Consistencia**: es difícil saber qué excepciones puede lanzar un servicio
+### 2.1.1 Tres capas, tres responsabilidades
 
-El patrón `Result<T>` encapsula el resultado de una operación: si fue exitosa devuelve el valor, si fue un error devuelve un objeto `Error` con toda la información necesaria.
+Hasta ahora, el controlador hacía dos cosas: **decidir el HTTP** (qué status devolver) y **construir los datos** (el array hardcodeado). Cuando los datos vengan de Oracle, esa segunda parte se hace muy grande. La solución del curso es:
+
+```mermaid
+flowchart LR
+    HTTP[Petición HTTP<br/>Vue / Chrome / Scalar] --> Ctrl[Controller<br/>«delgado»]
+    Ctrl -- "delega" --> Svc[Servicio<br/>lógica + acceso a datos]
+    Svc -- "consulta vista<br/>llama a paquete" --> Oracle[(Oracle<br/>VRES_*, PKG_RES_*)]
+    Oracle -- "filas / OUT" --> Svc
+    Svc -- "Result<T>" --> Ctrl
+    Ctrl -- "HandleResult" --> HTTP
+
+    style Ctrl fill:#d1ecf1,stroke:#0c5460
+    style Svc  fill:#fff3cd,stroke:#856404
+    style Oracle fill:#d4edda,stroke:#155724
+```
+
+<!-- diagram id="capas-controller-servicio-oracle" caption: "El controlador es la fachada HTTP; el servicio es el corazón funcional; Oracle es la fuente de verdad." -->
+
+| Capa             | Su única misión                                                              | NO debe hacer                                       |
+| ---------------- | ---------------------------------------------------------------------------- | --------------------------------------------------- |
+| **Controller**   | Decidir el HTTP (status code, ProblemDetails) y leer claims del `User`.      | Lógica de negocio, SQL, validaciones de dominio.    |
+| **Servicio**     | Lógica de dominio + acceso a datos (vista para leer, paquete para escribir). | Conocer `HttpContext`, `IActionResult`, `Authorize`.|
+| **Oracle**       | Integridad, transacción, validación de invariantes.                          | Saber quién es el cliente HTTP.                     |
+
+::: tip BUENA PRÁCTICA — un controlador de buen tamaño es de **una línea por acción**
+Después de esta sesión, tus controladores tendrán acciones como:
+
+```csharp
+[HttpGet]
+public async Task<ActionResult> Listar() =>
+    HandleResult(await _observaciones.ObtenerTodosAsync(Idioma));
+```
+
+Si una acción ocupa más de 3-4 líneas, casi seguro que está haciendo trabajo del servicio.
 :::
 
-### El núcleo: `Result<T>`, `Error` y `ErrorType`
+### 2.1.2 Inyección de dependencias: la pieza que une todo
+
+La plantilla UA registra `ClaseOracleBd` (la implementación concreta) al llamar a `builder.AddServicesUA()`. **Pero NO registra la interfaz `IClaseOracleBd`**. Como nuestros servicios piden la interfaz por constructor (para poder mockearlos en tests), hay que añadir una línea de "alias" en `Program.cs`:
+
+```csharp
+// Program.cs
+var builder = WebApplication.CreateBuilder(args);
+
+// 1) La plantilla UA: registra ClaseOracleBd como Transient.
+builder.AddServicesUA();
+
+// 2) ALIAS: cualquier servicio que pida IClaseOracleBd recibe la misma
+//    instancia de ClaseOracleBd que ya ha registrado la plantilla.
+//    No crea conexiones extra: es un descriptor más en el contenedor.
+builder.Services.AddTransient<ua.IClaseOracleBd>(sp => sp.GetRequiredService<ua.ClaseOracleBd>());
+
+// 3) Nuestros servicios, registrados contra su interfaz para poder sustituirlos
+//    por fakes en tests sin tocar el código de los controladores.
+builder.Services.AddScoped<ITiposRecursoServicio, TiposRecursoServicio>();
+builder.Services.AddScoped<IRecursosServicio,     RecursosServicio>();
+builder.Services.AddScoped<IReservasServicio,     ReservasServicio>();
+builder.Services.AddScoped<IObservacionesServicio, ObservacionesServicio>();   // ← lo añadirás hoy
+```
+
+::: warning IMPORTANTE — el error que te vas a encontrar si saltas la línea 2
+> `Unable to resolve service for type 'ua.IClaseOracleBd' while attempting to activate 'ObservacionesServicio'.`
+
+`builder.Build()` valida en desarrollo todos los constructores. Si tu servicio pide `IClaseOracleBd` y nadie ha registrado esa interfaz, **la app no arranca**. Es el error nº1 al introducir DI sobre la plantilla UA. La solución es exactamente la línea (2).
+:::
+
+## 2.2 `Result<T>`: una sola forma de hablar entre capas
+
+### 2.2.1 El problema que resuelve
+
+En la sesión 4 el controlador hacía:
+
+```csharp
+[HttpGet("{id:int}")]
+public ActionResult ObtenerPorId(int id)
+{
+    var encontrada = _datosHardcodeados.FirstOrDefault(o => o.Id == id);
+    if (encontrada is null)
+        return NotFound(new ProblemDetails { Title = "...", Detail = "..." });
+    return Ok(encontrada);
+}
+```
+
+Tres problemas cuando aparezca el servicio real:
+
+- El servicio devolvía `T?` (con `null` = "no existe") y el controlador tenía que adivinarlo.
+- El `ProblemDetails` se construía a mano en cada acción — fácil olvidar uno, fácil tener un `Title` distinto.
+- Cuando el servicio falle por **otra cosa** (Oracle caído, validación de paquete), el controlador no sabe qué hacer.
+
+Solución: el servicio envuelve siempre su respuesta en `Result<T>`. **Lleva el dato si todo ha ido bien, o un `Error` tipado si no.**
+
+### 2.2.2 Las tres piezas (ya están en el código del curso)
 
 ```csharp
 // Models/Errors/ErrorType.cs
 public enum ErrorType
 {
-    Failure = 0,       // Error genérico (500)
-    Validation = 1     // Error de validación (400)
+    Failure    = 0,   // -> HTTP 500 (error inesperado)
+    Validation = 1,   // -> HTTP 400 (datos inválidos)
+    NotFound   = 2    // -> HTTP 404 (recurso no encontrado)
 }
-```
 
-```csharp
 // Models/Errors/Error.cs
 public record Error(
     string Code,
     string Message,
     ErrorType Type,
     IDictionary<string, string[]>? ValidationErrors = null);
-```
 
-```csharp
-// Models/Errors/Result.cs
+// Models/Errors/Result.cs (esquema simplificado)
 public class Result<T>
 {
-    public bool IsSuccess { get; }
-    public T? Value { get; }
-    public Error? Error { get; }
+    public bool   IsSuccess { get; }
+    public T?     Value     { get; }
+    public Error? Error     { get; }
 
-    private Result(T value)
-        => (IsSuccess, Value, Error) = (true, value, null);
-    private Result(Error error)
-        => (IsSuccess, Value, Error) = (false, default, error);
-
-    public static Result<T> Success(T value) => new(value);
-    public static Result<T> Failure(Error error) => new(error);
+    public static Result<T> Success(T value)        => new(value);
+    public static Result<T> Failure(Error error)    => new(error);
+    public static Result<T> NotFound(string code, string message) =>
+        new(new Error(code, message, ErrorType.NotFound));
+    public static Result<T> Validation(string code, string message, IDictionary<string, string[]>? errors = null) =>
+        new(new Error(code, message, ErrorType.Validation, errors));
+    public static Result<T> Fail(string code, string message) =>
+        new(new Error(code, message, ErrorType.Failure));
 }
 ```
 
-### El controlador base: `ApiControllerBase.HandleResult`
-
-Este método centraliza el mapeo de `Result<T>` a respuestas HTTP. Todos los controladores API heredan de esta clase:
+### 2.2.3 `ApiControllerBase.HandleResult`: una vez para todo el proyecto
 
 ```csharp
-// Controllers/ApiControllerBase.cs
+// Controllers/Apis/ApiControllerBase.cs
 public abstract class ApiControllerBase : ControllerBase
 {
+    /// <summary>
+    /// Convierte Result<T> en respuesta HTTP estándar:
+    ///   Success    -> 200 OK con result.Value
+    ///   Validation -> 400 ValidationProblemDetails
+    ///   NotFound   -> 404 ProblemDetails
+    ///   Failure    -> 500 ProblemDetails
+    /// </summary>
     protected ActionResult HandleResult<T>(Result<T> result)
     {
-        if (result.IsSuccess)
-            return Ok(result.Value);
+        if (result.IsSuccess) return Ok(result.Value);
 
-        return result.Error!.Type switch
+        var error = result.Error!;
+        return error.Type switch
         {
-            ErrorType.Validation => ValidationProblem(
-                new ValidationProblemDetails(result.Error.ValidationErrors!)
-                {
-                    Detail = result.Error.Message,
-                    Status = 400
-                }),
-            _ => Problem(detail: result.Error.Message, statusCode: 500)
+            ErrorType.Validation => ValidationProblem(new ValidationProblemDetails(
+                error.ValidationErrors ?? new Dictionary<string, string[]>())
+            { Detail = error.Message, Status = StatusCodes.Status400BadRequest }),
+
+            ErrorType.NotFound => NotFound(new ProblemDetails
+            { Title = error.Code, Detail = error.Message, Status = StatusCodes.Status404NotFound }),
+
+            _ => Problem(detail: error.Message, title: error.Code,
+                         statusCode: StatusCodes.Status500InternalServerError)
         };
     }
 }
 ```
 
-### Matriz ErrorType → HTTP → ProblemDetails
+Jerarquía completa de controladores:
 
-| ErrorType UA | HTTP | Respuesta | Nivel Serilog |
-|--------------|------|-----------|---------------|
-| `Validation` | `400` | `ValidationProblemDetails` con `errors` por campo | `Warning` |
-| `Failure` | `500` | `ProblemDetails` genérico (sin pistas al cliente) | `Error` |
+```mermaid
+classDiagram
+    class ControllerBase {
+      <<framework>>
+    }
+    class ApiControllerBase {
+      <<UA>>
+      #HandleResult(Result~T~)
+    }
+    class ControladorBase {
+      <<UA>>
+      #Idioma
+      #CodPer
+      #Roles, NombrePersona...
+    }
+    class ObservacionesController {
+      +Listar()
+      +Crear(dto)
+      +Eliminar(id)
+    }
+    ControllerBase <|-- ApiControllerBase
+    ApiControllerBase <|-- ControladorBase
+    ControladorBase <|-- ObservacionesController
+```
 
-::: tip BUENA PRÁCTICA
-Mantenemos solo dos códigos de error en la API: **400** para validación (el cliente puede corregir los datos) y **500** para todo lo demás (no damos pistas sobre el error interno). Si un recurso no se encuentra, devolvemos **200 OK** con un objeto vacío (Id=0) y el frontend valida ese caso.
+<!-- diagram id="jerarquia-controlador" caption: "ApiControllerBase aporta HandleResult; ControladorBase aporta los claims del token; los controladores los heredan los dos." -->
+
+::: tip BUENA PRÁCTICA — qué pasa por dónde
+- El **servicio** SIEMPRE devuelve `Result<T>`. Si tiene que decir "no existe", devuelve `Result<T>.NotFound(...)`. NUNCA tira excepciones para flujo normal.
+- El **controlador** llama al servicio y pasa el resultado a `HandleResult`. NO interpreta el `Result` a mano.
+- Las **excepciones** se reservan para imprevistos reales (Oracle caído, red rota). Un `IExceptionHandler` global las convierte en 500 — pero eso es **sesión 13 (integración)**.
 :::
 
-## 2.2 Arquitectura de capas: Modelo → Servicio → API
+## 2.3 Lectura: SELECT contra una vista + mapeo automático
 
-### Estructura de ficheros UA
+### 2.3.1 La fachada: `IClaseOracleBd`
 
-::: warning IMPORTANTE
-El DTO y el servicio van **en el mismo directorio** dentro de `Models/`. El usuario web de Oracle **no tiene permisos** de INSERT, UPDATE ni DELETE — solo puede ejecutar procedimientos almacenados (EXECUTE) y consultar vistas (SELECT).
-:::
+Esta interfaz expone los pocos métodos que el curso necesita. Los más importantes para lectura:
 
-```
-Models/
-  Unidad/
-    ClaseUnidad.cs             ← DTO de lectura (singular)
-    ClaseGuardarUnidad.cs      ← DTO de entrada con DataAnnotations
-    ClaseUnidades.cs           ← Servicio (plural) - lógica + acceso a datos
-    IClaseUnidades.cs          ← Interfaz del servicio
-  Errors/
-    Result.cs
-    Error.cs
-    ErrorType.cs
-Controllers/
-  ApiControllerBase.cs         ← Base con HandleResult
-  Apis/
-    UnidadesController.cs      ← Controlador API
-```
+| Método                                       | Para qué                                              | Devuelve            |
+| -------------------------------------------- | ----------------------------------------------------- | ------------------- |
+| `ObtenerTodosMapAsync<T>(sql, param, idioma)`| Lista de objetos T mapeados desde el cursor.          | `Task<IEnumerable<T>?>` |
+| `ObtenerPrimeroMapAsync<T>(sql, param, idioma)`| Un objeto T (o `null` si no hay filas).             | `Task<T?>`          |
+| `EjecutarParamsAsync(sql, parametros)`       | Llama a un procedimiento/función PL/SQL.              | `Task`              |
 
-::: tip CONVENCIÓN DE NOMBRES UA
-- **DTO lectura:** `Clase` + singular → `ClaseUnidad.cs`
-- **DTO entrada:** `Clase` + Guardar/Crear + singular → `ClaseGuardarUnidad.cs`
-- **Servicio:** `Clase` + plural → `ClaseUnidades.cs` (en el **mismo directorio** que el DTO)
-- **Interfaz:** `I` + `Clase` + plural → `IClaseUnidades.cs`
-- **Controlador:** plural + Controller → `UnidadesController.cs`
-:::
+Las versiones síncronas (`ObtenerTodosMap<T>`, `EjecutarParams`) existen también; en el curso usamos siempre las **async**.
 
-### Permisos Oracle: vistas para leer, SPs para escribir
+### 2.3.2 Patrón de un servicio "solo lectura"
 
-| Operación | Objeto Oracle | Permiso usuario web |
-|-----------|--------------|---------------------|
-| **Leer** (SELECT) | Vistas `VCTS_UNIDADES` | SELECT |
-| **Escribir** (INSERT/UPDATE) | SP `PKG_CITAS.GUARDA_UNIDAD` | EXECUTE |
-| **Eliminar** (DELETE) | SP `PKG_CITAS.ELIMINA_UNIDAD` | EXECUTE |
-| ~~INSERT directo~~ | ~~Tabla TCTS_UNIDADES~~ | **NO tiene permiso** |
-
-### Inyección de dependencias
+Lo vemos sobre **`TiposRecursoServicio`** del proyecto del curso, que es la entidad más sencilla (sin joins, sin filtros): un catálogo `TRES_TIPO_RECURSO` con código + nombre multiidioma.
 
 ```csharp
-// En ServicesExtensionsApp.cs → AddServicesApp()
-builder.Services.AddScoped<IClaseUnidades, ClaseUnidades>();
+// Services/Reservas/TiposRecursoServicio.cs (lecturas)
+using System.Data;
+using ua;                       // IClaseOracleBd, DynamicParameters
+using ua.Models.Errors;         // Result<T>
+using ua.Models.Reservas;       // TipoRecursoLectura
 
-// ClaseOracleBd se registra automáticamente en la PlantillaMVCCore
-```
-
-### Servicio con ILogger (Serilog)
-
-Todo servicio inyecta `ClaseOracleBd` y `ILogger<T>`:
-
-```csharp
-// Models/Unidad/ClaseUnidades.cs
-public class ClaseUnidades : IClaseUnidades
+namespace uaReservas.Services.Reservas
 {
-    private readonly ClaseOracleBd bd;
-    private readonly ILogger<ClaseUnidades> _logger;
-
-    public ClaseUnidades(ClaseOracleBd claseoraclebd, ILogger<ClaseUnidades> logger)
+    public class TiposRecursoServicio : ITiposRecursoServicio
     {
-        bd = claseoraclebd;
-        _logger = logger;
-    }
+        private readonly IClaseOracleBd _bd;
+        private readonly ILogger<TiposRecursoServicio> _logger;
 
-    public Result<List<ClaseUnidad>> ObtenerActivas(string idioma = "ES")
-    {
-        _logger.LogInformation("Obteniendo unidades activas (idioma: {Idioma})", idioma);
+        // SIEMPRE leemos por la VISTA, nunca por la tabla.
+        // La vista oculta columnas tecnicas y aplica filtros (p.ej. ACTIVO='S').
+        private const string VISTA = "CURSONORMADM.VRES_TIPO_RECURSO";
 
-        const string sql = "SELECT * FROM VCTS_UNIDADES WHERE FLG_ACTIVA = 'S'";
-        var unidades = bd.ObtenerTodosMap<ClaseUnidad>(sql, param: null, idioma: idioma)
-            ?.ToList() ?? new List<ClaseUnidad>();
+        public TiposRecursoServicio(IClaseOracleBd bd, ILogger<TiposRecursoServicio> logger)
+        {
+            _bd = bd;
+            _logger = logger;
+        }
 
-        _logger.LogInformation("Unidades activas encontradas: {Total}", unidades.Count);
-        return Result<List<ClaseUnidad>>.Success(unidades);
-    }
-}
-```
+        public async Task<Result<List<TipoRecursoLectura>>> ObtenerTodosAsync(string idioma)
+        {
+            var idiomaNormalizado = NormalizarIdioma(idioma);
 
-### Controlador
+            // ORDER BY NOMBRE_{idioma} -> la columna usada es CULPA del idioma del usuario.
+            // Interpolar aqui es seguro porque idiomaNormalizado SOLO puede ser ES/CA/EN
+            // (lo decide NormalizarIdioma, no el cliente).
+            var sql = $@"
+                SELECT ID_TIPO_RECURSO, CODIGO,
+                       NOMBRE_ES, NOMBRE_CA, NOMBRE_EN
+                  FROM {VISTA}
+                 ORDER BY NOMBRE_{idiomaNormalizado}";
 
-```csharp
-// Controllers/Apis/UnidadesController.cs
-[Route("api/[controller]")]
-[ApiController]
-public class UnidadesController : ApiControllerBase  // ← Hereda de ApiControllerBase
-{
-    private readonly IClaseUnidades _unidades;
+            var filas = await _bd.ObtenerTodosMapAsync<TipoRecursoLectura>(
+                sql, param: null, idioma: idiomaNormalizado);
 
-    public UnidadesController(IClaseUnidades unidades) => _unidades = unidades;
+            return Result<List<TipoRecursoLectura>>.Success(
+                filas?.ToList() ?? new List<TipoRecursoLectura>());
+        }
 
-    [HttpGet]
-    public ActionResult Listar([FromQuery] string idioma = "ES")
-    {
-        var resultado = _unidades.ObtenerActivas(idioma);
-        return HandleResult(resultado);  // ← Mapeo automático a HTTP
-    }
+        public async Task<Result<TipoRecursoLectura>> ObtenerPorIdAsync(int idTipoRecurso, string idioma)
+        {
+            var idiomaNormalizado = NormalizarIdioma(idioma);
 
-    [HttpGet("{id}")]
-    public ActionResult ObtenerPorId(int id, [FromQuery] string idioma = "ES")
-    {
-        var resultado = _unidades.ObtenerPorId(id, idioma);
-        return HandleResult(resultado);
-    }
-}
-```
+            // Parametro nombrado :id. NUNCA concatenar valores del cliente al SQL.
+            const string sql = @"
+                SELECT ID_TIPO_RECURSO, CODIGO,
+                       NOMBRE_ES, NOMBRE_CA, NOMBRE_EN
+                  FROM CURSONORMADM.VRES_TIPO_RECURSO
+                 WHERE ID_TIPO_RECURSO = :id";
 
-### ¿Dónde validar: en BD o en .NET?
+            var fila = await _bd.ObtenerPrimeroMapAsync<TipoRecursoLectura>(
+                sql, new { id = idTipoRecurso }, idioma: idiomaNormalizado);
 
-| | En el paquete Oracle (SP) | En el servicio .NET |
-|-|--------------------------|---------------------|
-| **Ventaja** | No hay que recompilar la app | Lenguaje más expresivo y flexible |
-| **Ventaja** | Más rápido (cerca de los datos) | Más fácil de testear con xUnit |
-| **Ventaja** | Protege contra cualquier cliente | Mensajes localizados (i18n) |
-| **Desventaja** | PL/SQL es menos capaz para lógica compleja | Requiere redespliegue |
-| **Recomendación** | Validaciones de integridad y negocio crítico | Validaciones de formato y UX |
+            return fila is null
+                ? Result<TipoRecursoLectura>.NotFound(
+                    "TIPO_RECURSO_NO_ENCONTRADO",
+                    $"No existe un tipo de recurso con id {idTipoRecurso}.",
+                    idTipoRecurso)
+                : Result<TipoRecursoLectura>.Success(fila);
+        }
 
-::: info EN LA PRÁCTICA
-Lo habitual es combinar ambas: **DataAnnotations** en el DTO validan formato (campos obligatorios, longitudes, regex). Las **reglas de negocio críticas** (no hay solapamiento de citas, la unidad no tiene dependencias) se validan en el paquete Oracle con parámetros OUT `p_codigo_error` y `p_mensaje_error`.
-:::
-
-## 2.3 Conectando con Oracle: ClaseOracleBD3
-
-### Configuración
-
-```json
-// appsettings.json
-{
-  "ConnectionStrings": {
-    "oradb": "User ID=USUARIO;Password=PASSWORD;Data Source=SERVIDOR/SERVICIO;"
-  }
-}
-```
-
-```csharp
-// Program.cs — ClaseOracleBd se registra automáticamente en PlantillaMVCCore
-// No hace falta añadir nada manualmente
-```
-
-### Mapeo automático: PascalCase → SNAKE_CASE
-
-ClaseOracleBD3 convierte automáticamente los nombres de propiedades C# a columnas Oracle:
-
-| Propiedad C# | Columna Oracle | Método |
-|---------------|---------------|--------|
-| `CodReserva` | `COD_RESERVA` | Conversión automática |
-| `Email` | `EMAIL` | Nombre exacto |
-| `FechaNacimiento` | `FECHA_NACIMIENTO` | Conversión automática |
-| `CodUsr` | `COD_USR` | Usa `[Columna("COD_USR")]` si no coincide |
-
-::: code-group
-```csharp [Legacy (IDataRecord)]
-// Forma antigua - mapeo manual con constructor IDataRecord
-public class ClasePermiso
-{
-    public int CodPermiso { get; set; }
-    public string Descripcion { get; set; }
-    public bool Activo { get; set; }
-
-    // Constructor vacío (requerido)
-    public ClasePermiso() { }
-
-    // Constructor legacy para mapeo manual
-    public ClasePermiso(IDataRecord reader)
-    {
-        CodPermiso = Convert.ToInt32(reader["COD_PERMISO"]);
-        Descripcion = reader["DESCRIPCION"].ToString();
-        Activo = reader["ACTIVO"].ToString() == "S";
+        // Helper compartido por todos los servicios del curso.
+        private static string NormalizarIdioma(string idioma)
+        {
+            var limpio = (idioma ?? "es").Trim().ToUpperInvariant();
+            if (limpio == "VA") limpio = "CA";
+            return limpio is "ES" or "CA" or "EN" ? limpio : "ES";
+        }
     }
 }
-
-// Uso legacy en el servicio
-public ClasePermiso? ObtenerPorId(int id)
-{
-    _bd.TextoComando = "SELECT * FROM PERMISOS WHERE COD_PERMISO = :id";
-    _bd.CrearParametro("id", id);
-    return _bd.GetObject<ClasePermiso>();
-}
 ```
 
-```csharp [Moderno (mapeo automático)]
-// Forma actual - mapeo automático sin constructor especial
-public class ClaseHerramientaIA
-{
-    public int CodHerramienta { get; set; }   // → COD_HERRAMIENTA
-    public string Nombre { get; set; }         // → NOMBRE_ES/CA/EN (multiidioma)
-    public string Descripcion { get; set; }    // → DESCRIPCION_ES/CA/EN
-    public string Url { get; set; }            // → URL
-    public bool Activo { get; set; }           // → ACTIVO ('S'/'N' → bool)
-}
+Tres cosas que se repiten en TODOS los servicios de lectura del curso (mira también `RecursosServicio` y `ReservasServicio`):
 
-// Uso moderno en el servicio — lectura desde VISTA
-public ClaseHerramientaIA? ObtenerPorId(int id, string idioma)
-{
-    const string sql = "SELECT * FROM VACC_HERRAMIENTAS_IA WHERE COD_HERRAMIENTA = :id";
-    return bd.ObtenerPrimeroMap<ClaseHerramientaIA>(sql, new { id }, idioma);
-}
-```
-:::
+| Pieza | Por qué |
+|---|---|
+| Leer de la **vista**, no de la tabla | La vista oculta columnas técnicas (`FECHA_MODIFICACION`, `USUARIO_MODIFICACION`...) y aplica filtros (`ACTIVO='S'`). Si la regla "qué se ve" cambia, se cambia en la BD, no en .NET. |
+| **`NormalizarIdioma`** antes de tocar SQL | Filtra el `idioma` del usuario a uno de los tres permitidos (`ES`/`CA`/`EN`). Cualquier otro valor cae a `ES`. Eso permite que la interpolación `ORDER BY NOMBRE_{idioma}` sea segura. |
+| **Parámetros nombrados** (`:id`, `:idTipo`) | Toda variable del cliente entra al SQL como parámetro. Nunca concatenación. Es el blindaje contra SQL injection. |
 
-### Atributos de mapeo: `[Columna]` y `[IgnorarMapeo]`
-
-Cuando la columna Oracle **no sigue** la convención SNAKE_CASE, usamos `[Columna]` para indicar el nombre real:
+::: tip BUENA PRÁCTICA — `RecursosServicio` añade un patrón más
+Cuando una vista tiene **muchas columnas**, declara la lista en una constante:
 
 ```csharp
-public class ClaseDocumento
+private const string COLUMNAS = @"
+    ID_RECURSO,
+    NOMBRE_ES, NOMBRE_CA, NOMBRE_EN,
+    DESCRIPCION_ES, DESCRIPCION_CA, DESCRIPCION_EN,
+    GRANULIDAD, DURACION,
+    VISIBLE, ATIENDE_MISMA_PERSONA,
+    ID_TIPO_RECURSO,
+    TIPO_CODIGO,
+    TIPO_NOMBRE_ES, TIPO_NOMBRE_CA, TIPO_NOMBRE_EN";
+
+var sql = $@"SELECT {COLUMNAS} FROM {VISTA} ORDER BY NOMBRE_{idiomaNormalizado}";
+```
+
+Así `ObtenerTodosAsync`, `ObtenerPorTipoAsync`, `ObtenerPorIdAsync` reutilizan la misma lista y nunca se desincronizan.
+:::
+
+::: info CONTEXTO — `ReservasServicio.ObtenerPorFiltroAsync` para WHERE dinámico
+Cuando el filtro es **opcional** (varios campos que pueden venir o no), construye un `StringBuilder` para el WHERE y un `DynamicParameters` en paralelo, añadiendo cláusula y parámetro solo si el campo viene relleno. Mira `ReservasServicio:29-72` para el patrón completo.
+
+OJO: el parámetro debe ser `DynamicParameters` (o un objeto anónimo). Un `Dictionary<string, object?>` rompe en `LiberarParametros` con `OracleParameterCollection.RemoveAt "Value does not fall within the expected range"`.
+:::
+
+### 2.3.3 El mapeo: PascalCase ⇄ SNAKE_CASE + multiidioma
+
+ClaseOracleBD3 rellena las propiedades del DTO leyendo las columnas que devuelva el cursor. Su orden de resolución:
+
+| Prioridad | Cómo busca la columna                              | Ejemplo                                                  |
+| --------- | -------------------------------------------------- | -------------------------------------------------------- |
+| 1         | `[Columna("NOMBRE_EXACTO")]` si está presente      | `[Columna("IDPER")] int IdPersona` → busca `IDPER`       |
+| 2         | Nombre exacto                                      | `Email` → busca `EMAIL`                                  |
+| 3         | Conversión SNAKE_CASE automática                   | `FechaAlta` → busca `FECHA_ALTA`                         |
+
+**Y el parámetro `idioma`** rellena propiedades que parecen el nombre raíz de una columna multiidioma:
+
+```csharp
+// La vista expone TEXTO_ES, TEXTO_CA, TEXTO_EN.
+// Pasando idioma: "CA", ClaseOracleBD3 rellena 'Texto' desde TEXTO_CA.
+public string Texto { get; set; } = "";   // se resuelve desde TEXTO_{idioma}
+```
+
+Conversiones de tipo automáticas más útiles:
+
+| Oracle                    | .NET                          | Notas                                              |
+| ------------------------- | ----------------------------- | -------------------------------------------------- |
+| `NUMBER`                  | `int`, `long`, `decimal`      | Elige el tipo según la propiedad C#.               |
+| `VARCHAR2`                | `string`                       | Directo.                                           |
+| `VARCHAR2(1)` (`S`/`N`)   | `bool`                        | `'S'`/`'Y'`/`'1'`/`'SI'` → `true`, resto → `false`.|
+| `DATE`, `TIMESTAMP`       | `DateTime`                    | Directo.                                           |
+| `CLOB`                    | `string`                      | Para textos largos.                                |
+
+Atributos adicionales:
+
+```csharp
+public class Foto
 {
-    [Columna("IDDOC")]           // Columna no sigue SNAKE_CASE
-    public int IdDocumento { get; set; }
+    [Columna("IDFOTO")]      public int IdFoto       { get; set; }   // nombre no SNAKE_CASE
+    public byte[] Contenido  { get; set; } = [];
+    public string TipoMime   { get; set; } = "";
 
-    [Columna("NOMBREFICH")]      // Nombre abreviado en BD
-    public string NombreArchivo { get; set; }
-
-    [Columna("FECALTA")]         // Nombre abreviado en BD
-    public DateTime FechaCreacion { get; set; }
+    [IgnorarMapeo]                                                   // NO viene de la BD
+    public bool TieneContenido => Contenido.Length > 0;
 }
 ```
 
-Para propiedades calculadas que **no existen** en la base de datos, usamos `[IgnorarMapeo]`:
-
-```csharp
-public class ClaseDocumento
-{
-    public string Nombre { get; set; }
-    public byte[]? Contenido { get; set; }
-    public string? TipoMime { get; set; }
-
-    // Propiedades calculadas — NO existen en la BD
-    [IgnorarMapeo]                                           // [!code highlight]
-    public bool TieneContenido => Contenido?.Length > 0;
-
-    [IgnorarMapeo]                                           // [!code highlight]
-    public string? ContenidoBase64 => Contenido != null
-        ? $"data:{TipoMime};base64,{Convert.ToBase64String(Contenido)}"
-        : null;
-}
-```
-
-::: danger SIN [IgnorarMapeo]
-Si olvidas `[IgnorarMapeo]`, la librería buscará columnas llamadas `TieneContenido` y `ContenidoBase64` en el resultado SQL, provocando un error de mapeo.
+::: warning IMPORTANTE — sin `[IgnorarMapeo]` falla
+Si tu DTO tiene una propiedad calculada (`get => ...`), **debes marcarla `[IgnorarMapeo]`**. Si no, ClaseOracleBD3 intentará buscar una columna con ese nombre, no la encontrará y lanzará error en la primera lectura.
 :::
 
-### Orden de resolución de nombres
+## 2.4 Escritura: paquetes PL/SQL con OUT params
 
-ClaseOracleBD3 busca la columna en este orden:
+Las inserciones/actualizaciones/borrados **NO se hacen con SQL inline** en este curso. Se hacen llamando a un paquete PL/SQL que ya hace las validaciones, el `COMMIT` y devuelve el error como dato (no como excepción).
 
-| Prioridad | Método | Ejemplo |
-|-----------|--------|---------|
-| 1 | Atributo `[Columna]` | `[Columna("COD_USR")]` → busca `COD_USR` |
-| 2 | Nombre exacto (case-insensitive) | `Email` → busca `EMAIL` |
-| 3 | Conversión PascalCase → SNAKE_CASE | `FechaNacimiento` → busca `FECHA_NACIMIENTO` |
-| 4 | Con sufijo de idioma | `Nombre` + idioma `"ES"` → busca `NOMBRE_ES` |
-
-### Conversiones automáticas de tipos
-
-ClaseOracleBD3 convierte automáticamente los tipos Oracle a .NET:
-
-| Oracle | .NET | Notas |
-|--------|------|-------|
-| `NUMBER` | `int`, `long`, `decimal` | Según el tipo de la propiedad C# |
-| `VARCHAR2` | `string` | Directo |
-| `VARCHAR2` `'S'`/`'N'` | `bool` | También acepta `'Y'`, `'1'`, `'SI'` → `true` |
-| `VARCHAR2` numérico | `int`, `decimal` | Si contiene texto numérico, lo convierte |
-| `VARCHAR2` fecha | `DateTime` | Formatos: `dd/MM/yyyy`, `yyyy-MM-dd` |
-| `DATE`, `TIMESTAMP` | `DateTime` | Directo |
-| `CLOB` | `string` | Para textos largos |
-| `BLOB` | `byte[]` | Para ficheros binarios |
-
-::: info EJEMPLO PRÁCTICO
-Una columna `ACTIVO` de tipo `VARCHAR2(1)` con valor `'S'` se convierte automáticamente a `true` en una propiedad `bool Activo`. No necesitas escribir conversión manual.
+::: info CONTEXTO — un paquete común para validaciones genéricas
+Los checks repetitivos (`VALIDAR_TEXTO`, `VALIDAR_ID_POSITIVO`, `VALIDAR_FLAG`) viven en `PKG_RES_VALIDACIONES`. Cada paquete CRUD los llama vía `CURSONORMADM.PKG_RES_VALIDACIONES.VALIDAR_X(...)`. Lo que NO entra ahí son los chequeos de **dominio** específicos (rangos de hora, solape de franjas en reservas...): esos se quedan privados dentro del paquete que los necesita.
 :::
 
-### Métodos principales de ClaseOracleBD3
+### 2.4.1 El contrato de los paquetes UA
 
-| Método | Descripción | Retorno |
-|--------|-------------|---------|
-| `ObtenerTodosMap<T>(sql, param, idioma)` | Lista de objetos | `IEnumerable<T>?` |
-| `ObtenerPrimeroMap<T>(sql, param, idioma)` | Un objeto o null | `T?` |
-| `ObtenerTodosMapAsync<T>(...)` | Versión async | `Task<IEnumerable<T>>` |
-| `ObtenerPrimeroMapAsync<T>(...)` | Versión async | `Task<T?>` |
-| `EjecutarParams(sql, param)` | Ejecutar SP/función | `void` |
-| `EjecutarParamsAsync(sql, param)` | Versión async | `Task` |
+Todos los procedimientos de escritura del curso (`PKG_RES_*`) siguen el mismo contrato:
 
-::: tip BindByName
-Cuando uses parámetros nombrados (`:p_nombre`), activa `BindByName(true)` para que Oracle los asocie por nombre y no por posición:
-
-```csharp
-bd.BindByName(true);
-var usuario = bd.ObtenerPrimeroMap<ClaseUsuario>(sql, new { p_id = 123 });
-```
-
-Si no lo activas, los parámetros se vinculan **por orden de declaración**, lo que puede causar errores difíciles de detectar cuando tienes varios parámetros.
-:::
-
-### Parámetros con objetos anónimos
-
-```csharp
-// Un parámetro
-var reserva = _bd.ObtenerPrimeroMap<ClaseReserva>(
-    "SELECT * FROM RESERVAS WHERE COD_RESERVA = :id",
-    new { id }
-);
-
-// Múltiples parámetros
-var reservas = _bd.ObtenerTodosMap<ClaseReserva>(
-    "SELECT * FROM RESERVAS WHERE ACTIVO = :activo AND SALA = :sala",
-    new { activo = "S", sala = "A" }
+```sql
+PROCEDURE CREAR / ACTUALIZAR / ELIMINAR (
+    -- ...parámetros de entrada...
+    P_ID_GENERADO   OUT NUMBER,       -- solo en CREAR
+    P_CODIGO_ERROR  OUT NUMBER,       -- 0 si todo OK, SQLCODE si error
+    P_MENSAJE_ERROR OUT VARCHAR2      -- NULL si todo OK, SQLERRM si error
 );
 ```
 
-### Multiidioma con sufijos _ES, _CA, _EN
+Por dentro:
 
-```csharp
-// La propiedad "Nombre" se mapeará a NOMBRE_ES, NOMBRE_CA o NOMBRE_EN
-// según el tercer parámetro "idioma"
+```sql
+BEGIN
+  P_CODIGO_ERROR  := 0;
+  P_MENSAJE_ERROR := NULL;
 
-// En español
-var herramientas = _bd.ObtenerTodosMap<ClaseHerramientaIA>(
-    "SELECT * FROM HERRAMIENTAS_IA WHERE ACTIVO = 'S'",
-    param: null,
-    idioma: "ES"    // → busca columnas NOMBRE_ES, DESCRIPCION_ES
-);
-
-// En catalán
-var herramientasCa = _bd.ObtenerTodosMap<ClaseHerramientaIA>(
-    "SELECT * FROM HERRAMIENTAS_IA WHERE ACTIVO = 'S'",
-    param: null,
-    idioma: "CA"    // → busca columnas NOMBRE_CA, DESCRIPCION_CA
-);
+  -- validaciones (RAISE_APPLICATION_ERROR con códigos -20xxx)
+  -- INSERT / UPDATE / DELETE
+  -- COMMIT
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    P_CODIGO_ERROR  := SQLCODE;
+    P_MENSAJE_ERROR := SQLERRM;
+END;
 ```
 
-### Procedimientos almacenados
-
-Recuerda: el usuario web solo tiene permiso EXECUTE sobre los paquetes.
-
-```csharp
-// Solo parámetros de entrada (IN) — con EjecutarParams
-public void ActivarReserva(int codReserva)
-{
-    bd.EjecutarParams(
-        "PKG_RESERVAS.ACTIVAR",
-        new { p_cod_reserva = codReserva }
-    );
-}
-```
-
-Para parámetros OUT o IN OUT, usamos `CrearParametro` + `Ejecutar`:
-
-```csharp
-// Con parámetro IN OUT y parámetros OUT (patrón real)
-public Result<int> Guardar(ClaseGuardarUnidad dto)
-{
-    bd.Command.Parameters.Clear();                              // [!code highlight]
-    bd.TipoComando = CommandType.StoredProcedure;               // [!code highlight]
-    bd.TextoComando = "PKG_CITAS.GUARDA_UNIDAD";               // [!code highlight]
-
-    // Parámetro IN OUT — permite crear (pid=0) o modificar (pid=valor)
-    bd.CrearParametro("pid", dto.Id ?? 0,
-        OracleDbType.Int32, 0, ParameterDirection.InputOutput); // [!code highlight]
-
-    // Parámetros IN
-    bd.CrearParametro("pnombre_es", dto.NombreEs);
-    bd.CrearParametro("pnombre_ca", dto.NombreCa);
-    bd.CrearParametro("pnombre_en", dto.NombreEn);
-    bd.CrearParametro("pflg_activa", dto.FlgActiva ? "S" : "N");
-    bd.CrearParametro("pgranularidad", dto.Granularidad);
-    bd.CrearParametro("pcodper", dto.CodPer);
-    bd.CrearParametro("pip", dto.Ip);
-
-    bd.Ejecutar();                                              // [!code highlight]
-
-    // Recuperar el ID generado del parámetro IN OUT
-    var idGenerado = Convert.ToInt32(
-        bd.Command.Parameters["pid"].Value?.ToString() ?? "0"); // [!code highlight]
-    bd.Command.Parameters.Clear();                              // [!code highlight]
-
-    return Result<int>.Success(idGenerado);
-}
-```
-
-::: warning SIEMPRE LIMPIAR PARÁMETROS
-Después de cada `bd.Ejecutar()`, llama a `bd.Command.Parameters.Clear()` para evitar que los parámetros se acumulen entre llamadas.
+::: tip BUENA PRÁCTICA — el paquete absorbe las excepciones
+Esto significa que **el cliente .NET NUNCA tiene que poner `try { ... } catch (OracleException) { ... }`**. El paquete absorbe la excepción y la devuelve como datos OUT. La capa .NET lee `P_CODIGO_ERROR` y lo traduce a `Result<T>`.
 :::
 
-### Alternativa: DynamicParameters
+### 2.4.2 Llamada desde .NET: `EjecutarParamsAsync` + `DynamicParameters`
 
-Además de `CrearParametro`, puedes usar `DynamicParameters` (clase propia de la librería) para un código más limpio con parámetros OUT:
+`ua.DynamicParameters` es el tipo "bolsa de parámetros" que reexporta ClaseOracleBD3. La firma real del método `Add` es:
 
-::: code-group
-```csharp [Con DynamicParameters]
-// Patrón con DynamicParameters — más limpio para OUT
-public int CrearUsuario(string nombre, string email)
+```csharp
+Add(string nombre, object? valor, OracleDbType? tipoBd = null,
+    ParameterDirection direccion = ParameterDirection.Input, int tamano = 0)
+```
+
+::: warning IMPORTANTE — nombres en CASTELLANO
+Los parámetros nombrados son `tipoBd`, `direccion`, `tamano` (no `dbType`, `direction`, `size`). Si copias código de tutoriales genéricos verás `direction:` — **no compila**.
+
+Por la misma razón, `Get` devuelve `object` (no es genérico). Para sacar un `int` o un `string` con tolerancia a `null`/`DBNull`, usa los helpers del proyecto:
+
+```csharp
+int      codigo  = ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR");
+string?  mensaje = ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR");
+int?     idGen   = ErrorPaquetePlSql.LeerIntNullable(p, "P_ID_OBSERVACION_RESERVA");
+```
+:::
+
+Patrón completo (real, no simplificado) para **`TiposRecursoServicio.CrearAsync`** — el mismo paquete y el mismo `_bd` que veremos en `RecursosServicio.CrearAsync` y `ReservasServicio.CrearAsync`. Es **idéntico** en estructura:
+
+```csharp
+// Services/Reservas/TiposRecursoServicio.cs (escrituras)
+public async Task<Result<int>> CrearAsync(TipoRecursoCrearDto dto)
+{
+    // 1) Construye los parametros. NO declaras tipos Oracle: ClaseOracleBD3
+    //    infiere OracleDbType desde el tipo .NET de cada valor.
+    var p = new DynamicParameters();
+    p.Add("P_CODIGO",          dto.Codigo);
+    p.Add("P_NOMBRE_ES",       dto.NombreEs);
+    p.Add("P_NOMBRE_CA",       dto.NombreCa);
+    p.Add("P_NOMBRE_EN",       dto.NombreEn);
+    p.Add("P_ID_TIPO_RECURSO", null, direccion: ParameterDirection.Output);
+    p.Add("P_CODIGO_ERROR",    null, direccion: ParameterDirection.Output);
+    p.Add("P_MENSAJE_ERROR",   null, direccion: ParameterDirection.Output);
+
+    // 2) Llama al procedimiento (esquema.paquete.procedimiento).
+    //    El paquete valida, hace INSERT y COMMIT, y rellena los tres OUT.
+    await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_TIPO_RECURSO.CREAR", p);
+
+    // 3) Traduce los OUT a Result.Failure si toca, o a Result.Success(id).
+    var failure = ErrorPaquetePlSql.AResultFailure<int>(
+        ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR"),
+        ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"));
+    if (failure is not null) return failure;
+
+    return Result<int>.Success(ErrorPaquetePlSql.LeerInt(p, "P_ID_TIPO_RECURSO"));
+}
+```
+
+`ActualizarAsync` y `EliminarAsync` son **el mismo patrón** sin el OUT del id generado y devolviendo `Result<bool>`:
+
+```csharp
+public async Task<Result<bool>> EliminarAsync(int idTipoRecurso)
 {
     var p = new DynamicParameters();
-    p.Add("P_NOMBRE", nombre);
-    p.Add("P_EMAIL", email);
-    p.Add("P_ID_GENERADO", null, OracleDbType.Decimal,
-        ParameterDirection.Output);                          // [!code highlight]
+    p.Add("P_ID_TIPO_RECURSO", idTipoRecurso);
+    p.Add("P_CODIGO_ERROR",  null, direccion: ParameterDirection.Output);
+    p.Add("P_MENSAJE_ERROR", null, direccion: ParameterDirection.Output);
 
-    bd.EjecutarParams("PKG_USUARIOS.CREAR_USUARIO", p);
+    await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_TIPO_RECURSO.ELIMINAR", p);
 
-    return Convert.ToInt32(p.Get("P_ID_GENERADO"));          // [!code highlight]
+    var failure = ErrorPaquetePlSql.AResultFailure<bool>(
+        ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR"),
+        ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"));
+    return failure ?? Result<bool>.Success(true);
 }
 ```
 
-```csharp [Con CrearParametro]
-// Patrón con CrearParametro — usado en el curso
-public int CrearUsuario(string nombre, string email)
-{
-    bd.Command.Parameters.Clear();
-    bd.TipoComando = CommandType.StoredProcedure;
-    bd.TextoComando = "PKG_USUARIOS.CREAR_USUARIO";
+::: info CONTEXTO — `ReservasServicio.CrearAsync` para ver muchos parámetros
+Cuando el procedimiento recibe 10+ parámetros (caso típico de una `RESERVA` con `idRecurso`, `codper`, fechas, horas, observaciones, serie, patrón, excepción...), el patrón es el mismo, solo más largo. Mira `ReservasServicio.cs:91-117`:
 
-    bd.CrearParametro("P_NOMBRE", nombre);
-    bd.CrearParametro("P_EMAIL", email);
-    bd.CrearParametro("P_ID_GENERADO", null,
-        OracleDbType.Decimal, 0, ParameterDirection.Output);
-
-    bd.Ejecutar();
-
-    var id = Convert.ToInt32(
-        bd.Command.Parameters["P_ID_GENERADO"].Value?.ToString() ?? "0");
-    bd.Command.Parameters.Clear();
-    return id;
-}
-```
-:::
-
-### Funciones Oracle: RETURN_VALUE siempre primero
-
-::: danger REGLA OBLIGATORIA
-En llamadas a **funciones** Oracle (no procedimientos), el parámetro `RETURN_VALUE` debe declararse **siempre el primero**. Si no, Oracle lanzará un error.
-:::
+- `dto.EsExcepcion ? "S" : "N"` — los `bool` de C# se mapean a `VARCHAR2(1)` `S`/`N`.
+- `dto.FechaConfirmacion` (puede ser `null`) viaja como `null` directo, sin escape especial.
+- `codper` se pasa **como parámetro propio** (no dentro del DTO): viene del JWT, NUNCA del body.
 
 ```csharp
-public decimal ObtenerPesoFoto(int idFoto)
+public async Task<Result<int>> CrearAsync(int codper, ReservaCrearDto dto)
 {
     var p = new DynamicParameters();
-    p.Add("RETURN_VALUE", null, OracleDbType.Decimal,
-        ParameterDirection.ReturnValue);                     // [!code highlight]
-    p.Add("P_ID_FOTO", idFoto);
+    p.Add("P_ID_RECURSO",      dto.IdRecurso);
+    p.Add("P_CODPER",          codper);               // <- del token, no del body
+    p.Add("P_FECHA_RESERVA",   dto.FechaReserva);
+    p.Add("P_HORA_INICIO",     dto.HoraInicio);
+    // ... mas parametros ...
+    p.Add("P_ES_EXCEPCION",    dto.EsExcepcion ? "S" : "N");
+    p.Add("P_ID_RESERVA",   null, direccion: ParameterDirection.Output);
+    p.Add("P_CODIGO_ERROR", null, direccion: ParameterDirection.Output);
+    p.Add("P_MENSAJE_ERROR",null, direccion: ParameterDirection.Output);
 
-    bd.EjecutarParams("PKG_FOTOS.OBTENER_PESO", p);
-
-    return Convert.ToDecimal(p.Get("RETURN_VALUE"));         // [!code highlight]
+    await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_RESERVA.CREAR", p);
+    // resto identico al patron anterior
 }
 ```
-
-| Tipo parámetro | Dirección | Valor inicial | Recuperación |
-|----------------|-----------|---------------|--------------|
-| Entrada (IN) | `Input` (default) | Sí | No |
-| Salida (OUT) | `Output` | No | `p.Get("nombre")` |
-| Entrada/Salida | `InputOutput` | Sí | `p.Get("nombre")` |
-| Retorno función | `ReturnValue` | No | `p.Get("RETURN_VALUE")` |
-
-### postMapeo: conversión personalizada
-
-Cuando necesitas lógica especial después del mapeo automático, usa el parámetro `postMapeo`:
-
-```csharp
-var datos = bd.ObtenerTodosMap<ClaseUsuario>(
-    sql,
-    parametros,
-    funcionPostMapeo: (item, rs) =>                          // [!code highlight]
-    {
-        // Lógica especial que el mapeo automático no cubre
-        item.EsAdmin = (rs["ROL"]?.ToString() ?? "") == "ADMIN";
-        item.NombreCompleto = $"{item.Nombre} {item.Apellidos}";
-    });
-```
-
-::: info CUÁNDO USAR postMapeo
-Úsalo solo cuando la conversión automática no sea suficiente: roles con lógica, campos compuestos, etc. Para la mayoría de casos, el mapeo automático con `[Columna]` es suficiente.
 :::
 
-### Síncrono vs asíncrono
+### 2.4.3 Traducción ORA-* → `Result<T>`
 
-| Cuándo usar **síncrono** | Cuándo usar **asíncrono** |
-|--------------------------|---------------------------|
-| Procesos cortos de backoffice | APIs web con concurrencia media/alta |
-| Código existente ya síncrono | Operaciones potencialmente lentas |
-| Flujos sin alta concurrencia | Endpoints I/O bound |
+`ErrorPaquetePlSql.DesdeCodigo(codigo, mensaje)` mira el `SQLCODE` y devuelve un `Error` ya clasificado:
 
-```csharp
-// Síncrono — lo que usamos en el curso
-var unidades = bd.ObtenerTodosMap<ClaseUnidad>(sql, param: null, idioma: idioma);
+| Códigos                                                            | `ErrorType`     | HTTP |
+| ------------------------------------------------------------------ | --------------- | ---- |
+| `0`                                                                | (éxito)         | 200/201/204 |
+| `-20003`, `-20307`, `-20702`                                       | `NotFound`      | 404  |
+| `-20001`, `-20002`, `-20301..-20306`, `-20308`, `-20700`, `-20701`, `-20703` | `Validation` | 400  |
+| Cualquier otro                                                     | `Failure`       | 500  |
 
-// Asíncrono — para APIs con alta concurrencia
-bd.BindByName(true);
-var unidades = await bd.ObtenerTodosMapAsync<ClaseUnidad>(sql, new { p_max = 100 });
-```
+Cuando añadas un código nuevo en un paquete (`RAISE_APPLICATION_ERROR(-20XYZ, '...')`), recuerda **añadirlo también al `switch` de `ErrorPaquetePlSql.DesdeCodigo`** para que tenga el `ErrorType` correcto.
 
-::: tip RECOMENDACIÓN
-Para las aplicaciones del curso usamos código **síncrono** por simplicidad. En producción con alta concurrencia, usa las versiones `Async`.
-:::
+### 2.4.4 El controlador después de la cirugía: una línea
 
-### Transacciones
-
-Cuando varias operaciones deben ser **atómicas** (todas o ninguna):
+Así queda `TipoRecursosController` — completo, con los cinco verbos:
 
 ```csharp
-try
-{
-    bd.BeginTransaction();                                   // [!code highlight]
-
-    bd.EjecutarParams("PKG_CUENTAS.RETIRAR",
-        new { p_cuenta = origen, p_monto = monto });
-    bd.EjecutarParams("PKG_CUENTAS.DEPOSITAR",
-        new { p_cuenta = destino, p_monto = monto });
-
-    bd.Commit();                                             // [!code highlight]
-}
-catch
-{
-    bd.Rollback();                                           // [!code highlight]
-    throw;
-}
-finally
-{
-    bd.EndTransaction();                                     // [!code highlight]
-}
-```
-
-::: warning PATRÓN OBLIGATORIO
-Siempre incluye `Rollback()` en el `catch` y `EndTransaction()` en el `finally`. Si olvidas `EndTransaction`, la conexión queda en estado inconsistente.
-:::
-
-### Manejo de errores Oracle
-
-ClaseOracleBD3 envuelve los errores de Oracle en dos tipos de excepción:
-
-| Excepción | Causa | Acción recomendada |
-|-----------|-------|--------------------|
-| `BDException` | Error Oracle genérico (SQL incorrecto, constraints, etc.) | Log + devolver `Result.Failure` |
-| `MantenimientoException` | BD en mantenimiento o cuenta bloqueada (`ORA-28000`) | Mostrar página de mantenimiento |
-
-```csharp
-public Result<List<ClaseUnidad>> ObtenerActivas(string idioma)
-{
-    try
-    {
-        const string sql = "SELECT * FROM VCTS_UNIDADES WHERE FLG_ACTIVA = 'S'";
-        var unidades = bd.ObtenerTodosMap<ClaseUnidad>(sql, param: null, idioma: idioma)
-            ?.ToList() ?? [];
-        return Result<List<ClaseUnidad>>.Success(unidades);
-    }
-    catch (MantenimientoException)                           // [!code highlight]
-    {
-        // La capa superior debe mostrar página de mantenimiento
-        throw;
-    }
-    catch (BDException ex)                                   // [!code highlight]
-    {
-        _logger.LogError(ex, "Error Oracle al obtener unidades");
-        return Result<List<ClaseUnidad>>.Failure(
-            new Error("Unidad.DbError",
-                "Error al acceder a la base de datos", ErrorType.Failure));
-    }
-}
-```
-
-### Errores comunes y cómo evitarlos
-
-| Error | Causa habitual | Solución |
-|-------|---------------|----------|
-| Parámetro no encontrado | Nombre distinto entre SQL y parámetro | Activar `BindByName(true)` y usar prefijos coherentes |
-| Mapeo vacío o propiedades en null | Alias SQL no coincide con propiedad C# | Usar `AS NombrePropiedad` o `[Columna]` |
-| Fallo en función Oracle | `RETURN_VALUE` no declarado primero | Declarar `RETURN_VALUE` como primer parámetro |
-| Propiedad calculada no encontrada | Falta `[IgnorarMapeo]` | Añadir `[IgnorarMapeo]` a propiedades que no vienen de BD |
-| Conexiones inestables | Mal manejo del ciclo de vida | Usar DI scoped, no retener instancias estáticas |
-| SQL injection | Concatenación de texto en query | Siempre parámetros (`:p_nombre`) |
-| Parámetros residuales | No limpiar después de `Ejecutar` | `bd.Command.Parameters.Clear()` tras cada ejecución |
-
-::: tip CHECKLIST PARA NUEVOS MODELOS
-Cuando crees un nuevo modelo para mapeo con ClaseOracleBD3:
-- [ ] Propiedades en **PascalCase** que correspondan a columnas **SNAKE_CASE**
-- [ ] `[Columna("X")]` solo si el nombre NO sigue la convención
-- [ ] `[IgnorarMapeo]` en todas las propiedades calculadas
-- [ ] Constructor vacío (implícito o explícito)
-- [ ] Tipos nullable (`?`) para columnas que pueden ser NULL
-- [ ] `bool` para columnas VARCHAR2 con valores `'S'`/`'N'`
-- [ ] Propiedades multiidioma **sin** sufijo (el sufijo lo pone la librería)
-- [ ] En DTOs de entrada, `[JsonIgnore]` para propiedades que no vienen del JSON (CodPer, Ip)
-- [ ] Lectura desde **vistas** (`VCTS_xxx`), escritura mediante **SPs** (`PKG_xxx`)
-
-Checklist de seguridad y robustez:
-- [ ] `BindByName(true)` en consultas con parámetros nombrados
-- [ ] Sin SQL en controllers ni models — todo SQL va en **Services**
-- [ ] Parámetros siempre nombrados (nunca concatenar entrada de usuario)
-- [ ] Funciones Oracle con `RETURN_VALUE` declarado **primero**
-- [ ] `bd.Command.Parameters.Clear()` después de cada `bd.Ejecutar()`
-- [ ] Manejo de `BDException` con logging y `Result.Failure`
-:::
-
-## 2.4 Práctica guiada: Rojo-Verde-Refactor con ObtenerPorId
-
-Aplicamos el ciclo RGR a un caso real: ¿qué pasa cuando buscamos una unidad con un ID que no existe?
-
-### Paso 1: ROJO — Sin control de null
-
-Si el servicio no comprueba `null`, obtenemos un error inesperado:
-
-```csharp
-// ⚠️ Versión ROJA - sin control
-public Result<ClaseUnidad> ObtenerPorId(int id, string idioma = "ES")
-{
-    const string sql = "SELECT * FROM VCTS_UNIDADES WHERE ID = :id";
-    var unidad = _bd.ObtenerPrimeroMap<ClaseUnidad>(sql, new { id }, idioma: idioma);
-    return Result<ClaseUnidad>.Success(unidad); // ← unidad puede ser null!
-}
-```
-
-```json
-// GET /api/Unidades/9999
-// Respuesta: 200 OK con null (o NullReferenceException → 500)
-null
-```
-
-::: danger ESTO ES ROJO
-El servicio devuelve `Success(null)` — el controlador envía un `200 OK` con `null` al frontend. El frontend no sabe si la unidad no existe o si el campo viene vacío.
-:::
-
-### Paso 2: VERDE — Comprobar null y devolver un objeto vacío
-
-```csharp
-// ✅ Versión VERDE - con control
-public Result<ClaseUnidad> ObtenerPorId(int id, string idioma = "ES")
-{
-    const string sql = "SELECT * FROM VCTS_UNIDADES WHERE ID = :id";
-    var unidad = _bd.ObtenerPrimeroMap<ClaseUnidad>(sql, new { id }, idioma: idioma);
-
-    // Si no existe, devolvemos un objeto con Id=0                // [!code highlight]
-    // El frontend valida Id==0 para detectar que no se encontró  // [!code highlight]
-    return Result<ClaseUnidad>.Success(unidad ?? new ClaseUnidad { Id = 0 }); // [!code highlight]
-}
-```
-
-```json
-// GET /api/Unidades/9999
-// Respuesta: 200 OK con Id=0 (el frontend detecta que no existe)
-{
-  "id": 0,
-  "nombre": null,
-  "flgActiva": false
-}
-```
-
-::: tip ESTO ES VERDE
-Siempre devolvemos `200 OK`. Si `Id == 0`, el frontend sabe que la unidad no existe. **No revelamos códigos HTTP específicos** (404, 409...) que puedan dar pistas a un atacante sobre la existencia de recursos. Solo usamos `400` (validación) y `500` (error interno genérico).
-:::
-
-### Paso 3: REFACTOR — Validación en Vue
-
-En **Vue**, comprobamos el Id del objeto recibido:
-
-```typescript
-llamadaAxios(`Unidades/${id}`, verbosAxios.GET)
-  .then(({ data }) => {
-    if (data.value.id === 0) {                      // [!code highlight]
-      avisarError("Unidad no encontrada");           // [!code highlight]
-    } else {
-      unidad.value = data.value;
-    }
-  })
-  .catch((error) => {
-    gestionarError(error, "Error al buscar");       // 500 genérico
-  });
-```
-
-## 2.5 Servicio completo con Oracle
-
-Unimos todos los conceptos: modelo + ClaseOracleBD3 + `Result<T>` + ILogger + controlador API.
-
-### Modelo (en `Models/Unidad/`)
-
-```csharp
-// Models/Unidad/ClaseUnidad.cs — DTO de lectura
-public class ClaseUnidad
-{
-    public int Id { get; set; }                         // ID
-    public string Nombre { get; set; }                  // NOMBRE_ES/CA/EN (multiidioma)
-    public bool FlgActiva { get; set; }                 // FLG_ACTIVA ('S'/'N' → bool)
-    public int Granularidad { get; set; }               // GRANULARIDAD (minutos)
-    public string DuracionMax { get; set; }             // DURACION_MAX
-    public bool FlgRequiereConfirmacion { get; set; }   // FLG_REQUIERE_CONFIRMACION
-    public int NumCitasSimultaneas { get; set; }        // NUM_CITAS_SIMULTANEAS
-}
-```
-
-### Servicio (en el **mismo directorio** `Models/Unidad/`)
-
-```csharp
-// Models/Unidad/ClaseUnidades.cs
-public class ClaseUnidades : IClaseUnidades
-{
-    private readonly ClaseOracleBd bd;                          // [!code highlight]
-    private readonly ILogger<ClaseUnidades> _logger;            // [!code highlight]
-
-    public ClaseUnidades(ClaseOracleBd claseoraclebd, ILogger<ClaseUnidades> logger)
-    {
-        bd = claseoraclebd;
-        _logger = logger;
-    }
-
-    public Result<List<ClaseUnidad>> ObtenerActivas(string idioma = "ES")
-    {
-        _logger.LogInformation("Obteniendo unidades activas (idioma: {Idioma})", idioma);
-
-        const string sql = "SELECT * FROM VCTS_UNIDADES WHERE FLG_ACTIVA = 'S'";
-        var unidades = bd.ObtenerTodosMap<ClaseUnidad>(sql, param: null, idioma: idioma)
-            ?.ToList() ?? new List<ClaseUnidad>();
-
-        return Result<List<ClaseUnidad>>.Success(unidades);
-    }
-
-    public Result<ClaseUnidad> ObtenerPorId(int id, string idioma = "ES")
-    {
-        const string sql = "SELECT * FROM VCTS_UNIDADES WHERE ID = :id";
-        var unidad = bd.ObtenerPrimeroMap<ClaseUnidad>(sql, new { id }, idioma: idioma);
-
-        // Si no existe, devolvemos objeto vacío con Id=0
-        return Result<ClaseUnidad>.Success(unidad ?? new ClaseUnidad { Id = 0 });
-    }
-
-    public Result<int> Guardar(ClaseGuardarUnidad dto)
-    {
-        _logger.LogInformation("Guardando unidad {NombreEs} (Id: {Id})", dto.NombreEs, dto.Id);
-
-        try
-        {
-            bd.Command.Parameters.Clear();
-            bd.TipoComando = CommandType.StoredProcedure;
-            bd.TextoComando = "PKG_CITAS.GUARDA_UNIDAD";
-
-            bd.CrearParametro("pid", dto.Id ?? 0,
-                OracleDbType.Int32, 0, ParameterDirection.InputOutput);
-            bd.CrearParametro("pnombre_es", dto.NombreEs);
-            bd.CrearParametro("pnombre_ca", dto.NombreCa);
-            bd.CrearParametro("pnombre_en", dto.NombreEn);
-            bd.CrearParametro("pflg_activa", dto.FlgActiva ? "S" : "N");
-            bd.CrearParametro("pgranularidad", dto.Granularidad);
-            bd.CrearParametro("pduracion_max", dto.DuracionMax);
-            bd.CrearParametro("pflg_requiere_confirmacion",
-                dto.FlgRequiereConfirmacion ? "S" : "N");
-            bd.CrearParametro("pnum_citas_simultaneas",
-                dto.NumCitasSimultaneas.ToString());
-            bd.CrearParametro("pcodper", dto.CodPer);
-            bd.CrearParametro("pip", dto.Ip);
-
-            bd.Ejecutar();
-
-            var idGenerado = Convert.ToInt32(
-                bd.Command.Parameters["pid"].Value?.ToString() ?? "0");
-            bd.Command.Parameters.Clear();
-
-            _logger.LogInformation("Unidad guardada con ID: {Id}", idGenerado);
-            return Result<int>.Success(idGenerado);
-        }
-        catch (Exception ex)
-        {
-            bd.Command.Parameters.Clear();
-            _logger.LogError(ex, "Error al guardar unidad {NombreEs}", dto.NombreEs);
-            return Result<int>.Failure(
-                new Error("Unidad.SaveError", "Error al guardar la unidad", ErrorType.Failure));
-        }
-    }
-}
-```
-
-### Controlador API
-
-```csharp
-// Controllers/Apis/UnidadesController.cs
+// Controllers/Apis/TipoRecursosController.cs
 [Route("api/[controller]")]
 [ApiController]
-public class UnidadesController : ApiControllerBase
+[Authorize]
+[Produces("application/json")]
+[Tags("TipoRecursos")]
+public class TipoRecursosController : ControladorBase
 {
-    private readonly IClaseUnidades _unidades;
+    private readonly ITiposRecursoServicio _tiposRecurso;
 
-    public UnidadesController(IClaseUnidades unidades) => _unidades = unidades;
+    public TipoRecursosController(ITiposRecursoServicio tiposRecurso) =>
+        _tiposRecurso = tiposRecurso;
 
+    // ===== LECTURAS =====
+
+    /// <summary>Lista todos los tipos de recurso resueltos al idioma del usuario.</summary>
     [HttpGet]
-    public ActionResult Listar([FromQuery] string idioma = "ES")
-        => HandleResult(_unidades.ObtenerActivas(idioma));
+    [ProducesResponseType<List<TipoRecursoLectura>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult> Listar() =>
+        HandleResult(await _tiposRecurso.ObtenerTodosAsync(Idioma));
 
-    [HttpGet("{id}")]
-    public ActionResult ObtenerPorId(int id, [FromQuery] string idioma = "ES")
-        => HandleResult(_unidades.ObtenerPorId(id, idioma));
+    /// <summary>Devuelve un tipo por su id.</summary>
+    [HttpGet("{id:int}")]
+    [ProducesResponseType<TipoRecursoLectura>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> ObtenerPorId([FromRoute] int id) =>
+        HandleResult(await _tiposRecurso.ObtenerPorIdAsync(id, Idioma));
 
+    // ===== ESCRITURAS =====
+
+    /// <summary>Crea un nuevo tipo de recurso.</summary>
     [HttpPost]
-    public ActionResult Guardar([FromBody] ClaseGuardarUnidad dto)
+    [ProducesResponseType<int>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
     {
-        dto.CodPer = 0; // En producción: del usuario autenticado
-        dto.Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
-        return HandleResult(_unidades.Guardar(dto));
+        var resultado = await _tiposRecurso.CrearAsync(dto);
+        if (!resultado.IsSuccess) return HandleResult(resultado);
+
+        return CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, resultado.Value);
+    }
+
+    /// <summary>Actualiza un tipo de recurso existente.</summary>
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Actualizar([FromRoute] int id, [FromBody] TipoRecursoActualizarDto dto)
+    {
+        // Chequeo de coherencia ruta vs body: si no coinciden, 400 con ValidationProblemDetails.
+        if (id != dto.IdTipoRecurso)
+            return ValidationProblemLocalizado(
+                "ID_RUTA_CUERPO_NO_COINCIDE",
+                "El id de la ruta no coincide con el del cuerpo.");
+
+        var resultado = await _tiposRecurso.ActualizarAsync(dto);
+        if (!resultado.IsSuccess) return HandleResult(resultado);
+
+        return NoContent();
+    }
+
+    /// <summary>Borra un tipo de recurso.</summary>
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Eliminar([FromRoute] int id)
+    {
+        var resultado = await _tiposRecurso.EliminarAsync(id);
+        if (!resultado.IsSuccess) return HandleResult(resultado);
+
+        return NoContent();
     }
 }
 ```
 
-### Vista Vue
+Cosas a fijarse:
 
-```vue
-<script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { llamadaAxios, verbosAxios, gestionarError } from "vueua-useaxios/services/useAxios";
+| Pieza | Por qué está ahí |
+|---|---|
+| Heredar de **`ControladorBase`** | Provee `Idioma`, `CodPer`, `Roles`, `ValidationProblemLocalizado(...)`. Cualquier controlador del proyecto lo hereda. |
+| **`HandleResult(...)`** | Vive en `ApiControllerBase` (que `ControladorBase` hereda). Traduce `Result<T>` → respuesta HTTP correcta: `200` con valor, `404 ProblemDetails`, `400 ValidationProblemDetails`, etc. Es la **única función que mira el `Result`**. |
+| `[ProducesResponseType<T>(...)]` | Documenta a Scalar / OpenAPI los códigos esperados y los tipos de respuesta. Sin esto, Scalar no sabe qué shape tiene el `200` ni qué errores documentar. |
+| `[Tags("TipoRecursos")]` | Agrupa en la UI de Scalar todos los endpoints bajo una sola pestaña. |
+| `CreatedAtAction(nameof(ObtenerPorId), ...)` | Devuelve `201` con cabecera `Location: /api/TipoRecursos/{id}` apuntando al recurso recién creado. Es el contrato REST para POST de creación. |
 
-interface HerramientaIA {
-  codHerramienta: number;
-  nombre: string;
-  descripcion: string;
-  url: string;
-  activo: boolean;
-}
+::: danger ZONA PELIGROSA — datos del usuario SIEMPRE del token
+En `ReservasController.Crear` verás que el controlador llama a `_reservas.CrearAsync(CodPer, dto)` pasando `CodPer` (propiedad de `ControladorBase` leída del JWT) **como argumento aparte del DTO**. Aunque el cliente envíe un campo `codper` en el body, el controlador **no lo usa** — usa el del token. Esto evita que un usuario malicioso cree recursos a nombre de otra persona.
+:::
 
-const herramientas = ref<HerramientaIA[]>([]);
+## 2.5 xUnit: el primer test del CRUD
 
-const cargar = () => {
-  llamadaAxios("HerramientasIA", verbosAxios.GET)
-    .then(({ data }) => {
-      herramientas.value = data.value;
-    })
-    .catch((error) => {
-      gestionarError(error, "Error al cargar herramientas IA");
-    });
-};
+### 2.5.1 Dos tipos de test que nos importan
 
-onMounted(cargar);
-</script>
-
-<template>
-  <h1>Herramientas IA</h1>
-  <ul>
-    <li v-for="h in herramientas" :key="h.codHerramienta">
-      <a :href="h.url" target="_blank">{{ h.nombre }}</a> - {{ h.descripcion }}
-    </li>
-  </ul>
-</template>
+```mermaid
+flowchart LR
+    subgraph Sim[Tests SIMULADOS]
+        Ctrl1[Controller] --> Fake[Fake del servicio<br/>memoria]
+    end
+    subgraph Real[Tests REALES]
+        Svc[Servicio real] --> Bd[IClaseOracleBd] --> O[(Oracle test<br/>CURSONORMADM)]
+    end
+    Sim -. "rapidos, siempre verdes" .-> Verde[CI siempre verde]
+    Real -. "lentos, requieren conexion" .-> Skip[SkippableFact<br/>si no hay BD]
 ```
 
-## Preguntas de repaso
+<!-- diagram id="tipos-test" caption: "Simulados prueban la lógica del controlador. Reales prueban el SQL contra Oracle." -->
 
-### Pregunta 1
+| Tipo            | Qué prueba                                                       | Por qué                                                                |
+| --------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Simulado**    | El controlador delega bien al servicio y traduce a HTTP correcto.| Rápido, siempre verde, no necesita BD. Va en CI.                       |
+| **Real**        | El SQL existe, mapea bien, las restricciones de Oracle funcionan.| Detecta drift entre el código y la BD. Se marca `[SkippableFact]` para no romper CI si no hay conexión. |
 
-**¿Cuál es la principal ventaja de usar `Result<T>` en lugar de excepciones para errores de negocio?**
+### 2.5.2 Un test simulado del controlador
 
-a) `Result<T>` es más fácil de escribir
-b) Las excepciones no funcionan en .NET Core 10
-c) `Result<T>` hace explícito el flujo de errores y es mucho más eficiente
-d) No hay ninguna diferencia, es cuestión de preferencia
-
-::: details Respuesta
-**c)** Las excepciones son para situaciones *excepcionales* (BD caída, red). Un email duplicado o un ID inexistente es un error **esperado**. `Result<T>` es 100-1000x más rápido que lanzar excepciones y hace el flujo de errores explícito en la firma del método.
-:::
-
-### Pregunta 2
-
-**¿Qué devuelve `HandleResult` cuando el servicio retorna `ErrorType.Failure`?**
-
-a) 400 Bad Request
-b) 200 OK con el objeto
-c) 404 Not Found
-d) 500 Internal Server Error
-
-::: details Respuesta
-**d)** El método `HandleResult` en `ApiControllerBase` mapea cualquier error que no sea `Validation` a `Problem(statusCode: 500)`. Solo hay dos respuestas de error: 400 (validación) y 500 (todo lo demás).
-:::
-
-### Pregunta 3
-
-**¿Qué método de ClaseOracleBD3 usamos para obtener un solo registro que puede no existir?**
-
-a) `ObtenerTodosMap<T>(sql, param)`
-b) `ObtenerPrimeroMap<T>(sql, param)`
-c) `GetObject<T>()`
-d) `EjecutarParams(sql, param)`
-
-::: details Respuesta
-**b)** `ObtenerPrimeroMap<T>` devuelve `T?` — un objeto o `null` si no hay resultados. `GetObject<T>` es el método legacy que requiere constructor `IDataRecord`. `ObtenerTodosMap` devuelve una lista completa.
-:::
-
-### Pregunta 4
-
-**Si tu modelo tiene la propiedad `NumCitasSimultaneas`, ¿qué columna buscará ClaseOracleBD3?**
-
-a) `NUMCITASSIMULTANEAS`
-b) `NUM_CITAS_SIMULTANEAS`
-c) `numCitasSimultaneas`
-d) Dará error si no usas `[Columna]`
-
-::: details Respuesta
-**b)** ClaseOracleBD3 convierte automáticamente PascalCase a SNAKE_CASE. `NumCitasSimultaneas` → `NUM_CITAS_SIMULTANEAS`. Solo necesitas `[Columna("X")]` si la columna no sigue esta convención.
-:::
-
-### Pregunta 5
-
-**¿Por qué el usuario web de Oracle no puede hacer INSERT directo en las tablas?**
-
-a) Porque Oracle no permite INSERT desde aplicaciones web
-b) Porque el usuario web solo tiene permisos de EXECUTE en SPs y SELECT en vistas
-c) Porque .NET Core no soporta INSERT directo
-d) Porque los INSERT son más lentos que los procedimientos almacenados
-
-::: details Respuesta
-**b)** Por seguridad, el usuario web solo tiene permiso EXECUTE sobre los paquetes (PKG_CITAS, etc.) y SELECT sobre las vistas (VCTS_UNIDADES, etc.). Toda escritura se hace mediante procedimientos almacenados, que son el único punto de entrada controlado.
-:::
-
-### Pregunta 6
-
-**¿Cómo funciona el mapeo multiidioma en ClaseOracleBD3?**
-
-a) Crea un JOIN automático con una tabla de traducciones
-b) Añade el sufijo del idioma (_ES, _CA, _EN) al nombre de la propiedad
-c) Traduce automáticamente el texto usando una API
-d) Busca la columna IDIOMA en la tabla
-
-::: details Respuesta
-**b)** Si pasas `idioma: "ES"` y tu modelo tiene `Nombre`, la librería buscará la columna `NOMBRE_ES`. Si pasas `"CA"`, buscará `NOMBRE_CA`. La propiedad del modelo NO lleva sufijo.
-:::
-
-### Pregunta 7
-
-**¿Cuál es el patrón correcto para llamar a un procedimiento almacenado con parámetro `IN OUT`?**
-
-a) Usar un objeto anónimo `new { pid = valor }`
-b) Usar `EjecutarParams` con un string SQL
-c) Usar `ObtenerPrimeroMap` con el nombre del procedimiento
-d) Usar `bd.TipoComando = StoredProcedure` + `bd.CrearParametro` con `ParameterDirection.InputOutput`
-
-::: details Respuesta
-**d)** Los parámetros `IN OUT` requieren `CrearParametro` con `OracleDbType` y `ParameterDirection.InputOutput`, y luego recuperar el valor con `bd.Command.Parameters["pid"].Value`. Los objetos anónimos y `EjecutarParams` solo sirven para parámetros IN.
-:::
-
-### Pregunta 8
-
-**En la convención UA, ¿cómo se nombran modelo, servicio y controlador para la tabla `TCTS_UNIDADES`?**
-
-a) Unidad.cs / Unidades.cs / UnidadesController.cs
-b) ClaseUnidad.cs / Unidades.cs / UnidadesController.cs
-c) ClaseUnidad.cs / ClaseUnidades.cs / UnidadesController.cs
-d) TctsUnidad.cs / TctsUnidades.cs / UnidadesController.cs
-
-::: details Respuesta
-**c)** Convención UA: el DTO lleva prefijo `Clase` + nombre singular (`ClaseUnidad`), el servicio lleva prefijo `Clase` + nombre plural (`ClaseUnidades`), y el controlador es plural + Controller (`UnidadesController`). Tanto DTO como servicio van en el **mismo directorio** `Models/Unidad/`.
-:::
-
-### Pregunta 9
-
-**¿Para qué sirve el atributo `[IgnorarMapeo]` en un modelo?**
-
-a) Para ignorar columnas NULL de la base de datos
-b) Para excluir propiedades calculadas que no existen como columnas en BD
-c) Para ignorar errores de conversión de tipos
-d) Para que la propiedad no se serialice a JSON
-
-::: details Respuesta
-**b)** `[IgnorarMapeo]` indica a ClaseOracleBD3 que esa propiedad no corresponde a ninguna columna de la base de datos. Sin este atributo, la librería intentará buscar una columna con ese nombre y fallará. Se usa en propiedades calculadas como `TieneContenido` o `NombreCompleto`.
-:::
-
-### Pregunta 10
-
-**¿Cuál es la regla obligatoria al llamar a una función Oracle (no un procedimiento)?**
-
-a) Usar siempre `EjecutarParams` en lugar de `Ejecutar`
-b) Declarar `RETURN_VALUE` como primer parámetro con `ParameterDirection.ReturnValue`
-c) Usar `TipoComando = CommandType.Text`
-d) Pasar el nombre de la función como `TextoComando`
-
-::: details Respuesta
-**b)** En funciones Oracle, `RETURN_VALUE` debe ser el **primer** parámetro declarado en `DynamicParameters` con dirección `ReturnValue`. Si no se declara primero, Oracle lanzará un error. En procedimientos, los parámetros OUT se declaran después de los IN.
-:::
-
-### Pregunta 11
-
-**¿Qué excepción lanza ClaseOracleBD3 cuando detecta que la BD está en mantenimiento?**
-
-a) `BDException`
-b) `MantenimientoException`
-c) `OracleException`
-d) `InvalidOperationException`
-
-::: details Respuesta
-**b)** `MantenimientoException` se lanza cuando ClaseOracleBD3 detecta mensajes de mantenimiento o cuenta bloqueada (`ORA-28000`). A diferencia de `BDException` (errores Oracle genéricos), esta excepción debe propagarse hacia arriba para mostrar una página de mantenimiento al usuario. No debe capturarse con `Result.Failure`.
-:::
-
-### Pregunta 12
-
-**¿Qué pasa si no llamas a `bd.EndTransaction()` después de usar transacciones?**
-
-a) La transacción se confirma automáticamente
-b) Oracle hace rollback automáticamente
-c) La conexión queda en estado inconsistente
-d) No pasa nada, es opcional
-
-::: details Respuesta
-**c)** Si olvidas `EndTransaction()`, la conexión queda en estado inconsistente y puede provocar errores en operaciones posteriores. El patrón correcto es: `BeginTransaction` → `Commit` (en try) → `Rollback` (en catch) → `EndTransaction` (en finally, **siempre**).
-:::
-
-## Ejercicio Sesión 2
-
-**Objetivo:** Crear un servicio completo siguiendo los patrones UA: DTO y servicio en el mismo directorio, lectura desde vistas, escritura mediante SPs.
-
-1. Crear el modelo `ClaseUnidad` en `Models/Unidad/` mapeado a la vista `VCTS_UNIDADES`
-2. Crear la interfaz `IClaseUnidades` y el servicio `ClaseUnidades` **en el mismo directorio** con:
-   - Inyección de `ClaseOracleBd` + `ILogger<ClaseUnidades>`
-   - `ObtenerActivas(idioma)` → SELECT desde **vista** con `ObtenerTodosMap` + multiidioma
-   - `ObtenerPorId(id, idioma)` → SELECT desde **vista** con `ObtenerPrimeroMap` + `Result<T>`
-   - `Guardar(dto)` → llamada al **SP** `PKG_CITAS.GUARDA_UNIDAD` con `CrearParametro` + `IN OUT`
-3. Crear `UnidadesController` que herede de `ApiControllerBase` y use `HandleResult`
-4. Registrar `IClaseUnidades → ClaseUnidades` en `ServicesExtensionsApp`
-5. En Vue, mostrar las unidades y comprobar `Id == 0` para detectar recursos no encontrados
-
-::: details Solución
-
-**Estructura de ficheros:**
-
-```
-Models/Unidad/
-  ClaseUnidad.cs           ← DTO de lectura
-  ClaseGuardarUnidad.cs    ← DTO de entrada
-  ClaseUnidades.cs         ← Servicio
-  IClaseUnidades.cs        ← Interfaz
-```
-
-**DTO de entrada:**
+Un test simulado **construye el controlador con un `Fake` del servicio** (no toca Oracle ni HTTP real):
 
 ```csharp
-// Models/Unidad/ClaseGuardarUnidad.cs
-public class ClaseGuardarUnidad
+public class ObservacionesControllerSimuladoTests
 {
-    public int? Id { get; set; }
-
-    [Required(ErrorMessage = "El nombre en español es obligatorio")]
-    [StringLength(200)]
-    public string NombreEs { get; set; }
-    // ... NombreCa, NombreEn, FlgActiva, Granularidad, etc.
-
-    // Datos de auditoría — no vienen del JSON
-    [JsonIgnore]
-    public int CodPer { get; set; }
-    [JsonIgnore]
-    public string Ip { get; set; }
-}
-```
-
-**Interfaz:**
-
-```csharp
-// Models/Unidad/IClaseUnidades.cs
-public interface IClaseUnidades
-{
-    Result<List<ClaseUnidad>> ObtenerActivas(string idioma = "ES");
-    Result<ClaseUnidad> ObtenerPorId(int id, string idioma = "ES");
-    Result<int> Guardar(ClaseGuardarUnidad dto);
-}
-```
-
-**Servicio:**
-
-```csharp
-// Models/Unidad/ClaseUnidades.cs
-public class ClaseUnidades : IClaseUnidades
-{
-    private readonly ClaseOracleBd bd;
-    private readonly ILogger<ClaseUnidades> _logger;
-
-    public ClaseUnidades(ClaseOracleBd claseoraclebd, ILogger<ClaseUnidades> logger)
+    private static (ObservacionesController controller, FakeObservacionesServicio fake)
+        CrearControlador(string idiomaClaim = "es", int codPer = 12345)
     {
-        bd = claseoraclebd;
-        _logger = logger;
-    }
-
-    public Result<List<ClaseUnidad>> ObtenerActivas(string idioma = "ES")
-    {
-        const string sql = "SELECT * FROM VCTS_UNIDADES WHERE FLG_ACTIVA = 'S'";
-        var unidades = bd.ObtenerTodosMap<ClaseUnidad>(sql, param: null, idioma: idioma)
-            ?.ToList() ?? new List<ClaseUnidad>();
-        return Result<List<ClaseUnidad>>.Success(unidades);
-    }
-
-    public Result<ClaseUnidad> ObtenerPorId(int id, string idioma = "ES")
-    {
-        const string sql = "SELECT * FROM VCTS_UNIDADES WHERE ID = :id";
-        var unidad = bd.ObtenerPrimeroMap<ClaseUnidad>(sql, new { id }, idioma: idioma);
-
-        // Si no existe, devolvemos objeto vacío con Id=0
-        return Result<ClaseUnidad>.Success(unidad ?? new ClaseUnidad { Id = 0 });
-    }
-
-    public Result<int> Guardar(ClaseGuardarUnidad dto)
-    {
-        _logger.LogInformation("Guardando unidad {NombreEs}", dto.NombreEs);
-
-        bd.Command.Parameters.Clear();
-        bd.TipoComando = CommandType.StoredProcedure;
-        bd.TextoComando = "PKG_CITAS.GUARDA_UNIDAD";
-
-        bd.CrearParametro("pid", dto.Id ?? 0,
-            OracleDbType.Int32, 0, ParameterDirection.InputOutput);
-        bd.CrearParametro("pnombre_es", dto.NombreEs);
-        bd.CrearParametro("pnombre_ca", dto.NombreCa);
-        bd.CrearParametro("pnombre_en", dto.NombreEn);
-        bd.CrearParametro("pflg_activa", dto.FlgActiva ? "S" : "N");
-        bd.CrearParametro("pgranularidad", dto.Granularidad);
-        bd.CrearParametro("pduracion_max", dto.DuracionMax);
-        bd.CrearParametro("pflg_requiere_confirmacion",
-            dto.FlgRequiereConfirmacion ? "S" : "N");
-        bd.CrearParametro("pnum_citas_simultaneas",
-            dto.NumCitasSimultaneas.ToString());
-        bd.CrearParametro("pcodper", dto.CodPer);
-        bd.CrearParametro("pip", dto.Ip);
-
-        bd.Ejecutar();
-
-        var idGenerado = Convert.ToInt32(
-            bd.Command.Parameters["pid"].Value?.ToString() ?? "0");
-        bd.Command.Parameters.Clear();
-
-        return Result<int>.Success(idGenerado);
-    }
-}
-```
-
-**Controlador:**
-
-```csharp
-// Controllers/Apis/UnidadesController.cs
-[Route("api/[controller]")]
-[ApiController]
-public class UnidadesController : ApiControllerBase
-{
-    private readonly IClaseUnidades _unidades;
-
-    public UnidadesController(IClaseUnidades unidades) => _unidades = unidades;
-
-    [HttpGet]
-    public ActionResult Listar([FromQuery] string idioma = "ES")
-        => HandleResult(_unidades.ObtenerActivas(idioma));
-
-    [HttpGet("{id}")]
-    public ActionResult ObtenerPorId(int id, [FromQuery] string idioma = "ES")
-        => HandleResult(_unidades.ObtenerPorId(id, idioma));
-
-    [HttpPost]
-    public ActionResult Guardar([FromBody] ClaseGuardarUnidad dto)
-    {
-        dto.CodPer = 0; // En producción: del usuario autenticado
-        dto.Ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
-        return HandleResult(_unidades.Guardar(dto));
-    }
-}
-```
-
-**ServicesExtensionsApp.cs:**
-
-```csharp
-builder.Services.AddScoped<IClaseUnidades, ClaseUnidades>();
-```
-:::
-
-::: details Código con fallos para Copilot
-
-```csharp
-// ⚠️ CÓDIGO CON FALLOS - Usa Copilot para encontrar y arreglar los errores
-public class Unidades
-{
-    private readonly IClaseOracleBd _bd;
-
-    // 🐛 Constructor sin parámetro - falta inyección de dependencias
-    public Unidades() { }
-
-    public Result<List<ClaseUnidad>> ObtenerActivas(string idioma)
-    {
-        // 🐛 FLG_ACTIVA es VARCHAR2 'S'/'N', no un número
-        const string sql = "SELECT * FROM VCTS_UNIDADES WHERE FLG_ACTIVA = 1";
-        var lista = _bd.ObtenerTodosMap<ClaseUnidad>(sql);
-        // 🐛 No gestiona null y no pasa el idioma (no habrá multiidioma)
-        return Result<List<ClaseUnidad>>.Success(lista.ToList());
-    }
-
-    public Result<ClaseUnidad> ObtenerPorId(int id, string idioma)
-    {
-        // 🐛 Parámetro inline - SQL injection + usa tabla directa en vez de vista
-        var sql = $"SELECT * FROM TCTS_UNIDADES WHERE ID = {id}";
-        var unidad = _bd.ObtenerPrimeroMap<ClaseUnidad>(sql);
-        // 🐛 No comprueba null - debería devolver objeto vacío con Id=0
-        return Result<ClaseUnidad>.Success(unidad);
-    }
-
-    public Result<int> Guardar(ClaseGuardarUnidad dto)
-    {
-        var parametros = new DynamicParameters();
-        // 🐛 Dirección incorrecta: pid es IN OUT, no solo Input
-        parametros.Add("pid", dto.Id);
-        parametros.Add("pnombre_es", dto.NombreEs);
-        // 🐛 Falta convertir bool a 'S'/'N' para Oracle
-        parametros.Add("pflg_activa", dto.FlgActiva);
-        // 🐛 Faltan parámetros: pnombre_ca, pnombre_en, pgranularidad,
-        //    pduracion_max, pflg_requiere_confirmacion, pnum_citas_simultaneas,
-        //    pcodper, pip
-
-        _bd.EjecutarParams("PKG_CITAS.GUARDA_UNIDAD", parametros);
-
-        // 🐛 Si pid era IN OUT, necesitamos recuperar el valor generado
-        return Result<int>.Success(0);
-    }
-
-    // 🐛 RETURN_VALUE no declarado primero (orden incorrecto)
-    public decimal ObtenerPeso(int idFoto)
-    {
-        var p = new DynamicParameters();
-        p.Add("P_ID_FOTO", idFoto);
-        // 🐛 RETURN_VALUE debe ser el PRIMER parámetro
-        p.Add("RETURN_VALUE", null, OracleDbType.Decimal,
-            ParameterDirection.ReturnValue);
-
-        _bd.EjecutarParams("PKG_FOTOS.OBTENER_PESO", p);
-        return Convert.ToDecimal(p.Get("RETURN_VALUE"));
-    }
-
-    // 🐛 Transacción sin EndTransaction en finally
-    public void Transferir(int origen, int destino, decimal monto)
-    {
-        _bd.BeginTransaction();
-        try
+        var fake = new FakeObservacionesServicio();
+        var controller = new ObservacionesController(fake)
         {
-            _bd.EjecutarParams("PKG.RETIRAR", new { p_cuenta = origen, p_monto = monto });
-            _bd.EjecutarParams("PKG.DEPOSITAR", new { p_cuenta = destino, p_monto = monto });
-            _bd.Commit();
-        }
-        catch
+            ControllerContext = UsuarioFake.ConClaims(idiomaClaim: idiomaClaim, codPersona: codPer)
+        };
+        return (controller, fake);
+    }
+
+    [Fact]
+    public async Task Listar_DevuelveOk_ConLaLista()
+    {
+        // ARRANGE
+        var (controller, fake) = CrearControlador();
+        fake.ListaParaDevolver =
+        [
+            new ObservacionReservaLectura { IdObservacionReserva = 1, IdReserva = 10, Texto = "nota A" },
+            new ObservacionReservaLectura { IdObservacionReserva = 2, IdReserva = 10, Texto = "nota B" },
+        ];
+
+        // ACT
+        var resultado = await controller.Listar();
+
+        // ASSERT
+        var ok = Assert.IsType<OkObjectResult>(resultado);
+        var lista = Assert.IsType<List<ObservacionReservaLectura>>(ok.Value);
+        Assert.Equal(2, lista.Count);
+    }
+
+    [Fact]
+    public async Task Crear_UsaElCodPerDelToken_NoElDelBody()
+    {
+        var (controller, fake) = CrearControlador(codPer: 12345);
+        var dto = new ObservacionReservaCrearDto
         {
-            _bd.Rollback();
-            throw;
-        }
-        // 🐛 Falta finally { _bd.EndTransaction(); }
+            IdReserva = 10, TextoEs = "es", TextoCa = "ca", TextoEn = "en"
+        };
+
+        await controller.Crear(dto);
+
+        Assert.Single(fake.CodPersRecibidos);
+        Assert.Equal(12345, fake.CodPersRecibidos[0]);   // el del token, no el del body
     }
 }
+```
 
-// 🐛 Modelo sin [IgnorarMapeo] en propiedad calculada
-public class ClaseDocumento
+::: tip BUENA PRÁCTICA — el patrón AAA
+Todos los tests del curso siguen **Arrange / Act / Assert**:
+
+1. **Arrange**: construir el SUT (system under test) y los datos.
+2. **Act**: ejecutar la acción que pruebas.
+3. **Assert**: verificar el resultado.
+
+Si tu test no se puede partir en estos tres bloques, casi seguro que está probando demasiadas cosas.
+:::
+
+### 2.5.3 El "fake" hecho a mano
+
+No usamos Moq/NSubstitute en el curso: los fakes son clases C# normales que implementan la interfaz del servicio. Más simple, más explícito, y se entiende leyendo el código.
+
+```csharp
+public class FakeObservacionesServicio : IObservacionesServicio
 {
-    public int IdDocumento { get; set; }
-    public string Nombre { get; set; }
-    public byte[]? Contenido { get; set; }
+    public List<ObservacionReservaLectura> ListaParaDevolver { get; set; } = new();
+    public Result<int>? ResultadoCrear { get; set; }            // null → Success(1)
 
-    // 🐛 Falta [IgnorarMapeo] — la librería buscará columna TIENE_CONTENIDO
-    public bool TieneContenido => Contenido?.Length > 0;
+    public List<string> IdiomasPedidos { get; } = new();        // huella para asserts
+    public List<int>    CodPersRecibidos { get; } = new();
+
+    public Task<Result<List<ObservacionReservaLectura>>> ObtenerTodosAsync(string idioma)
+    {
+        IdiomasPedidos.Add(idioma);
+        return Task.FromResult(Result<List<ObservacionReservaLectura>>.Success(ListaParaDevolver));
+    }
+
+    public Task<Result<int>> CrearAsync(int codperAutor, ObservacionReservaCrearDto dto)
+    {
+        CodPersRecibidos.Add(codperAutor);
+        return Task.FromResult(ResultadoCrear ?? Result<int>.Success(1));
+    }
+
+    // ... resto de métodos de la interfaz ...
 }
 ```
+
+### 2.5.4 Un test real contra Oracle
+
+```csharp
+public class ObservacionesServicioRealTests : IClassFixture<OracleTestFixture>
+{
+    private readonly OracleTestFixture _fixture;
+    public ObservacionesServicioRealTests(OracleTestFixture f) => _fixture = f;
+
+    [SkippableFact]
+    public async Task ObtenerTodosAsync_NoFalla_ContraEsquemaReal()
+    {
+        Skip.IfNot(_fixture.HayConexion, _fixture.MotivoSinConexion);
+
+        using var scope = _fixture.CrearScope();
+        var bd = scope.ServiceProvider.GetRequiredService<IClaseOracleBd>();
+        var servicio = new ObservacionesServicio(bd, NullLogger<ObservacionesServicio>.Instance);
+
+        var resultado = await servicio.ObtenerTodosAsync("es");
+
+        Assert.True(resultado.IsSuccess);
+        Assert.NotNull(resultado.Value);   // lista (puede estar vacía si no hay seeds)
+    }
+}
+```
+
+`[SkippableFact]` se salta el test si la cadena de conexión no está en `user-secrets`. Esto permite que CI pase aunque no haya Oracle disponible.
+
+::: info CONTEXTO — `user-secrets` en el proyecto de tests
+El proyecto `uaReservas.Tests` tiene su propio `UserSecretsId`. La cadena de conexión se guarda con:
+
+```powershell
+$cadena = 'Data Source=...;User ID=CURSONORMWEB;Password=...;...'
+dotnet user-secrets set "ConnectionStrings:oradb" $cadena --project uaReservas.Tests
+```
+
+Sin esto, los tests reales se marcan como skipped y la suite sigue verde.
 :::
+
+## 2.6 Ejercicio: completar `Observaciones` con servicio + test
+
+### 2.6.1 Punto de partida
+
+Después de la sesión 4 tienes:
+
+- `ObservacionReservaLectura`, `ObservacionReservaCrearDto`.
+- `ObservacionesController` que devuelve datos hardcodeados.
+- En Oracle: `TRES_OBSERVACION_RESERVA`, `VRES_OBSERVACION_RESERVA`, `PKG_RES_OBSERVACION_RESERVA`.
+
+### 2.6.2 Lo que tienes que entregar hoy
+
+1. **Interfaz y servicio** en `Services/Reservas/`:
+
+   ```
+   IObservacionesServicio.cs
+   ObservacionesServicio.cs
+   ```
+
+   El servicio debe exponer:
+
+   ```csharp
+   Task<Result<List<ObservacionReservaLectura>>> ObtenerTodosAsync(string idioma);
+   Task<Result<ObservacionReservaLectura>>       ObtenerPorIdAsync(int idObs, string idioma);
+   Task<Result<int>>                              CrearAsync(int codperAutor, ObservacionReservaCrearDto dto);
+   Task<Result<bool>>                             EliminarAsync(int idObs);
+   ```
+
+2. **Implementación**:
+   - `ObtenerTodosAsync` / `ObtenerPorIdAsync`: `SELECT` contra `VRES_OBSERVACION_RESERVA` usando `ObtenerTodosMapAsync<T>` / `ObtenerPrimeroMapAsync<T>`.
+   - `CrearAsync`: llama a `PKG_RES_OBSERVACION_RESERVA.CREAR` siguiendo el patrón de la sección 2.4.
+   - `EliminarAsync`: llama a `PKG_RES_OBSERVACION_RESERVA.ELIMINAR` (soft delete `ACTIVO='N'`).
+   - Todas las escrituras pasan por `ErrorPaquetePlSql.AResultFailure<T>(...)` para traducir el OUT.
+
+3. **Quitar los datos hardcodeados** del `ObservacionesController` y delegar en el servicio:
+
+   ```csharp
+   public async Task<ActionResult> Listar() =>
+       HandleResult(await _observaciones.ObtenerTodosAsync(Idioma));
+   ```
+
+   En `Crear`, recuerda: **`CodPer` del token**, no del body.
+
+4. **Registrar el servicio** en `Program.cs`:
+
+   ```csharp
+   builder.Services.AddScoped<IObservacionesServicio, ObservacionesServicio>();
+   ```
+
+5. **Probar en vivo**:
+   - En Scalar: `Try it out` sobre `GET /api/Observaciones` y `POST /api/Observaciones`.
+   - En `Home.vue`: el botón **"GET /api/Observaciones (ejercicio)"** ahora trae datos reales de Oracle. **Sin tocar Vue**.
+   - En Chrome DevTools → Network: confirmar que devuelve `200 OK` y el JSON real.
+
+6. **Un test simulado** del controlador en `uaReservas.Tests/Controllers/ObservacionesControllerSimuladoTests.cs`:
+   - Test 1: `Listar` devuelve `200 OK` con la lista del fake.
+   - Test 2: `Crear` pasa `CodPer` del token y no del body (es el chequeo de seguridad).
+   - Sigue el patrón `FakeObservacionesServicio` de 2.5.3.
+
+### 2.6.3 Lista de verificación
+
+| ✅ | Comprobación                                                                          |
+| - | ------------------------------------------------------------------------------------ |
+| ☐ | `IObservacionesServicio` y `ObservacionesServicio` creados.                          |
+| ☐ | `Program.cs` registra el servicio.                                                   |
+| ☐ | `ObservacionesController` no tiene datos hardcodeados — todo delega en el servicio.  |
+| ☐ | `CrearAsync` toma `codperAutor` por parámetro; el controlador le pasa `CodPer`.       |
+| ☐ | `dotnet build` sin errores ni warnings.                                              |
+| ☐ | Scalar muestra `POST /api/Observaciones` con `ProblemDetails` 400 si los textos van vacíos. |
+| ☐ | `Home.vue → GET /api/Observaciones` pinta datos reales y devuelve `200`.             |
+| ☐ | `dotnet test` ejecuta los dos tests simulados sin tocar Oracle.                      |
+
+::: tip BUENA PRÁCTICA — depuración cuando falla el POST
+Si al hacer POST en Scalar te llega un 500 sin explicación, **inspecciona el SQL del paquete primero** (`SQLERRM` viaja en `P_MENSAJE_ERROR`, no se pierde):
+
+1. En el `ObservacionesServicio`, **antes** de devolver el `Result`, pon un `_logger.LogError("Error PKG OBS: {Codigo} {Mensaje}", ...)`.
+2. Vuelve a ejecutar.
+3. Lee el log: la causa raíz suele ser un parámetro `IN` mal nombrado o un `NOT NULL` que no se rellena.
+:::
+
+## 2.7 Resumen de la sesión
+
+```mermaid
+flowchart LR
+    A[Capas:<br/>Controller / Servicio / Oracle] --> B["Result&lt;T&gt; + HandleResult"]
+    B --> C[Lectura:<br/>SELECT vs vista<br/>ObtenerTodosMapAsync]
+    C --> D[Escritura:<br/>PKG_RES_*<br/>EjecutarParamsAsync]
+    D --> E[xUnit:<br/>simulado + real]
+    E --> F[Ejercicio:<br/>completar Observaciones]
+
+    style A fill:#d1ecf1,stroke:#0c5460
+    style B fill:#fff3cd,stroke:#856404
+    style C fill:#d4edda,stroke:#155724
+    style D fill:#f8d7da,stroke:#721c24
+    style E fill:#e2e3e5,stroke:#383d41
+    style F fill:#cce5ff,stroke:#004085
+```
+
+<!-- diagram id="resumen-sesion5" caption: "El flujo de la sesión: de las capas al ejercicio, pasando por Result<T>, lectura, escritura y tests." -->
+
+| Concepto                  | Dónde se aplica en `uaReservas`                                                |
+| ------------------------- | ------------------------------------------------------------------------------ |
+| Capas                     | `Controllers/Apis/*`, `Services/Reservas/*`, `Models/*`                        |
+| `Result<T>`               | `Models/Errors/Result.cs`, devuelto por **todos** los servicios.               |
+| `HandleResult`            | `Controllers/Apis/ApiControllerBase.cs`. Una sola implementación reusada.      |
+| Lectura                   | `ObtenerTodosMapAsync<T>` contra `VRES_*`.                                     |
+| Escritura                 | `EjecutarParamsAsync` contra `PKG_RES_*` con `DynamicParameters`.              |
+| Traducción de errores     | `Models/Errors/ErrorPaquetePlSql.cs` — un `switch` por código ORA.             |
+| Inyección de dependencias | `Program.cs` con la línea "alias" `IClaseOracleBd → ClaseOracleBd`.            |
+| Tests                     | `uaReservas.Tests/` con fakes a mano y `SkippableFact` para los reales.        |
 
 ---
 
@@ -1363,8 +910,7 @@ public class ClaseDocumento
 - [Autoevaluación sesión 2](../../test/sesion-2/autoevaluacion.md)
 - [Preguntas de test sesión 2](../../test/sesion-2/preguntas.md)
 - [Respuestas del test sesión 2](../../test/sesion-2/respuestas.md)
-- [Práctica IA-fix sesión 2](../../test/sesion-2/practica-ia-fix.md)
 
 ---
 
-**Anterior:** [Sesión 1: DTOs y APIs](../sesion-1-dtos-apis/) | **Siguiente:** [Sesión 3: Validación, errores y buenas prácticas](../sesion-3-validacion-errores/)
+**Siguiente:** [Parte Vue — Sesiones 6 y siguientes](../../../03-vue/)
