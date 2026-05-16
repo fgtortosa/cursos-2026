@@ -1,6 +1,7 @@
 # Test de autoevaluacion -- Sesion 1: DTOs y APIs
 
 ## Pregunta 1
+
 ¿Cual es la diferencia principal entre un DTO y una entidad de base de datos?
 
 a) El DTO contiene logica de negocio y la entidad no
@@ -9,6 +10,7 @@ c) El DTO transporta datos entre capas sin logica de negocio; la entidad represe
 d) No hay diferencia, son terminos intercambiables
 
 ## Pregunta 2
+
 Dado el siguiente DTO, ¿que columna Oracle corresponde a la propiedad `FechaNacimiento`?
 
 ```csharp
@@ -25,6 +27,7 @@ c) `FECHA_NACIMIENTO`
 d) `fechaNacimiento`
 
 ## Pregunta 3
+
 ¿Que atributo se usa en un DTO cuando la columna Oracle NO sigue la convencion SNAKE_CASE?
 
 a) `[Column("NOMBRE_REAL")]`
@@ -33,6 +36,7 @@ c) `[MapTo("NOMBRE_REAL")]`
 d) `[DatabaseField("NOMBRE_REAL")]`
 
 ## Pregunta 4
+
 ¿Que hace el atributo `[ApiController]` en un controlador?
 
 a) Registra automaticamente el controlador en el contenedor de inyeccion de dependencias
@@ -41,6 +45,7 @@ c) Valida automaticamente el ModelState y devuelve 400 si no es valido
 d) Habilita la autenticacion JWT en todas las acciones
 
 ## Pregunta 5
+
 ¿Cual es la ruta HTTP resultante de este controlador?
 
 ```csharp
@@ -59,6 +64,7 @@ c) `/api/controller/activas`
 d) `/Herramientas/activas`
 
 ## Pregunta 6
+
 ¿Que codigo HTTP devuelve el metodo `NotFound()` en un controlador?
 
 a) 400
@@ -67,6 +73,7 @@ c) 404
 d) 500
 
 ## Pregunta 7
+
 ¿Que verbo HTTP se usa para **crear** un recurso nuevo en una API REST?
 
 a) GET
@@ -75,6 +82,7 @@ c) DELETE
 d) POST
 
 ## Pregunta 8
+
 En el siguiente codigo, ¿que devuelve la accion si `id = 99` y no existe esa reserva en la lista?
 
 ```csharp
@@ -94,6 +102,7 @@ c) 404 Not Found
 d) 500 Internal Server Error
 
 ## Pregunta 9
+
 ¿De que clase debe heredar un controlador API en el patron UA?
 
 a) `Controller`
@@ -102,6 +111,7 @@ c) `ControllerBase`
 d) `ControladorBase`
 
 ## Pregunta 10
+
 ¿Que formato de respuesta devuelve `Problem(detail: "Error", statusCode: 500)` segun la especificacion?
 
 a) Un string plano con el mensaje de error
@@ -110,6 +120,7 @@ c) Un HTML con la pagina de error del servidor
 d) Un codigo de estado sin cuerpo de respuesta
 
 ## Pregunta 11
+
 ¿Que ocurre si un DTO tiene `[Required]` en una propiedad string y enviamos ese campo como `null` con `[ApiController]` habilitado?
 
 a) La accion del controlador recibe null y debe validarlo manualmente
@@ -118,6 +129,7 @@ c) .NET lanza una `NullReferenceException`
 d) El campo se rellena con un string vacio automaticamente
 
 ## Pregunta 12
+
 ¿Cual es el error en este controlador?
 
 ```csharp
@@ -136,6 +148,7 @@ c) Deberia heredar de `Controller` en vez de `ControllerBase`
 d) Falta el atributo `[Produces("application/json")]`
 
 ## Pregunta 13
+
 ¿Que atributo de DataAnnotations valida que un numero este entre 5 y 120?
 
 a) `[MinLength(5), MaxLength(120)]`
@@ -144,6 +157,7 @@ c) `[Between(5, 120)]`
 d) `[NumericRange(min: 5, max: 120)]`
 
 ## Pregunta 14
+
 Dado este DTO, ¿que campo(s) son obligatorios?
 
 ```csharp
@@ -168,6 +182,7 @@ c) `NombreEs` y `Granularidad`
 d) `NombreEs` y `EmailContacto`
 
 ## Pregunta 15
+
 ¿Que expresion regular valida correctamente emails de `@ua.es` o `@alu.ua.es`?
 
 a) `@"@ua.es|@alu.ua.es"`
@@ -176,6 +191,7 @@ c) `@".*@ua\.es$"`
 d) `@"^.+@ua.es$"`
 
 ## Pregunta 16
+
 ¿Que devuelve esta accion si enviamos `{ "nombreEs": null }` y `NombreEs` tiene `[Required]`?
 
 ```csharp
@@ -192,6 +208,7 @@ c) 500 Internal Server Error
 d) 204 No Content
 
 ## Pregunta 17
+
 En Vue, ¿que funcion de `@vueua/components` se usa para realizar una llamada HTTP tipada?
 
 a) `fetchAxios`
@@ -200,13 +217,17 @@ c) `peticion<T>()`
 d) `llamadaAxios`
 
 ## Pregunta 18
+
 ¿Cual es el error en este codigo Vue que intenta crear un tipo de recurso?
 
 ```typescript
-peticion<TipoRecursoCrearDto>("api/TipoRecursos", verbosAxios.GET, formulario)
-  .then(({ data }) => {
-    resultado.value = data;
-  })
+peticion<TipoRecursoCrearDto>(
+  "api/TipoRecursos",
+  verbosAxios.GET,
+  formulario,
+).then(({ data }) => {
+  resultado.value = data;
+});
 ```
 
 a) Falta el `.catch()` para gestionar errores
@@ -215,6 +236,7 @@ c) Falta importar `verbosAxios` de `@vueua/components`
 d) Falta indicar el tipo de contenido JSON
 
 ## Pregunta 19
+
 ¿Como se accede a los errores de validacion campo a campo en la respuesta de un 400 en Vue?
 
 a) `error.response.data.message`
@@ -223,6 +245,7 @@ c) `error.response.data.validationErrors`
 d) `error.response.errors`
 
 ## Pregunta 20
+
 ¿Que tipo de dato Oracle `VARCHAR2 'S'/'N'` se mapea automaticamente en C# a traves de ClaseOracleBD3?
 
 a) `string`
@@ -231,6 +254,7 @@ c) `bool`
 d) `char`
 
 ## Pregunta 21
+
 ¿Que problema tiene este codigo?
 
 ```csharp
@@ -247,6 +271,7 @@ c) Deberia usar `HttpPost` en vez de `HttpGet`
 d) La lista `_reservas` no puede ser devuelta porque es privada
 
 ## Pregunta 22
+
 ¿Que atributo se utiliza para indicar que el parametro proviene del cuerpo de la peticion HTTP?
 
 a) `[FromQuery]`
@@ -255,6 +280,7 @@ c) `[FromBody]`
 d) `[FromHeader]`
 
 ## Pregunta 23
+
 ¿Cual es la diferencia entre `Ok()` y `NoContent()`?
 
 a) `Ok()` devuelve 200 con datos y `NoContent()` devuelve 204 sin datos
@@ -263,6 +289,7 @@ c) No hay diferencia, ambos devuelven 200
 d) `NoContent()` devuelve 200 con un body vacio
 
 ## Pregunta 24
+
 En el ciclo Rojo-Verde-Refactor, ¿que representa la fase "Rojo"?
 
 a) El codigo ya esta validado y funciona correctamente
@@ -271,6 +298,7 @@ c) Se identifica que el codigo no tiene validaciones y acepta datos invalidos
 d) Se despliega la aplicacion en produccion
 
 ## Pregunta 25
+
 ¿Que ocurre en la fase "Verde" del ciclo Rojo-Verde-Refactor del EcoController?
 
 a) Se eliminan todas las validaciones del DTO
@@ -279,6 +307,7 @@ c) Se optimiza el rendimiento de las consultas
 d) Se agregan tests unitarios
 
 ## Pregunta 26
+
 ¿Cual es el error en este DTO?
 
 ```csharp
@@ -296,6 +325,7 @@ c) `[StringLength]` no es compatible con `[Required]`
 d) El tipo deberia ser `string` sin `?`
 
 ## Pregunta 27
+
 ¿Que estructura tiene un `ValidationProblemDetails` devuelto por .NET?
 
 ```json
@@ -313,6 +343,7 @@ c) `status: 500` y `errors` es un array de strings
 d) `status: 400` y `errors` contiene un unico mensaje de error global
 
 ## Pregunta 28
+
 En el patron UA, ¿como se nombran los DTOs y en que carpeta se ubican?
 
 a) En `Controllers/` con prefijo `Dto` (ej: `DtoPermiso`)
@@ -321,6 +352,7 @@ c) En `Services/` con sufijo `Model` (ej: `PermisoModel`)
 d) En `Entities/` con el nombre de la tabla Oracle
 
 ## Pregunta 29
+
 ¿Que hace la propiedad calculada en este DTO?
 
 ```csharp
@@ -338,6 +370,7 @@ c) Sobrescribe el valor de Nombre con la URL
 d) Genera una URL valida a partir del nombre
 
 ## Pregunta 30
+
 ¿Que atributo se debe usar en una propiedad calculada del DTO para que ClaseOracleBD3 no intente mapearla a Oracle?
 
 a) `[NotMapped]`
@@ -346,6 +379,7 @@ c) `[IgnorarMapeo]`
 d) `[JsonIgnore]`
 
 ## Pregunta 31
+
 ¿Que codigo HTTP devuelve `BadRequest("Error en la peticion")`?
 
 a) 401
@@ -354,6 +388,7 @@ c) 400
 d) 500
 
 ## Pregunta 32
+
 ¿Cual es el error en este controlador?
 
 ```csharp
@@ -375,6 +410,7 @@ c) La ruta esta mal definida
 d) `new[]` no es un tipo valido para devolver
 
 ## Pregunta 33
+
 ¿Que verbo HTTP se usa para **actualizar completamente** un recurso existente?
 
 a) POST
@@ -383,6 +419,7 @@ c) PUT
 d) GET
 
 ## Pregunta 34
+
 En Vue, ¿como se distingue un error de validacion (400) de otros errores en el `.catch()`?
 
 ```typescript
@@ -397,6 +434,7 @@ c) Comprobando `error.isValidation === true`
 d) No se puede distinguir, todos los errores se tratan igual
 
 ## Pregunta 35
+
 ¿Que hace `gestionarError` de `vueua-useaxios`?
 
 a) Envia el error al servidor para loggearlo
@@ -405,6 +443,7 @@ c) Gestiona el error de forma centralizada mostrando un toast automatico
 d) Reintenta la llamada HTTP automaticamente
 
 ## Pregunta 36
+
 ¿Que pasa si enviamos este JSON al endpoint `/api/Eco/validar` con las validaciones del refactor completas?
 
 ```json
@@ -423,6 +462,7 @@ c) 400 solo con error en `EmailContacto`
 d) 500 Internal Server Error
 
 ## Pregunta 37
+
 ¿Cual es la firma correcta para un endpoint que recibe un DTO por body y devuelve el mismo tipo?
 
 a) `public ClaseEcoUnidad Eco(ClaseEcoUnidad dto)`
@@ -431,6 +471,7 @@ c) `public IActionResult Eco([FromQuery] ClaseEcoUnidad dto)`
 d) `public void Eco([FromBody] ClaseEcoUnidad dto)`
 
 ## Pregunta 38
+
 En el siguiente codigo Vue, ¿que clase CSS se aplica cuando hay errores de validacion en el campo `NombreEs`?
 
 ```vue
@@ -448,6 +489,7 @@ c) `has-error`
 d) `validation-error`
 
 ## Pregunta 39
+
 ¿Que atributo se usa para validar que un string tenga formato de email segun RFC?
 
 a) `[Email]`
@@ -456,6 +498,7 @@ c) `[EmailAddress]`
 d) `[ValidEmail]`
 
 ## Pregunta 40
+
 ¿Que problema tiene este codigo de controlador?
 
 ```csharp
@@ -473,6 +516,7 @@ c) Deberia usar `[HttpPost]` en vez de `[HttpGet]`
 d) Falta el atributo `[FromRoute]`
 
 ## Pregunta 41
+
 ¿Que metodo de .NET devuelve un codigo HTTP 204?
 
 a) `Ok()`
@@ -481,6 +525,7 @@ c) `NotFound()`
 d) `Accepted()`
 
 ## Pregunta 42
+
 ¿Que propiedad del `ValidationProblemDetails` contiene los errores agrupados por campo?
 
 a) `detail`
@@ -489,6 +534,7 @@ c) `errors`
 d) `extensions`
 
 ## Pregunta 43
+
 ¿Que ocurre si definimos `[StringLength(200, MinimumLength = 3)]` y enviamos un string de 2 caracteres?
 
 a) Se acepta porque MinimumLength no es obligatorio
@@ -497,6 +543,7 @@ c) Se trunca automaticamente a 3 caracteres
 d) Se lanza una excepcion en el servidor
 
 ## Pregunta 44
+
 En el DTO multiidioma del patron UA, ¿como resuelve ClaseOracleBD3 los sufijos de idioma?
 
 ```csharp
@@ -513,6 +560,7 @@ c) El desarrollador debe crear tres propiedades separadas: `NombreEs`, `NombreCa
 d) Usa un fichero de configuracion XML para el mapeo de idiomas
 
 ## Pregunta 45
+
 ¿Cual es el error en este codigo Vue para enviar datos al endpoint de validacion?
 
 ```typescript
@@ -533,6 +581,7 @@ c) El verbo deberia ser POST, falta limpiar errores anteriores, y los errores de
 d) Solo que `error.response.data` deberia ser `error.response.data.errors`
 
 ## Pregunta 46
+
 ¿Que atributo de un controlador indica que las respuestas seran en formato JSON?
 
 a) `[ContentType("json")]`
@@ -541,6 +590,7 @@ c) `[ResponseFormat("json")]`
 d) `[JsonResponse]`
 
 ## Pregunta 47
+
 ¿Que hace `[ProducesResponseType(typeof(ProblemDetails), 500)]` en una accion del controlador?
 
 a) Configura el controlador para devolver siempre 500
@@ -549,6 +599,7 @@ c) Intercepta los errores 500 y los convierte en ProblemDetails
 d) Valida que todas las respuestas 500 tengan formato ProblemDetails
 
 ## Pregunta 48
+
 ¿Cual es la forma correcta de devolver una lista filtrada en un endpoint GET?
 
 ```csharp
@@ -561,6 +612,7 @@ c) `return Json(_reservas.Where(r => r.Activo));`
 d) `return new JsonResult(_reservas.Where(r => r.Activo));`
 
 ## Pregunta 49
+
 En la fase Refactor del EcoController, ¿pueden acumularse varios errores de validacion en un mismo campo?
 
 ```csharp
@@ -576,6 +628,7 @@ c) No, los DataAnnotations se detienen en el primer error
 d) Si, pero solo si se usa FluentValidation
 
 ## Pregunta 50
+
 ¿Que funcion de Vue UA se usa para mostrar un toast de error personalizado con titulo y mensaje?
 
 a) `gestionarError`

@@ -39,12 +39,12 @@ public class TipoRecursosController : ControllerBase       // ERROR 1
 
 ## Errores que debe detectar la IA
 
-| # | Problema | Corrección esperada |
-|---|----------|---------------------|
-| 1 | Hereda de `ControllerBase`, no de `ControladorBase` | Cambiar a `ControladorBase` |
-| 2 | Comprobación manual de `null` redundante | `[ApiController]` ya gestiona el `ModelState`; eliminar el bloque |
-| 3 | Devuelve `StatusCode(500, ...)` a mano, ignorando el `Result<T>` | `return HandleResult(resultado)` |
-| 4 | Una creación devuelve `200 Ok`, no `201 Created` | `return CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, resultado.Value)` |
+| #   | Problema                                                         | Corrección esperada                                                                           |
+| --- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 1   | Hereda de `ControllerBase`, no de `ControladorBase`              | Cambiar a `ControladorBase`                                                                   |
+| 2   | Comprobación manual de `null` redundante                         | `[ApiController]` ya gestiona el `ModelState`; eliminar el bloque                             |
+| 3   | Devuelve `StatusCode(500, ...)` a mano, ignorando el `Result<T>` | `return HandleResult(resultado)`                                                              |
+| 4   | Una creación devuelve `200 Ok`, no `201 Created`                 | `return CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, resultado.Value)` |
 
 ## Solución de referencia
 
