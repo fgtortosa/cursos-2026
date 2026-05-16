@@ -1500,123 +1500,251 @@ Un DTO es un **contrato**. Cambiar sus campos rompe a quien lo consume. Por eso 
 
 ### Anatomía de un controlador API
 
-Todos los controladores API en .NET Core 10 comparten esta estructura:
+Todos los controladores API en .NET 10 comparten la misma estructura. Esto es **lo mínimo**:
 
 ```csharp
-[Route("api/[controller]")]  // Ruta base: /api/NombreControlador
-[ApiController]               // Habilita validación automática del modelo
-public class InfoController : ControllerBase  // Hereda de ControllerBase
+[Route("api/[controller]")]   // Ruta base: /api/{NombreSinControllerSuffix}
+[ApiController]               // Activa validación automática del modelo y binding de [FromBody]
+[Authorize]                   // Exige cookie JWT válida (en TODOS los controladores del curso)
+[Produces("application/json")]  // Todas las respuestas son JSON
+[Tags("MiEntidad")]            // Agrupa el endpoint en la sidebar de Scalar
+public class MiController : ControladorBase  // Hereda de ControladorBase
 {
-    // Inyección de dependencias en el constructor
-    private readonly ClaseTokens _tokens;
+    // Inyección de dependencias por constructor
+    private readonly IMiServicio _servicio;
+    public MiController(IMiServicio servicio) => _servicio = servicio;
 
-    public InfoController(ClaseTokens tokens)
-    {
-        _tokens = tokens;
-    }
-
-    // Acciones con atributos HTTP
-    [HttpGet("Message")]
-    public string GetBackendMessage()
-    {
-        return "Hola desde la API";
-    }
+    // Acción con atributo HTTP + XML docs + ProducesResponseType
+    /// <summary>Una frase explicando qué hace.</summary>
+    /// <response code="200">Devuelve el resultado.</response>
+    [HttpGet]
+    [ProducesResponseType<MiDto>(StatusCodes.Status200OK)]
+    public async Task<ActionResult> Obtener() =>
+        HandleResult(await _servicio.ObtenerAsync());
 }
 ```
 
-### Ejemplo real: InfoController del proyecto Curso
+Hay **cinco piezas** que se repiten en todos los controladores del proyecto. No son opcionales:
 
-Este es el controlador más sencillo del proyecto. Observamos cómo valida el token del usuario y devuelve información:
+| # | Pieza | Para qué |
+|---|---|---|
+| 1 | `[Route]` + `[ApiController]` | Routing convencional + binding/validación automática del modelo. |
+| 2 | `[Authorize]` | Sin esta línea, **cualquiera** puede llamar al endpoint sin cookie de sesión. |
+| 3 | `[Produces("application/json")]` | Le dice al pipeline (y a Scalar) que solo respondes JSON. |
+| 4 | `[Tags(...)]` | Agrupa los endpoints en la UI de Scalar por entidad. |
+| 5 | Heredar de `ControladorBase` | Provee `Idioma`, `CodPer`, `Roles`, `HandleResult`, `ValidationProblemLocalizado`. |
+
+::: info CONTEXTO — la jerarquía `ControladorBase` / `ApiControllerBase`
+- **`ApiControllerBase`** (en `Controllers/Apis/ApiControllerBase.cs`) hereda de `ControllerBase` (de ASP.NET) y añade `HandleResult<T>(Result<T>)` + `ValidationProblemLocalizado(code, fallback)`. Su trabajo: **traducir `Result<T>` a HTTP** (200/400/404/500 + `ProblemDetails`/`ValidationProblemDetails`) y **localizar el mensaje** vía `IStringLocalizer<SharedResource>`.
+- **`ControladorBase`** (en `Controllers/Apis/ControladorBase.cs`) hereda de `ApiControllerBase` y añade las propiedades calculadas del usuario autenticado: `CodPer`, `NombrePersona`, `Idioma`, `Correo`, `Roles`, `PathFoto`, `DniConLetra`, `DniSinLetra`. Todas leen del JWT — NUNCA del body.
+
+Tus controladores **siempre** heredan de `ControladorBase`. Lo demás llega por herencia.
+:::
+
+### Ejemplo real: `InfoController` del proyecto
+
+El controlador más sencillo del proyecto. Sirve para tres cosas: leer datos del usuario logueado, comprobar que la API responde y probar el flujo de errores 400 desde Vue:
 
 ```csharp
-// Curso/Controllers/Apis/InfoController.cs
-[Route("api/[controller]")]
-[ApiController]
-public class InfoController : ControllerBase
+// uaReservas/Controllers/Apis/InfoController.cs
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace uaReservas.Controllers.Apis
 {
-    private readonly ClaseTokens _tokens;
-
-    public InfoController(ClaseTokens tokens)
+    /// <summary>
+    /// Endpoints de informacion sobre el usuario autenticado.
+    /// Sirve tambien de "test ping" para verificar que el middleware de
+    /// autenticacion (CAS + JWT) esta activo y la API responde.
+    /// </summary>
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    [Produces("application/json")]
+    [Tags("Info")]
+    public class InfoController : ControladorBase
     {
-        _tokens = tokens;
-    }
-
-    [HttpGet("MessageError")]
-    public IActionResult GetErrorMessage()
-    {
-        return BadRequest("Error en la petición");
-    }
-
-    [HttpGet("Message")]
-    public string GetBackendMessage()
-    {
-        var token = _tokens.GetTokenCookie(_tokens.APPTOKEN);
-        var validacion = _tokens.ValidarJwt(token, false);
-
-        if (validacion.TokenValido)
+        /// <summary>Devuelve los datos identificativos del usuario autenticado.</summary>
+        /// <response code="200">Datos del usuario actual.</response>
+        /// <response code="401">No autenticado.</response>
+        [HttpGet("UsuarioActual")]
+        [ProducesResponseType<object>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public ActionResult UsuarioActual() => Ok(new
         {
-            return "Eres " + validacion.CodPersona + " - "
-                + validacion.NombrePersona + " - "
-                + validacion.Idioma + " - "
-                + validacion.Correo;
-        }
+            codPer        = CodPer,           // del claim CODPER_UAAPPS
+            nombre        = NombrePersona,    // del claim NOMPER
+            idioma        = Idioma,           // X-Idioma | claim LENGUA | "es"
+            correo        = Correo,
+            dniConLetra   = DniConLetra,
+            dniSinLetra   = DniSinLetra,
+            pathFoto      = PathFoto,
+            roles         = Roles             // del claim ROLES, ya parseado a List<string>
+        });
 
-        return "El token no es valido: " + validacion.TokenCaducado;
+        /// <summary>Devuelve un mensaje fijo para verificar que la API responde.</summary>
+        /// <response code="200">Mensaje legible con el codper y el nombre.</response>
+        /// <response code="401">No autenticado.</response>
+        [HttpGet("Message")]
+        [ProducesResponseType<string>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public ActionResult<string> Message() =>
+            $"Hola {NombrePersona} (codper {CodPer}, idioma {Idioma}, correo {Correo})";
+
+        /// <summary>Endpoint de demostracion: devuelve siempre 400 Bad Request.</summary>
+        /// <response code="400">Siempre. Es un ejemplo intencionado.</response>
+        [HttpGet("MessageError")]
+        [AllowAnonymous]
+        [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+        public ActionResult MessageError() =>
+            ValidationProblemLocalizado(
+                "ERROR_DEMO",
+                "Endpoint de demostracion del flujo de errores 400.");
     }
 }
 ```
 
-### Verbos HTTP
+Cosas que se ven aquí y se repiten en todo el curso:
 
-| Verbo      | Atributo       | Uso                         | Ejemplo                          |
-| ---------- | -------------- | --------------------------- | -------------------------------- |
-| **GET**    | `[HttpGet]`    | Obtener datos               | Listar permisos, obtener usuario |
-| **POST**   | `[HttpPost]`   | Crear recurso               | Crear una herramienta IA         |
-| **PUT**    | `[HttpPut]`    | Actualizar recurso completo | Modificar un permiso             |
-| **DELETE** | `[HttpDelete]` | Eliminar recurso            | Desactivar una herramienta       |
+- **El usuario se lee de propiedades de `ControladorBase`**, no del request: `CodPer`, `NombrePersona`, `Idioma`, `Roles`. Nadie lee `Request.Cookies` ni hace `User.FindFirstValue(...)` a mano dentro de la acción.
+- **`[AllowAnonymous]`** se usa puntualmente para escapar del `[Authorize]` de la clase. `MessageError` lo necesita porque sirve para probar errores desde el cliente sin haber hecho login.
+- **`ValidationProblemLocalizado("CODIGO", "Mensaje literal de respaldo")`** devuelve un `400 ValidationProblemDetails` cuyo `detail` se busca como clave de `SharedResource.{idioma}.resx`. Si la clave no existe, cae al mensaje literal.
 
-### Códigos de estado HTTP
+### El controlador completo: `TipoRecursosController` (lectura + escritura)
 
-| Código  | Método en .NET             | Significado                       |
-| ------- | -------------------------- | --------------------------------- |
-| **200** | `Ok(valor)`                | Operación exitosa con datos       |
-| **204** | `NoContent()`              | Operación exitosa sin datos       |
-| **400** | `BadRequest(mensaje)`      | Error en la solicitud del cliente |
-| **401** | `Unauthorized()`           | No autenticado                    |
-| **404** | `NotFound()`               | Recurso no encontrado             |
-| **500** | `Problem(detail: mensaje)` | Error interno del servidor        |
+Una vez visto el `InfoController`, este es **el patrón completo** que usamos para entidades reales. Los cinco verbos (lista, detalle, crear, actualizar, borrar) en menos de 100 líneas — porque la lógica está toda en el servicio y `HandleResult` traduce el `Result<T>` a HTTP:
 
-::: code-group
-
-```csharp [Controller básico]
+```csharp
+// uaReservas/Controllers/Apis/TipoRecursosController.cs
 [Route("api/[controller]")]
 [ApiController]
-public class ReservasController : ControllerBase
-{
-    [HttpGet]
-    public IActionResult Listar()
-    {
-        return Ok(new[] { "Reserva 1", "Reserva 2" });
-    }
-}
-```
-
-```csharp [Controller con atributos]
-[Route("api/[controller]")]
-[ApiController]
+[Authorize]
 [Produces("application/json")]
-public class ReservasController : ControllerBase
+[Tags("TipoRecursos")]
+public class TipoRecursosController : ControladorBase
 {
+    private readonly ITiposRecursoServicio _tiposRecurso;
+    public TipoRecursosController(ITiposRecursoServicio tiposRecurso) =>
+        _tiposRecurso = tiposRecurso;
+
+    // ===== LECTURA =====
+
+    /// <summary>Lista todos los tipos de recurso resueltos al idioma del usuario.</summary>
+    /// <response code="200">Lista completa (puede estar vacía).</response>
+    /// <response code="401">No autenticado.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(List<ClaseReserva>), 200)]
-    [ProducesResponseType(typeof(ProblemDetails), 500)]
-    public IActionResult Listar()
+    [ProducesResponseType<List<TipoRecursoLectura>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> Listar() =>
+        HandleResult(await _tiposRecurso.ObtenerTodosAsync(Idioma));
+
+    /// <summary>Devuelve un tipo por su id.</summary>
+    /// <response code="200">Tipo encontrado.</response>
+    /// <response code="404">El tipo no existe.</response>
+    [HttpGet("{id:int}")]
+    [ProducesResponseType<TipoRecursoLectura>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> ObtenerPorId([FromRoute] int id) =>
+        HandleResult(await _tiposRecurso.ObtenerPorIdAsync(id, Idioma));
+
+    // ===== ESCRITURA =====
+
+    /// <summary>Crea un nuevo tipo de recurso.</summary>
+    /// <response code="201">Creado. Cabecera Location apunta al nuevo recurso.</response>
+    /// <response code="400">Datos inválidos.</response>
+    [HttpPost]
+    [ProducesResponseType<int>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
     {
-        return Ok(new[] { "Reserva 1", "Reserva 2" });
+        var resultado = await _tiposRecurso.CrearAsync(dto);
+        if (!resultado.IsSuccess) return HandleResult(resultado);
+
+        return CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, resultado.Value);
+    }
+
+    /// <summary>Actualiza un tipo de recurso existente.</summary>
+    /// <response code="204">Actualizado correctamente.</response>
+    /// <response code="400">Datos inválidos o id de la ruta != id del body.</response>
+    /// <response code="404">El tipo no existe.</response>
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Actualizar([FromRoute] int id, [FromBody] TipoRecursoActualizarDto dto)
+    {
+        if (id != dto.IdTipoRecurso)
+            return ValidationProblemLocalizado(
+                "ID_RUTA_CUERPO_NO_COINCIDE",
+                "El id de la ruta no coincide con el del cuerpo.");
+
+        var resultado = await _tiposRecurso.ActualizarAsync(dto);
+        if (!resultado.IsSuccess) return HandleResult(resultado);
+
+        return NoContent();
+    }
+
+    /// <summary>Borra un tipo de recurso.</summary>
+    /// <response code="204">Borrado correctamente.</response>
+    /// <response code="400">El tipo tiene recursos asociados.</response>
+    /// <response code="404">El tipo no existe.</response>
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Eliminar([FromRoute] int id)
+    {
+        var resultado = await _tiposRecurso.EliminarAsync(id);
+        if (!resultado.IsSuccess) return HandleResult(resultado);
+
+        return NoContent();
     }
 }
 ```
 
+::: tip BUENA PRÁCTICA — todas las acciones tienen 1-3 líneas
+Si una acción crece a más de tres líneas, casi siempre es porque está haciendo trabajo que **debería estar en el servicio**: validar reglas de negocio, normalizar entradas, abrir transacciones, calcular cosas. La regla del proyecto: el controlador solo hace tres cosas: **bindeo de entrada → llamada al servicio → traducción a HTTP**. El cuerpo lo lleva el servicio.
+:::
+
+### Verbos HTTP — qué usar para cada cosa
+
+| Verbo      | Atributo       | Para                         | Cuándo lo usa el curso                                          |
+| ---------- | -------------- | ---------------------------- | --------------------------------------------------------------- |
+| **GET**    | `[HttpGet]`    | Leer datos                   | `Listar()`, `ObtenerPorId(id)`, `BuscarPorFiltro(filtro)`.      |
+| **POST**   | `[HttpPost]`   | Crear un recurso             | `Crear(dto)` con un DTO completo en body.                        |
+| **PUT**    | `[HttpPut]`    | Actualizar **todo** el recurso | `Actualizar(id, dto)` con id en ruta y DTO completo en body.    |
+| **PATCH**  | `[HttpPatch]`  | Actualizar **parte** del recurso | `ActualizarFlags(id, dto)` con solo los campos a tocar.       |
+| **DELETE** | `[HttpDelete]` | Borrar un recurso            | `Eliminar(id)`.                                                  |
+
+::: info CONTEXTO — diferencia PUT vs PATCH
+**PUT** sustituye el recurso entero: el body lleva **todos** los campos. **PATCH** modifica solo algunos: el body lleva solo los que cambian. `RecursosController` tiene `ActualizarFlagsAsync` para enseñar el patrón PATCH (toggle del flag `Activo`/`Visible` sin tocar el resto del recurso).
+:::
+
+### Códigos de respuesta — los que vas a usar
+
+| Código  | Cuándo                                          | Cómo lo devuelves en el curso                                   |
+| ------- | ----------------------------------------------- | --------------------------------------------------------------- |
+| **200** | Lectura con datos                               | `Ok(valor)` — lo hace `HandleResult` cuando `Result.IsSuccess`. |
+| **201** | Recurso creado                                  | `CreatedAtAction(nameof(ObtenerPorId), new { id }, id)`.        |
+| **204** | Operación OK sin contenido (update/delete)      | `NoContent()`.                                                  |
+| **400** | Datos del cliente inválidos                     | `ValidationProblem(...)` o `ValidationProblemLocalizado(...)`. Lo hace `HandleResult` cuando `Result.Error.Type == Validation`. |
+| **401** | Sin cookie JWT                                  | El middleware lo devuelve automáticamente — tu acción ni se ejecuta. |
+| **403** | Autenticado pero sin permiso                    | `Forbid()` o `[Authorize(Roles = "...")]` en la cabecera.       |
+| **404** | El recurso pedido no existe                     | `NotFound(...)` o `Result.NotFound(...)`. Lo hace `HandleResult`. |
+| **500** | Bug del servidor / Oracle caído                 | `Problem(...)` o `Result.Failure(...)`. Lo hace `HandleResult`. |
+
+::: tip BUENA PRÁCTICA — devuelve siempre vía `Result<T>` + `HandleResult`
+**Nunca** uses `BadRequest("Error")` o `NotFound()` directamente desde una acción. En su lugar, el servicio devuelve `Result<T>.Validation(...)` / `Result<T>.NotFound(...)` y la acción hace `return HandleResult(result)`. Tres ventajas:
+
+1. Una sola pieza de código (en `ApiControllerBase`) decide cómo se construye cada `ProblemDetails`.
+2. Los mensajes se localizan automáticamente vía `IStringLocalizer<SharedResource>`.
+3. Si añades un código de error nuevo (por ejemplo `Result<T>.Conflict(...)`), basta extender `HandleResult` una vez.
+
+La excepción son chequeos triviales **dentro de la propia acción** (id ruta vs id body, dto null, etc.) donde sí está bien llamar a `ValidationProblemLocalizado(...)` directamente — pero la lógica de negocio siempre va al servicio.
+:::
+
+::: warning IMPORTANTE — NO `500` por algo previsible
+"No existe el recurso 999" es `404`, no `500`. "El nombre está duplicado" es `400`, no `500`. **`500` solo es para cosas que JAMÁS deberían pasar** (Oracle caído, NullReferenceException en código nuestro, etc.). Si tu API responde `500` para algo que el cliente puede arreglar mandando otros datos, el contrato está mal — debería ser `400` con explicación.
 :::
 
 
@@ -1877,10 +2005,15 @@ Cómo probar el cambio en Scalar:
 La respuesta devolverá los nombres `nombreCa` / nombres en valenciano. Si quitas la cabecera y tienes sesión iniciada, devolverá lo que diga tu `LENGUA` del CAS (normalmente `es`).
 
 ::: info CONTEXTO — quién aplica el idioma
-- En **lecturas**, el servicio (`TiposRecursoServicio.ObtenerTodosAsync(Idioma)`) le pasa el idioma a `ClaseOracleBD3`, que rellena la propiedad `Nombre` desde `NOMBRE_{IDIOMA}` automáticamente.
-- En **errores de validación**, el `Resources/Plantilla/PlantillaErrores.es.resx` / `.ca.resx` / `.en.resx` traduce los mensajes según `Accept-Language` / `X-Idioma`. Lo verás en la siguiente sección.
+La plantilla UA tiene **dos consumidores** del idioma en la misma petición:
 
-Cambiar `X-Idioma` te permite probar las tres cosas al mismo tiempo: nombres traducidos, mensajes de error traducidos y formato de fechas/números si aplica.
+1. **El servicio**: `TiposRecursoServicio.ObtenerTodosAsync(Idioma)` le pasa el idioma a `ClaseOracleBD3`, que rellena la propiedad `Nombre` desde `NOMBRE_{IDIOMA}` automáticamente. Es un string (`"es"`, `"ca"`, `"en"`) que `ControladorBase.Idioma` resuelve desde `HttpContext.Items["idioma"]` o desde el claim `LENGUA` del JWT.
+
+2. **El motor de localización de ASP.NET**: `UseRequestLocalization()` (en `Program.cs`) aplica `CultureInfo.CurrentUICulture` a toda la petición, usando un `CustomRequestCultureProvider` que mira el **mismo origen** (`HttpContext.Items["idioma"]` → claim `LENGUA` → `"es"`). De ahí beben:
+   - `AddDataAnnotationsLocalization()`: traduce los `ErrorMessage` de `[Required]`, `[MaxLength]`, etc. via `IStringLocalizer<SharedResource>` (los ficheros `Resources/SharedResource.{es,ca,en}.resx`).
+   - `ApiControllerBase.HandleResult`: localiza el `error.Code` / `error.MessageKey` contra el mismo `SharedResource` para construir el `ProblemDetails.Detail`.
+
+Cambiar `X-Idioma` afecta a las **tres cosas** simultáneamente: nombres multiidioma de tablas, mensajes de validación del modelo y mensajes de error de negocio.
 :::
 
 ### 1.5.4 Cómo se ven los errores: `ProblemDetails` y `ValidationProblemDetails`
