@@ -2655,105 +2655,138 @@ Mientras desarrollas la API, **el JSON que vuelca el `<pre>` es el contrato real
 
 ## 1.9 Ejercicio: API de `Observaciones` de reservas
 
+Vamos a construir una API nueva entera, **desde cero**, replicando el patrón que ya hemos visto en `TipoRecursos`. La parte de base de datos está hecha (tabla, vista, paquete PL/SQL); tú haces los DTOs y el controlador en memoria. La sesión 2 enganchará un servicio real contra Oracle sobre el mismo controlador.
+
 ### 1.9.1 Contexto
 
-Una reserva (`TRES_RESERVA`) puede tener varias **observaciones**: notas o comentarios que añade quien la creó (o un administrador). Cada observación tiene:
+Una **reserva** (`TRES_RESERVA`) puede tener varias **observaciones**: notas o comentarios que añade quien la creó (o un administrador). Cada observación tiene texto en los tres idiomas, autor, fecha de alta y un flag de borrado lógico.
 
-- texto en los tres idiomas (`TEXTO_ES`, `TEXTO_CA`, `TEXTO_EN`),
-- `CODPER_AUTOR` (quién la escribió — saldrá del token JWT, **no del body**),
-- `FECHA_ALTA` (auditoría, la pone Oracle),
-- `ACTIVO` (`S`/`N`, borrado lógico).
+```mermaid
+erDiagram
+    TRES_RESERVA ||--o{ TRES_OBSERVACION_RESERVA : "tiene"
 
-```erd
-[TRES_RESERVA]
-*ID_RESERVA {label: "PK"}
+    TRES_RESERVA {
+        NUMBER       ID_RESERVA           PK
+        NUMBER       ID_RECURSO           FK
+        NUMBER       CODPER
+        DATE         FECHA_RESERVA
+        NUMBER       HORA_INICIO
+        NUMBER       MINUTO_INICIO
+        NUMBER       MINUTOS_RESERVA
+    }
 
-[TRES_OBSERVACION_RESERVA]
-*ID_OBSERVACION_RESERVA {label: "PK"}
-+ID_RESERVA {label: "FK"}
-CODPER_AUTOR
-TEXTO_ES
-TEXTO_CA
-TEXTO_EN
-FECHA_ALTA
-ACTIVO
-
-TRES_RESERVA 1--* TRES_OBSERVACION_RESERVA
+    TRES_OBSERVACION_RESERVA {
+        NUMBER       ID_OBSERVACION_RESERVA  PK
+        NUMBER       ID_RESERVA              FK
+        NUMBER       CODPER_AUTOR
+        VARCHAR2     TEXTO_ES
+        VARCHAR2     TEXTO_CA
+        VARCHAR2     TEXTO_EN
+        TIMESTAMP    FECHA_ALTA
+        VARCHAR2     ACTIVO                  "S | N (borrado logico)"
+    }
 ```
 
 <!-- diagram id="erd-observacion-reserva" caption: "Una reserva tiene N observaciones; cada observación es de un autor (codper) y se borra lógicamente con ACTIVO='N'." -->
 
+Cinco detalles importantes que el ER no captura visualmente:
+
+| Detalle | Por qué importa |
+|---|---|
+| **`TEXTO_ES` / `TEXTO_CA` / `TEXTO_EN`** son tres columnas `NOT NULL VARCHAR2(2000)` | La observación está disponible en los tres idiomas (no podemos exigir al autor que la escriba sólo en uno). El DTO de salida expone un único `Texto`, resuelto al idioma del usuario. |
+| **`CODPER_AUTOR`** se rellena en el servidor, NO del body | Saldrá del JWT en el controlador (`CodPer` de `ControladorBase`). Si lo aceptaras en el body, un usuario malicioso podría crear observaciones a nombre de otro. |
+| **`FECHA_ALTA`** es `TIMESTAMP DEFAULT SYSTIMESTAMP` | La pone Oracle. El cliente nunca la envía ni la actualiza. Es auditoría. |
+| **`ACTIVO`** es `VARCHAR2(1)` con check `S` / `N` | Borrado **lógico**: el `DELETE` del paquete hace `UPDATE ... SET ACTIVO='N'`. La vista `VRES_OBSERVACION_RESERVA` filtra `ACTIVO='S'`, así que para .NET las "borradas" no existen. |
+| **FK a `TRES_RESERVA`** con `ON DELETE CASCADE` | Borrar una reserva arrastra sus observaciones (físicamente). El borrado lógico solo aplica a la observación individual. |
+
 ### 1.9.2 Lo que se entrega ya hecho
+
+Estos tres ficheros SQL ya están en el repo, **no los tocas tú**:
 
 | Pieza       | Ruta                                                                | Qué hace                                                                                              |
 | ----------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Tabla**   | `SQL/CURSONORMADM/TABLAS/TRES_OBSERVACION_RESERVA.sql`              | PK, FK a `TRES_RESERVA`, `NOT NULL` en los tres textos, `ACTIVO` con check `S/N`, índice por `ID_RESERVA`. |
-| **Vista**   | `SQL/CURSONORMADM/VISTAS/VRES_OBSERVACION_RESERVA.sql`              | Filtra `ACTIVO='S'`. No expone la columna `ACTIVO`.                                                  |
+| **Tabla**   | `SQL/CURSONORMADM/TABLAS/TRES_OBSERVACION_RESERVA.sql`              | PK, FK a `TRES_RESERVA`, `NOT NULL` en los tres textos, `ACTIVO` con check `S`/`N`, índice por `ID_RESERVA`. |
+| **Vista**   | `SQL/CURSONORMADM/VISTAS/VRES_OBSERVACION_RESERVA.sql`              | Filtra `ACTIVO='S'`. No expone la columna `ACTIVO` ni `CODPER_AUTOR` técnico.                       |
 | **Paquete** | `SQL/CURSONORMADM/PAQUETES/PKG_RES_OBSERVACION_RESERVA.{pks,pkb}`   | `CREAR` y `ELIMINAR` (SOFT: `ACTIVO='N'`) con el contrato `P_CODIGO_ERROR / P_MENSAJE_ERROR` OUT.    |
 
 ::: info CONTEXTO — el paquete es minimalista a propósito
-Solo expone **CREAR** y **ELIMINAR**. La lectura se hace desde .NET contra la vista `VRES_OBSERVACION_RESERVA` (no hay procedimiento `OBTENER_TODOS`). Es el patrón que vamos a defender todo el curso: las vistas son el "GET" del paquete.
+Solo expone **CREAR** y **ELIMINAR**. La lectura se hace desde .NET contra la vista `VRES_OBSERVACION_RESERVA` (no hay procedimiento `OBTENER_TODOS` en PL/SQL). Es el patrón que vamos a defender todo el curso: **las vistas son el "GET" del paquete**.
 :::
 
-### 1.9.3 Lo que tienes que entregar (en esta sesión 4)
+### 1.9.3 Lo que tienes que entregar en la sesión 1
 
-1. **DTOs nuevos** en `Models/Reservas/` siguiendo los nombres que usamos en clase:
-   - `ObservacionReservaLectura` (lo que la API devuelve en `GET`).
-   - `ObservacionReservaCrearDto` (lo que la API recibe en `POST`).
+Tres ficheros nuevos en `uaReservas`. Nada de Oracle ni de servicios: solo DTOs y un controlador con datos en memoria.
 
-   :::: details Pistas
+```
+uaReservas/
+├── Models/Reservas/
+│   ├── ObservacionReservaLectura.cs     ← NUEVO (DTO de salida)
+│   └── ObservacionReservaCrearDto.cs    ← NUEVO (DTO de entrada)
+└── Controllers/Apis/
+    └── ObservacionesController.cs        ← NUEVO (con _datos hardcodeados)
+```
 
-   **`ObservacionReservaLectura`** debe tener los campos planos que mapearán contra la vista:
+**1. `ObservacionReservaLectura.cs`** — el DTO de salida. Mira `TipoRecursoLectura` para el patrón: campos planos que mapean contra la vista, un único `Texto` resuelto al idioma (no los tres a la vez).
 
-   ```csharp
-   public int IdObservacionReserva { get; set; }
-   public int IdReserva            { get; set; }
-   public int CodperAutor          { get; set; }
-   public string Texto             { get; set; } = string.Empty;  // ← se resuelve _ES/_CA/_EN según idioma
-   public DateTime FechaAlta       { get; set; }
-   ```
+**2. `ObservacionReservaCrearDto.cs`** — el DTO de entrada. Lleva **solo lo que el cliente debe enviar**:
 
-   **`ObservacionReservaCrearDto`** lleva SOLO lo que el cliente debe enviar:
+- `IdReserva` (obligatorio, entero positivo).
+- `TextoEs`, `TextoCa`, `TextoEn` (los tres `[Required]` y `[MaxLength(2000)]`).
+- Sus `ErrorMessage` deben ser **claves** del estilo `VALIDACION_TEXTO_ES_REQUERIDO` — la sesión 3 traduce esas claves desde `Resources/SharedResource.{idioma}.resx`.
 
-   ```csharp
-   [Range(1, int.MaxValue)] public int IdReserva { get; set; }
-   [Required, MaxLength(2000)] public string TextoEs { get; set; } = string.Empty;
-   [Required, MaxLength(2000)] public string TextoCa { get; set; } = string.Empty;
-   [Required, MaxLength(2000)] public string TextoEn { get; set; } = string.Empty;
-   ```
+::: danger ZONA PELIGROSA — `CodperAutor` NO va en el DTO de entrada
+Aunque la tabla lo tenga, **no lo pongas en `ObservacionReservaCrearDto`**. En la sesión 2 lo rellenará el controlador con `CodPer` (del token). Si lo aceptas en el body, un usuario malicioso podría crear observaciones a nombre de otro.
+:::
 
-   ::: danger ZONA PELIGROSA — `CodperAutor` NO va en el DTO de entrada
-   Aunque la tabla lo tenga, **no lo pongas en `ObservacionReservaCrearDto`**. En la sesión 5 lo rellenará el controlador con `CodPer` (del token). Si lo aceptas en el body, un usuario malicioso podría crear observaciones a nombre de otro.
-   :::
+**3. `ObservacionesController.cs`** — tres endpoints:
 
-   ::::
+| Verbo | Ruta                          | Devuelve                                                                                  |
+|-------|-------------------------------|-------------------------------------------------------------------------------------------|
+| GET   | `/api/Observaciones`          | `200` + lista hardcodeada de 2-3 `ObservacionReservaLectura`.                            |
+| GET   | `/api/Observaciones/{id:int}` | `200` con la observación si está, o `404 ProblemDetails` si no.                         |
+| POST  | `/api/Observaciones`          | `201 CreatedAtAction(...)` con el id nuevo. **`CodperAutor` lo pones desde `CodPer` del controlador**, no del body. |
 
-2. **`ObservacionesController`** en `Controllers/Apis/`:
-   - Hereda `ControladorBase`.
-   - `[Authorize]`, `[Tags("Observaciones")]`, XML `<summary>` y `[ProducesResponseType<T>(...)]` en cada acción.
-   - **Tres endpoints**:
-     - `GET /api/Observaciones` → devuelve `Ok(...)` con **una lista hardcodeada** de 2-3 `ObservacionReservaLectura`.
-     - `GET /api/Observaciones/{id:int}` → devuelve la observación con ese id si está en tu lista hardcodeada, o `NotFound(...)` con un `ProblemDetails` en caso contrario.
-     - `POST /api/Observaciones` → recibe `ObservacionReservaCrearDto`, devuelve `CreatedAtAction(...)` con un id inventado (`42`, por ejemplo).
+Convenciones obligatorias (todas vienen de §1.3):
 
-3. **Comprobar en Scalar**:
-   - Abrir `/uareservas/scalar`.
-   - Verificar que aparecen los tres endpoints con la sección "Responses" completa.
-   - Ejecutar el botón **"Try it out"** del `GET /api/Observaciones` y comprobar el JSON.
+- Hereda de **`ControladorBase`** (no de `ControllerBase`).
+- `[Route("api/[controller]")]`, `[ApiController]`, `[Authorize]`, `[Produces("application/json")]`, `[Tags("Observaciones")]` a nivel de clase.
+- `<summary>` XML en clase y en cada acción + `[ProducesResponseType<T>(...)]` para cada código posible.
+- `Crear` rellena `CodperAutor` con `CodPer` (de `ControladorBase`), nunca del body.
 
-4. **Comprobar en el Home.vue**:
-   - El botón **"GET /api/Observaciones (ejercicio)"** ya está cableado. Tras tu trabajo, debería pintar el JSON en la zona de salida.
-   - Abrir DevTools → Network → verificar que la URL es `/uareservas/api/Observaciones` y la cookie `X-Access-Token` viaja sola.
+::: tip BUENA PRÁCTICA — el camino más corto
+Abre `Controllers/Apis/TipoRecursosController.cs` en otra pestaña. Tu `ObservacionesController` debe ser **muy similar** en estructura — atributos de clase iguales, los mismos `[ProducesResponseType]`, el mismo patrón `CreatedAtAction` en POST, el mismo `NotFound(new ProblemDetails {...})` en GET por id. La única diferencia: tú no tienes servicio, así que devuelves desde una lista estática privada.
+:::
 
-### 1.9.4 Qué se cubrirá en la sesión 5 (lo que NO tocas hoy)
+### 1.9.4 Cómo verificar tu solución
 
-- Conectar `ObservacionesController` a un `IObservacionesServicio` real.
-- El servicio leerá `VRES_OBSERVACION_RESERVA` con `ObtenerTodosMapAsync<T>` y llamará a `PKG_RES_OBSERVACION_RESERVA.CREAR/ELIMINAR` con `EjecutarParamsAsync`.
-- En el `Crear` del controlador, `CodperAutor` saldrá del `CodPer` de `ControladorBase` (el del token), no del body.
-- Habrá un test xUnit "simulado" del controlador y un test "real" del servicio.
+1. **Compila**: `dotnet build` o que `dotnet watch` no marque errores.
+2. **Scalar**: abre `https://localhost:44306/uareservas/scalar/`. Verás una pestaña **Observaciones** con tres endpoints y la sección "Responses" rellena.
+3. **Try Request en Scalar**:
+   - `GET /api/Observaciones` → `200` + lista.
+   - `GET /api/Observaciones/999` → `404` con `ProblemDetails`.
+   - `POST /api/Observaciones` con body válido → `201` + cabecera `Location: /api/Observaciones/{id}`.
+   - `POST /api/Observaciones` con `textoEs` vacío → `400 ValidationProblemDetails` con `errors.TextoEs` rellenado.
+4. **Home.vue**: el botón **`GET /api/Observaciones (ejercicio)`** ya está cableado. Debe pintar el JSON en la zona de salida sin tocar Vue.
+5. **DevTools → Network**: la URL es `/uareservas/api/Observaciones` y la cookie `X-Access-Token` viaja sola.
+
+### 1.9.5 Qué se cubrirá en la sesión 2 (lo que NO tocas hoy)
+
+- Crear `IObservacionesServicio` + `ObservacionesServicio` siguiendo el patrón de `TiposRecursoServicio` (§2.3.2 y §2.4.2).
+- El servicio leerá `VRES_OBSERVACION_RESERVA` con `ObtenerTodosMapAsync<T>` y llamará a `PKG_RES_OBSERVACION_RESERVA.CREAR`/`ELIMINAR` con `EjecutarParamsAsync` + `DynamicParameters`.
+- Cambiar el controlador para que delegue en el servicio: `HandleResult(await _observaciones.ObtenerTodosAsync(Idioma))` etc. Borrar el `_datos` estático.
+- Registrar el servicio en `Program.cs`.
+- Añadir un test xUnit "simulado" del controlador y otro "real" del servicio contra Oracle (con `[SkippableFact]`).
 
 ::: tip BUENA PRÁCTICA — ejercicio acumulativo
-Lo que entregues hoy (DTOs + controlador con datos en memoria) **es el cimiento sobre el que la sesión 5 construirá los servicios y los tests**. Si los DTOs no tienen los nombres adecuados, las cabeceras de respuesta no son consistentes o falta `[Authorize]`, la sesión 5 se complica. Tómate el rato de leer Scalar después y comparar tus respuestas con las de `TipoRecursos`.
+Lo que entregues hoy (DTOs + controlador con datos en memoria) **es el cimiento sobre el que la sesión 2 construirá los servicios y los tests**. Si los DTOs no tienen los nombres adecuados, las cabeceras de respuesta no son consistentes o falta `[Authorize]`, la sesión 2 se complica. Tómate el rato de comparar tus respuestas en Scalar con las de `TipoRecursos`.
+:::
+
+::: details Solución completa (revísala DESPUÉS de intentarlo)
+Cuando hayas terminado tu propia versión, compárala con la de referencia:
+
+→ [Solución del ejercicio §1.9](./solucion-ejercicio-observaciones.md)
+
+Incluye los tres ficheros completos, explicación de cada decisión de diseño y la lista de los cuatro detalles que más se olvidan al revisar.
 :::
 
 ---
