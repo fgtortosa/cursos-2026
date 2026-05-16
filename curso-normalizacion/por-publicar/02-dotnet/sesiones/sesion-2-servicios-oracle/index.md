@@ -1,15 +1,15 @@
 ---
-title: "Sesión 5: Servicios y acceso a Oracle"
+title: "Sesión 2: Servicios y acceso a Oracle"
 description: Arquitectura de capas, Result<T>, ClaseOracleBD3, llamada a paquetes PL/SQL desde .NET y primer test xUnit
 outline: deep
 ---
 
-# Sesión 5: Servicios y acceso a Oracle (~1 h 30 min)
+# Sesión 2: Servicios y acceso a Oracle (~1 h 30 min)
 
 [[toc]]
 
 ::: info DE DÓNDE VENIMOS
-En la [**sesión 4**](../sesion-1-dtos-apis/) construiste un controlador `ObservacionesController` que devolvía datos hardcodeados. En esta sesión lo conectaremos a Oracle a través de un **servicio**, usando el paquete `PKG_RES_OBSERVACION_RESERVA` que ya tienes en SQL. Al terminar, los mismos botones del `Home.vue` que probabas en clase pasada **traerán datos reales de la base de datos** sin que cambies nada en Vue.
+En la [**sesión 1**](../sesion-1-dtos-apis/) construiste un controlador `ObservacionesController` que devolvía datos hardcodeados. En esta sesión lo conectaremos a Oracle a través de un **servicio**, usando el paquete `PKG_RES_OBSERVACION_RESERVA` que ya tienes en SQL. Al terminar, los mismos botones del `Home.vue` que probabas en clase pasada **traerán datos reales de la base de datos** sin que cambies nada en Vue.
 :::
 
 ## 2.1 Por qué separamos la lógica en capas
@@ -86,7 +86,7 @@ builder.Services.AddScoped<IObservacionesServicio, ObservacionesServicio>();   /
 
 ### 2.2.1 El problema que resuelve
 
-En la sesión 4 el controlador hacía:
+En la sesión 1 el controlador hacía:
 
 ```csharp
 [HttpGet("{id:int}")]
@@ -659,57 +659,180 @@ flowchart LR
 | **Simulado**    | El controlador delega bien al servicio y traduce a HTTP correcto.| Rápido, siempre verde, no necesita BD. Va en CI.                       |
 | **Real**        | El SQL existe, mapea bien, las restricciones de Oracle funcionan.| Detecta drift entre el código y la BD. Se marca `[SkippableFact]` para no romper CI si no hay conexión. |
 
-### 2.5.2 Un test simulado del controlador
+### 2.5.2 Tres piezas de infraestructura compartidas entre tests
 
-Un test simulado **construye el controlador con un `Fake` del servicio** (no toca Oracle ni HTTP real):
+Antes de mirar los tests propiamente, hay tres clases auxiliares en `uaReservas.Tests/Infraestructura/` que todos comparten. Son **el andamiaje**, no la lógica del test:
+
+```
+uaReservas.Tests/
+├── Infraestructura/
+│   ├── UsuarioFake.cs                 ← simula un usuario "autenticado" con claims
+│   ├── FakeTiposRecursoServicio.cs    ← implementa ITiposRecursoServicio en memoria
+│   └── OracleTestFixture.cs            ← levanta una conexión REAL a Oracle (si la hay)
+├── Controllers/
+│   └── TipoRecursosControllerSimuladoTests.cs
+└── Servicios/
+    └── TiposRecursoServicioRealTests.cs
+```
+
+**`UsuarioFake`** — construye un `ControllerContext` con un `ClaimsPrincipal` a mano. En producción el JWT lo valida el middleware antes de entrar al controlador; en tests no hay middleware, así que ponemos los claims a pelo:
 
 ```csharp
-public class ObservacionesControllerSimuladoTests
+// Tests/Infraestructura/UsuarioFake.cs (resumido)
+public static class UsuarioFake
 {
-    private static (ObservacionesController controller, FakeObservacionesServicio fake)
-        CrearControlador(string idiomaClaim = "es", int codPer = 12345)
+    public static ControllerContext ConClaims(
+        string idiomaClaim   = "es",
+        int    codPersona    = 12345,
+        string nombrePersona = "Usuario de prueba",
+        string? cabeceraXIdioma = null)
     {
-        var fake = new FakeObservacionesServicio();
-        var controller = new ObservacionesController(fake)
+        var claims = new[]
         {
-            ControllerContext = UsuarioFake.ConClaims(idiomaClaim: idiomaClaim, codPersona: codPer)
+            new Claim("LENGUA",        idiomaClaim),
+            new Claim("CODPER_UAAPPS", codPersona.ToString()),
+            new Claim("NOMPER",        nombrePersona),
+        };
+        var identity  = new ClaimsIdentity(claims, "TestAuth");
+        var principal = new ClaimsPrincipal(identity);
+        var httpContext = new DefaultHttpContext { User = principal };
+
+        if (!string.IsNullOrWhiteSpace(cabeceraXIdioma))
+            httpContext.Request.Headers["X-Idioma"] = cabeceraXIdioma;
+
+        return new ControllerContext { HttpContext = httpContext };
+    }
+}
+```
+
+Con esto, `controller.User.FindFirstValue("CODPER_UAAPPS")` devuelve `"12345"` y `ControladorBase.Idioma` se resuelve correctamente — exactamente como con un JWT real.
+
+**`FakeTiposRecursoServicio`** — implementa la interfaz `ITiposRecursoServicio` con datos en memoria:
+
+```csharp
+// Tests/Infraestructura/FakeTiposRecursoServicio.cs (resumido)
+public class FakeTiposRecursoServicio : ITiposRecursoServicio
+{
+    // Lo que cada test pre-carga:
+    public List<TipoRecursoLectura> ListaParaDevolver         { get; set; } = new();
+    public TipoRecursoLectura?      TipoLecturaParaDevolver   { get; set; }
+
+    // "Huella" para que el test verifique con qué se llamó al servicio:
+    public List<string> IdiomasPedidos { get; } = new();
+    public List<int>    IdsPedidos     { get; } = new();
+
+    public Task<Result<List<TipoRecursoLectura>>> ObtenerTodosAsync(string idioma)
+    {
+        IdiomasPedidos.Add(idioma);   // ← guarda quién pidió y con qué idioma
+        return Task.FromResult(Result<List<TipoRecursoLectura>>.Success(ListaParaDevolver));
+    }
+
+    public Task<Result<TipoRecursoLectura>> ObtenerPorIdAsync(int id, string idioma)
+    {
+        IdiomasPedidos.Add(idioma);
+        IdsPedidos.Add(id);
+
+        // Si el test no precargó nada → NotFound. Si precargó → Success.
+        return Task.FromResult(TipoLecturaParaDevolver is null
+            ? Result<TipoRecursoLectura>.NotFound(
+                  "TIPO_RECURSO_NO_ENCONTRADO",
+                  $"No existe un tipo de recurso con id {id}.")
+            : Result<TipoRecursoLectura>.Success(TipoLecturaParaDevolver));
+    }
+
+    // Stubs de escritura para que el fake cumpla la interfaz completa:
+    public List<TipoRecursoCrearDto> CreadosRecibidos { get; } = new();
+    public Result<int>? ResultadoCrear { get; set; }
+
+    public Task<Result<int>> CrearAsync(TipoRecursoCrearDto dto)
+    {
+        CreadosRecibidos.Add(dto);
+        return Task.FromResult(ResultadoCrear ?? Result<int>.Success(1));
+    }
+
+    // ... resto de métodos de la interfaz ...
+}
+```
+
+::: tip BUENA PRÁCTICA — fakes sin librerías de mocking
+En el curso **no usamos Moq, NSubstitute ni FakeItEasy**: los fakes son clases C# normales. Cuatro razones:
+
+1. Se entienden leyendo el código, sin sintaxis especial.
+2. Si la interfaz cambia, el compilador te lo dice.
+3. Las "huellas" (`IdiomasPedidos`, `CreadosRecibidos`) son `List` corrientes: el test las asserta con `Assert.Single`/`Assert.Equal`, no con `.Verify(x => x.Method())` de Moq.
+4. Cero NuGets adicionales en `uaReservas.Tests.csproj`.
+:::
+
+### 2.5.3 Test simulado: `TipoRecursosControllerSimuladoTests` real
+
+Este es el test que **existe** en el proyecto (`uaReservas.Tests/Controllers/TipoRecursosControllerSimuladoTests.cs`). Tres tests que cubren el patrón completo: que delega al servicio, que devuelve 404 con `ProblemDetails`, y que lee el idioma del claim.
+
+```csharp
+public class TipoRecursosControllerSimuladoTests
+{
+    private static (TipoRecursosController controller, FakeTiposRecursoServicio fake)
+        CrearControlador(string idiomaClaim = "es", string? cabeceraXIdioma = null)
+    {
+        var fake = new FakeTiposRecursoServicio();
+        var controller = new TipoRecursosController(fake)
+        {
+            ControllerContext = UsuarioFake.ConClaims(
+                idiomaClaim:     idiomaClaim,
+                cabeceraXIdioma: cabeceraXIdioma)
         };
         return (controller, fake);
     }
 
     [Fact]
-    public async Task Listar_DevuelveOk_ConLaLista()
+    public async Task Listar_DevuelveOk_ConLaListaDelServicio()
     {
         // ARRANGE
-        var (controller, fake) = CrearControlador();
+        var (controller, fake) = CrearControlador(idiomaClaim: "es");
         fake.ListaParaDevolver =
         [
-            new ObservacionReservaLectura { IdObservacionReserva = 1, IdReserva = 10, Texto = "nota A" },
-            new ObservacionReservaLectura { IdObservacionReserva = 2, IdReserva = 10, Texto = "nota B" },
+            new TipoRecursoLectura { IdTipoRecurso = 1, Codigo = "SALA",   Nombre = "Sala" },
+            new TipoRecursoLectura { IdTipoRecurso = 2, Codigo = "EQUIPO", Nombre = "Equipo audiovisual" }
         ];
 
         // ACT
         var resultado = await controller.Listar();
 
         // ASSERT
-        var ok = Assert.IsType<OkObjectResult>(resultado);
-        var lista = Assert.IsType<List<ObservacionReservaLectura>>(ok.Value);
+        var ok    = Assert.IsType<OkObjectResult>(resultado);
+        var lista = Assert.IsType<List<TipoRecursoLectura>>(ok.Value);
         Assert.Equal(2, lista.Count);
+        Assert.Equal("SALA", lista[0].Codigo);
     }
 
     [Fact]
-    public async Task Crear_UsaElCodPerDelToken_NoElDelBody()
+    public async Task ObtenerPorId_Devuelve404_ConProblemDetails_SiNoExiste()
     {
-        var (controller, fake) = CrearControlador(codPer: 12345);
-        var dto = new ObservacionReservaCrearDto
-        {
-            IdReserva = 10, TextoEs = "es", TextoCa = "ca", TextoEn = "en"
-        };
+        // ARRANGE: el fake no tiene nada que devolver → simulará NotFound.
+        var (controller, fake) = CrearControlador();
+        fake.TipoLecturaParaDevolver = null;
 
-        await controller.Crear(dto);
+        // ACT
+        var resultado = await controller.ObtenerPorId(999);
 
-        Assert.Single(fake.CodPersRecibidos);
-        Assert.Equal(12345, fake.CodPersRecibidos[0]);   // el del token, no el del body
+        // ASSERT
+        var notFound = Assert.IsType<NotFoundObjectResult>(resultado);
+        var problem  = Assert.IsType<ProblemDetails>(notFound.Value);
+        Assert.Equal(404, problem.Status);
+        Assert.Contains("999", problem.Detail);
+    }
+
+    [Fact]
+    public async Task Listar_UsaIdiomaDelClaim_SiNoHayCabeceraXIdioma()
+    {
+        // ARRANGE: claim LENGUA = "ca", sin cabecera X-Idioma.
+        var (controller, fake) = CrearControlador(idiomaClaim: "ca");
+
+        // ACT
+        await controller.Listar();
+
+        // ASSERT: el servicio recibió el idioma "ca".
+        Assert.Single(fake.IdiomasPedidos);
+        Assert.Equal("ca", fake.IdiomasPedidos[0]);
     }
 }
 ```
@@ -724,151 +847,275 @@ Todos los tests del curso siguen **Arrange / Act / Assert**:
 Si tu test no se puede partir en estos tres bloques, casi seguro que está probando demasiadas cosas.
 :::
 
-### 2.5.3 El "fake" hecho a mano
+### 2.5.4 `OracleTestFixture`: una conexión REAL a Oracle, compartida
 
-No usamos Moq/NSubstitute en el curso: los fakes son clases C# normales que implementan la interfaz del servicio. Más simple, más explícito, y se entiende leyendo el código.
+Para los tests reales no queremos abrir una conexión nueva por cada test (es lento). El `IClassFixture<T>` de xUnit permite que **una sola instancia del fixture** se comparta entre todos los tests de una clase:
 
 ```csharp
-public class FakeObservacionesServicio : IObservacionesServicio
+// Tests/Infraestructura/OracleTestFixture.cs (resumido)
+public class OracleTestFixture : IDisposable
 {
-    public List<ObservacionReservaLectura> ListaParaDevolver { get; set; } = new();
-    public Result<int>? ResultadoCrear { get; set; }            // null → Success(1)
+    public IServiceProvider Servicios          { get; }
+    public bool             HayConexion        { get; }
+    public string           MotivoSinConexion  { get; } = "";
 
-    public List<string> IdiomasPedidos { get; } = new();        // huella para asserts
-    public List<int>    CodPersRecibidos { get; } = new();
-
-    public Task<Result<List<ObservacionReservaLectura>>> ObtenerTodosAsync(string idioma)
+    public OracleTestFixture()
     {
-        IdiomasPedidos.Add(idioma);
-        return Task.FromResult(Result<List<ObservacionReservaLectura>>.Success(ListaParaDevolver));
+        // Lee la cadena de tres sitios (en orden): appsettings.test.json,
+        // user-secrets del proyecto de tests, y variables de entorno.
+        var config = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.test.json", optional: true)
+            .AddUserSecrets<OracleTestFixture>(optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var cadena = config.GetConnectionString("oradb");
+
+        var servicios = new ServiceCollection();
+        servicios.AddSingleton<IConfiguration>(config);
+        servicios.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Warning));
+
+        if (string.IsNullOrWhiteSpace(cadena))
+        {
+            HayConexion       = false;
+            MotivoSinConexion = "No hay 'ConnectionStrings:oradb' en appsettings.test.json ni user-secrets.";
+        }
+        else
+        {
+            servicios.AddScoped<IClaseOracleBd, ClaseOracleBd>();
+            HayConexion = true;
+        }
+
+        Servicios = servicios.BuildServiceProvider();
     }
 
-    public Task<Result<int>> CrearAsync(int codperAutor, ObservacionReservaCrearDto dto)
-    {
-        CodPersRecibidos.Add(codperAutor);
-        return Task.FromResult(ResultadoCrear ?? Result<int>.Success(1));
-    }
-
-    // ... resto de métodos de la interfaz ...
+    public IServiceScope CrearScope() => Servicios.CreateScope();
+    public void Dispose() => (Servicios as IDisposable)?.Dispose();
 }
 ```
 
-### 2.5.4 Un test real contra Oracle
-
-```csharp
-public class ObservacionesServicioRealTests : IClassFixture<OracleTestFixture>
-{
-    private readonly OracleTestFixture _fixture;
-    public ObservacionesServicioRealTests(OracleTestFixture f) => _fixture = f;
-
-    [SkippableFact]
-    public async Task ObtenerTodosAsync_NoFalla_ContraEsquemaReal()
-    {
-        Skip.IfNot(_fixture.HayConexion, _fixture.MotivoSinConexion);
-
-        using var scope = _fixture.CrearScope();
-        var bd = scope.ServiceProvider.GetRequiredService<IClaseOracleBd>();
-        var servicio = new ObservacionesServicio(bd, NullLogger<ObservacionesServicio>.Instance);
-
-        var resultado = await servicio.ObtenerTodosAsync("es");
-
-        Assert.True(resultado.IsSuccess);
-        Assert.NotNull(resultado.Value);   // lista (puede estar vacía si no hay seeds)
-    }
-}
-```
-
-`[SkippableFact]` se salta el test si la cadena de conexión no está en `user-secrets`. Esto permite que CI pase aunque no haya Oracle disponible.
+Si no hay conexión configurada, el fixture **no falla**: marca `HayConexion = false` con un motivo, y cada test puede saltarse con `Skip.IfNot(...)`.
 
 ::: info CONTEXTO — `user-secrets` en el proyecto de tests
-El proyecto `uaReservas.Tests` tiene su propio `UserSecretsId`. La cadena de conexión se guarda con:
+`uaReservas.Tests` tiene su propio `UserSecretsId`. Para que los tests reales funcionen, hay que poner la cadena entera con:
 
 ```powershell
-$cadena = 'Data Source=...;User ID=CURSONORMWEB;Password=...;...'
-dotnet user-secrets set "ConnectionStrings:oradb" $cadena --project uaReservas.Tests
+cd uaReservas.Tests
+$cadena = 'Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=laguar-n1-vip.cpd.ua.es)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=ORACTEST.UA.ES)));User Id=CURSONORMWEB;Password=8K1wLtuh_30d4sUM662JZ1xVW;Connection Lifetime=240;Pooling=false'
+dotnet user-secrets set "ConnectionStrings:oradb" $cadena
 ```
 
-Sin esto, los tests reales se marcan como skipped y la suite sigue verde.
+OJO: aquí la cadena viaja **entera** (`Data Source=...;User Id=...;Password=...`), no en piezas separadas (`Oracle:UserId`/`Oracle:Password`) como en la app principal. Es una concesión a la simplicidad de `OracleTestFixture`: lee la cadena ya construida y se la pasa directamente a `ClaseOracleBd`. Si no configuras esto, los tests `[SkippableFact]` se marcan como `Skipped` y la suite sigue verde.
 :::
 
-## 2.6 Ejercicio: completar `Observaciones` con servicio + test
+### 2.5.5 Test real: `TiposRecursoServicioRealTests`
+
+Y este es el test real que existe (`uaReservas.Tests/Servicios/TiposRecursoServicioRealTests.cs`). Dos casos: que la vista devuelve algo y que un id inexistente devuelve `NotFound`.
+
+```csharp
+public class TiposRecursoServicioRealTests : IClassFixture<OracleTestFixture>
+{
+    private readonly OracleTestFixture _fixture;
+    public TiposRecursoServicioRealTests(OracleTestFixture fixture) => _fixture = fixture;
+
+    private TiposRecursoServicio CrearServicio(out IServiceScope scope)
+    {
+        scope = _fixture.CrearScope();
+        var bd = scope.ServiceProvider.GetRequiredService<IClaseOracleBd>();
+        return new TiposRecursoServicio(bd, NullLogger<TiposRecursoServicio>.Instance);
+    }
+
+    [SkippableFact]
+    public async Task ObtenerTodosAsync_DevuelveSuccess_ConAlMenosUnTipo()
+    {
+        // ARRANGE: si no hay BD configurada, salta el test sin fallar.
+        Skip.IfNot(_fixture.HayConexion, _fixture.MotivoSinConexion);
+        var servicio = CrearServicio(out var scope);
+        using (scope)
+        {
+            // ACT
+            var resultado = await servicio.ObtenerTodosAsync("es");
+
+            // ASSERT: tiene que haber datos en CURSONORMADM.VRES_TIPO_RECURSO.
+            Assert.True(resultado.IsSuccess);
+            Assert.NotNull(resultado.Value);
+            Assert.NotEmpty(resultado.Value!);
+            var primero = resultado.Value![0];
+            Assert.True(primero.IdTipoRecurso > 0);
+            Assert.False(string.IsNullOrWhiteSpace(primero.Codigo));
+        }
+    }
+
+    [SkippableFact]
+    public async Task ObtenerPorIdAsync_DevuelveNotFound_SiElIdNoExiste()
+    {
+        Skip.IfNot(_fixture.HayConexion, _fixture.MotivoSinConexion);
+        var servicio = CrearServicio(out var scope);
+        using (scope)
+        {
+            var resultado = await servicio.ObtenerPorIdAsync(-9999, "es");
+
+            // El servicio devuelve Result<T>.NotFound(...) → no es Success.
+            Assert.False(resultado.IsSuccess);
+            Assert.NotNull(resultado.Error);
+            Assert.Equal(ErrorType.NotFound, resultado.Error!.Type);
+        }
+    }
+}
+```
+
+::: tip BUENA PRÁCTICA — qué probar en un test real (y qué no)
+Los tests reales son **lentos**. Cada uno abre una conexión a Oracle y ejecuta SQL. Tres reglas:
+
+1. **Prueba el contrato con la BD**, no la lógica del servicio: que la vista existe, que las columnas se mapean, que el id inexistente devuelve `NotFound`. La lógica fina (¿el filtro funciona si hay 5 elementos?) va en tests simulados.
+2. **No asumas datos concretos en la BD** (`Assert.Equal("Sala de reuniones", x.Nombre)`). Asserta **forma**: hay al menos un registro, el id es positivo, el nombre no es null.
+3. **No escribas en la BD**. Si un test `Crear...` se ejecuta dos veces, deja basura. Para tests de escritura: o haces `Eliminar` al final, o trabajas dentro de una transacción que haces rollback. En la sesión 3 lo veremos.
+:::
+
+## 2.6 Ejercicio: cerrar `Observaciones` con servicio + tests
+
+Cierre del ejercicio que arrancaste en [§1.9](../sesion-1-dtos-apis/#_1-9-ejercicio-api-de-observaciones-de-reservas). El controlador `ObservacionesController` con `_datos` hardcodeados se queda obsoleto: lo conectamos a Oracle vía un servicio nuevo, registramos el servicio en DI y añadimos los dos tests del patrón (simulado + real).
 
 ### 2.6.1 Punto de partida
 
-Después de la sesión 4 tienes:
+Después de la sesión 1 tienes:
 
-- `ObservacionReservaLectura`, `ObservacionReservaCrearDto`.
-- `ObservacionesController` que devuelve datos hardcodeados.
-- En Oracle: `TRES_OBSERVACION_RESERVA`, `VRES_OBSERVACION_RESERVA`, `PKG_RES_OBSERVACION_RESERVA`.
+- `Models/Reservas/ObservacionReservaLectura.cs` y `ObservacionReservaCrearDto.cs`.
+- `Controllers/Apis/ObservacionesController.cs` con la lista estática `_datos`.
+- En Oracle (CURSONORMADM): `TRES_OBSERVACION_RESERVA`, `VRES_OBSERVACION_RESERVA`, `PKG_RES_OBSERVACION_RESERVA`.
 
 ### 2.6.2 Lo que tienes que entregar hoy
 
-1. **Interfaz y servicio** en `Services/Reservas/`:
+```mermaid
+flowchart LR
+    A[Sesion 1:<br/>controller con _datos<br/>hardcodeados] --> B[Crear IObservacionesServicio<br/>+ ObservacionesServicio]
+    B --> C[Reescribir<br/>ObservacionesController<br/>delega al servicio]
+    C --> D[Registrar en<br/>Program.cs]
+    D --> E[FakeObservacionesServicio<br/>+ 2 tests simulados]
+    E --> F[2 tests reales<br/>SkippableFact]
 
-   ```
-   IObservacionesServicio.cs
-   ObservacionesServicio.cs
-   ```
+    style A fill:#f8d7da,stroke:#721c24
+    style F fill:#d4edda,stroke:#155724
+```
 
-   El servicio debe exponer:
+**1. Servicio nuevo** en `Services/Reservas/`:
 
-   ```csharp
-   Task<Result<List<ObservacionReservaLectura>>> ObtenerTodosAsync(string idioma);
-   Task<Result<ObservacionReservaLectura>>       ObtenerPorIdAsync(int idObs, string idioma);
-   Task<Result<int>>                              CrearAsync(int codperAutor, ObservacionReservaCrearDto dto);
-   Task<Result<bool>>                             EliminarAsync(int idObs);
-   ```
+```
+IObservacionesServicio.cs
+ObservacionesServicio.cs
+```
 
-2. **Implementación**:
-   - `ObtenerTodosAsync` / `ObtenerPorIdAsync`: `SELECT` contra `VRES_OBSERVACION_RESERVA` usando `ObtenerTodosMapAsync<T>` / `ObtenerPrimeroMapAsync<T>`.
-   - `CrearAsync`: llama a `PKG_RES_OBSERVACION_RESERVA.CREAR` siguiendo el patrón de la sección 2.4.
-   - `EliminarAsync`: llama a `PKG_RES_OBSERVACION_RESERVA.ELIMINAR` (soft delete `ACTIVO='N'`).
-   - Todas las escrituras pasan por `ErrorPaquetePlSql.AResultFailure<T>(...)` para traducir el OUT.
+La interfaz expone cuatro operaciones (siguiendo el patrón de `ITiposRecursoServicio`):
 
-3. **Quitar los datos hardcodeados** del `ObservacionesController` y delegar en el servicio:
+```csharp
+public interface IObservacionesServicio
+{
+    Task<Result<List<ObservacionReservaLectura>>> ObtenerTodosAsync(string idioma);
+    Task<Result<ObservacionReservaLectura>>       ObtenerPorIdAsync(int idObs, string idioma);
+    Task<Result<int>>                              CrearAsync(int codperAutor, ObservacionReservaCrearDto dto);
+    Task<Result<bool>>                             EliminarAsync(int idObs);
+}
+```
 
-   ```csharp
-   public async Task<ActionResult> Listar() =>
-       HandleResult(await _observaciones.ObtenerTodosAsync(Idioma));
-   ```
+La implementación sigue al pie de la letra los patrones que vimos en §2.3 y §2.4:
 
-   En `Crear`, recuerda: **`CodPer` del token**, no del body.
+- **Lecturas** contra `CURSONORMADM.VRES_OBSERVACION_RESERVA` con `ObtenerTodosMapAsync<T>` / `ObtenerPrimeroMapAsync<T>`. El campo `Texto` se resuelve al idioma del usuario gracias al parámetro `idioma:` (mapea desde `TEXTO_{idioma}`).
+- **Escrituras** al paquete `CURSONORMADM.PKG_RES_OBSERVACION_RESERVA.CREAR` / `ELIMINAR` con `EjecutarParamsAsync` + `DynamicParameters`.
+- **Cada escritura** pasa por `ErrorPaquetePlSql.AResultFailure<T>(...)` para traducir el OUT `P_CODIGO_ERROR` / `P_MENSAJE_ERROR` a `Result.NotFound` / `Result.Validation` / `Result.Fail` según el código `-20XXX`.
 
-4. **Registrar el servicio** en `Program.cs`:
+**2. Reescribir `ObservacionesController`** — borrar el `_datos` estático y delegar todo en el servicio:
 
-   ```csharp
-   builder.Services.AddScoped<IObservacionesServicio, ObservacionesServicio>();
-   ```
+```csharp
+public class ObservacionesController : ControladorBase
+{
+    private readonly IObservacionesServicio _observaciones;
+    public ObservacionesController(IObservacionesServicio observaciones) =>
+        _observaciones = observaciones;
 
-5. **Probar en vivo**:
-   - En Scalar: `Try it out` sobre `GET /api/Observaciones` y `POST /api/Observaciones`.
-   - En `Home.vue`: el botón **"GET /api/Observaciones (ejercicio)"** ahora trae datos reales de Oracle. **Sin tocar Vue**.
-   - En Chrome DevTools → Network: confirmar que devuelve `200 OK` y el JSON real.
+    [HttpGet]
+    public async Task<ActionResult> Listar() =>
+        HandleResult(await _observaciones.ObtenerTodosAsync(Idioma));
 
-6. **Un test simulado** del controlador en `uaReservas.Tests/Controllers/ObservacionesControllerSimuladoTests.cs`:
-   - Test 1: `Listar` devuelve `200 OK` con la lista del fake.
-   - Test 2: `Crear` pasa `CodPer` del token y no del body (es el chequeo de seguridad).
-   - Sigue el patrón `FakeObservacionesServicio` de 2.5.3.
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult> ObtenerPorId([FromRoute] int id) =>
+        HandleResult(await _observaciones.ObtenerPorIdAsync(id, Idioma));
+
+    [HttpPost]
+    public async Task<ActionResult> Crear([FromBody] ObservacionReservaCrearDto dto)
+    {
+        // CodperAutor SIEMPRE del JWT (CodPer de ControladorBase), NUNCA del body.
+        var resultado = await _observaciones.CrearAsync(CodPer, dto);
+        if (!resultado.IsSuccess) return HandleResult(resultado);
+
+        return CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, resultado.Value);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<ActionResult> Eliminar([FromRoute] int id)
+    {
+        var resultado = await _observaciones.EliminarAsync(id);
+        if (!resultado.IsSuccess) return HandleResult(resultado);
+
+        return NoContent();
+    }
+}
+```
+
+Los atributos de clase (`[Route]`, `[ApiController]`, `[Authorize]`, `[Tags("Observaciones")]`) y los `[ProducesResponseType<T>(...)]` por acción se mantienen igual que en sesión 1 — Scalar sigue documentándolos.
+
+**3. Registrar el servicio** en `Program.cs`:
+
+```csharp
+builder.Services.AddScoped<uaReservas.Services.Reservas.IObservacionesServicio,
+                           uaReservas.Services.Reservas.ObservacionesServicio>();
+```
+
+Una sola línea, debajo de los `AddScoped` de `TiposRecursoServicio` / `RecursosServicio` / `ReservasServicio`.
+
+**4. Tests simulados** del controlador en `uaReservas.Tests/Controllers/ObservacionesControllerSimuladoTests.cs`, con un `FakeObservacionesServicio` clon del `FakeTiposRecursoServicio` de §2.5.2:
+
+- **Test 1**: `Listar` devuelve `OkObjectResult` con la lista del fake.
+- **Test 2**: `Crear` pasa el `CodPer` del token (vía `UsuarioFake`) y no el del body — chequeo de seguridad.
+
+**5. Tests reales** del servicio en `uaReservas.Tests/Servicios/ObservacionesServicioRealTests.cs`, usando `OracleTestFixture` + `[SkippableFact]`:
+
+- **Test 1**: `ObtenerTodosAsync("es")` devuelve `Result.Success` y, si hay datos, los campos básicos están rellenos.
+- **Test 2**: `ObtenerPorIdAsync(-9999, "es")` devuelve `Result.NotFound` (el id no existe).
+
+**6. Probar en vivo**:
+
+- En Scalar: `Test Request` sobre `GET /api/Observaciones` y `POST /api/Observaciones`. Si el paquete devuelve `-20XXX`, Scalar enseña el `ProblemDetails` / `ValidationProblemDetails` localizado al idioma.
+- En `Home.vue`: el botón **`GET /api/Observaciones (ejercicio)`** ahora trae datos reales de Oracle. **Sin tocar Vue**.
+- DevTools → Network: cookie `X-Access-Token` viaja sola, `200 OK` con el JSON real.
 
 ### 2.6.3 Lista de verificación
 
 | ✅ | Comprobación                                                                          |
 | - | ------------------------------------------------------------------------------------ |
-| ☐ | `IObservacionesServicio` y `ObservacionesServicio` creados.                          |
-| ☐ | `Program.cs` registra el servicio.                                                   |
-| ☐ | `ObservacionesController` no tiene datos hardcodeados — todo delega en el servicio.  |
-| ☐ | `CrearAsync` toma `codperAutor` por parámetro; el controlador le pasa `CodPer`.       |
-| ☐ | `dotnet build` sin errores ni warnings.                                              |
-| ☐ | Scalar muestra `POST /api/Observaciones` con `ProblemDetails` 400 si los textos van vacíos. |
-| ☐ | `Home.vue → GET /api/Observaciones` pinta datos reales y devuelve `200`.             |
-| ☐ | `dotnet test` ejecuta los dos tests simulados sin tocar Oracle.                      |
+| ☐ | `IObservacionesServicio.cs` y `ObservacionesServicio.cs` creados en `Services/Reservas/`. |
+| ☐ | `Program.cs` registra el servicio (línea `AddScoped<IObservacionesServicio, ...>`).   |
+| ☐ | `ObservacionesController` ya no tiene `_datos` estático — todo delega en el servicio. |
+| ☐ | `CrearAsync(codperAutor, dto)` recibe el codper por parámetro; el controlador le pasa `CodPer` de `ControladorBase`. |
+| ☐ | `dotnet build` sin errores ni warnings nuevos.                                       |
+| ☐ | Scalar muestra `POST /api/Observaciones` con `ValidationProblemDetails` 400 si los textos van vacíos. |
+| ☐ | `Home.vue → GET /api/Observaciones (ejercicio)` pinta datos reales y devuelve `200`.|
+| ☐ | `dotnet test` ejecuta los **dos** tests simulados sin tocar Oracle.                  |
+| ☐ | Los **dos** tests reales se ejecutan (verde) si hay user-secrets, o se marcan `Skipped` si no. |
 
 ::: tip BUENA PRÁCTICA — depuración cuando falla el POST
 Si al hacer POST en Scalar te llega un 500 sin explicación, **inspecciona el SQL del paquete primero** (`SQLERRM` viaja en `P_MENSAJE_ERROR`, no se pierde):
 
-1. En el `ObservacionesServicio`, **antes** de devolver el `Result`, pon un `_logger.LogError("Error PKG OBS: {Codigo} {Mensaje}", ...)`.
+1. En `ObservacionesServicio`, **antes** de devolver el `Result`, pon un `_logger.LogError("Error PKG OBS: {Codigo} {Mensaje}", ErrorPaquetePlSql.LeerInt(p, "P_CODIGO_ERROR"), ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"))`.
 2. Vuelve a ejecutar.
-3. Lee el log: la causa raíz suele ser un parámetro `IN` mal nombrado o un `NOT NULL` que no se rellena.
+3. Lee el log: la causa raíz suele ser un parámetro `IN` mal nombrado, un `NOT NULL` que no se rellena o que el `idReserva` apunta a una reserva que no existe (FK).
+:::
+
+::: details Solución completa (revísala DESPUÉS de intentarlo)
+Cuando hayas terminado tu propia versión, compárala con la de referencia:
+
+→ [Solución del ejercicio §2.6](./solucion-ejercicio-observaciones.md)
+
+Incluye los siete ficheros (interfaz, servicio, controlador, registro en `Program.cs`, fake, test simulado, test real), explicación de cada decisión de diseño y el contrato de errores del paquete con la tabla `-20XXX` → `Result<T>`.
 :::
 
 ## 2.7 Resumen de la sesión
@@ -889,7 +1136,7 @@ flowchart LR
     style F fill:#cce5ff,stroke:#004085
 ```
 
-<!-- diagram id="resumen-sesion5" caption: "El flujo de la sesión: de las capas al ejercicio, pasando por Result<T>, lectura, escritura y tests." -->
+<!-- diagram id="resumen-sesion2" caption: "El flujo de la sesión: de las capas al ejercicio, pasando por Result<T>, lectura, escritura y tests." -->
 
 | Concepto                  | Dónde se aplica en `uaReservas`                                                |
 | ------------------------- | ------------------------------------------------------------------------------ |
