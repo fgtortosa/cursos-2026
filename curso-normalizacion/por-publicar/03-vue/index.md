@@ -24,11 +24,11 @@ Al finalizar este bloque, el alumno será capaz de:
 
 | Sesión | Título | Duración |
 |--------|--------|----------|
-| [Sesión 6: Vue 3, TypeScript y primer componente](./jl-manrique/sesiones/sesion-1-vue-typescript-fundamentos/) | Estructura `.vue`, TypeScript básico, reactividad e interpolación | ~90 min |
-| [Sesión 7: Directivas, eventos y datos](./jl-manrique/sesiones/sesion-2-directivas-eventos/) | Interfaces, directivas, `v-model`, eventos y métodos de arrays | ~90 min |
-| [Sesión 8: Componentes y comunicación](./jl-manrique/sesiones/sesion-3-componentes-estado/) | `computed`, Props, Emits, `defineModel`, watchers, lifecycle, slots | ~90 min |
-| [Sesión 9: Arquitectura de componentes y servicios](./jl-manrique/sesiones/sesion-4-arquitectura-apis/) | Composables vs Servicios, Vista → Composable → Servicio, depuración | ~90 min |
-| [Sesión 10: Otros componentes internos](./jl-manrique/sesiones/sesion-5-componentes-ua/) | `vueua-autocomplete`, `vueua-dialogmodal`, Teleport | ~90 min |
+| [Sesión 6: Vue 3, TypeScript y primer componente](./sesiones/sesion-1-vue-typescript-fundamentos/) | Estructura `.vue`, TypeScript básico, reactividad e interpolación | ~90 min |
+| [Sesión 7: Directivas, eventos y datos](./sesiones/sesion-2-directivas-eventos/) | Interfaces, directivas, `v-model`, eventos y métodos de arrays | ~90 min |
+| [Sesión 8: Componentes y comunicación](./sesiones/sesion-3-componentes-estado/) | `computed`, Props, Emits, `defineModel`, watchers, lifecycle, slots | ~90 min |
+| [Sesión 9: Arquitectura de componentes y servicios](./sesiones/sesion-4-arquitectura-apis/) | Composables vs Servicios, Vista → Composable → Servicio, depuración | ~90 min |
+| [Sesión 10: Otros componentes internos](./sesiones/sesion-5-componentes-ua/) | `vueua-autocomplete`, `vueua-dialogmodal`, Teleport | ~90 min |
 
 ::: tip CONTINUACIÓN EN INTEGRACIÓN
 Los temas de llamadas a la API (`useAxios`), validación de formularios (`useGestionFormularios`) y estado global (Pinia) se cubren en las sesiones de **Integración full-stack** y **Sesiones avanzadas**, donde se ven de extremo a extremo con .NET y Oracle.
@@ -63,7 +63,7 @@ Vista.vue
 
 ## Material de apoyo
 
-- [Guía del profesor](./jl-manrique/guia-profesor/)
-- [Evaluación y repaso](./jl-manrique/test/)
+- [Guía del profesor](./guia-profesor/)
+- [Evaluación y repaso](./test/)
 
 
