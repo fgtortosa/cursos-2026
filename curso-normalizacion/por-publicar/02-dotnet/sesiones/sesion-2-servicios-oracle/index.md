@@ -34,11 +34,11 @@ flowchart LR
 
 <!-- diagram id="capas-controller-servicio-oracle" caption: "El controlador es la fachada HTTP; el servicio es el corazón funcional; Oracle es la fuente de verdad." -->
 
-| Capa             | Su única misión                                                              | NO debe hacer                                       |
-| ---------------- | ---------------------------------------------------------------------------- | --------------------------------------------------- |
-| **Controller**   | Decidir el HTTP (status code, ProblemDetails) y leer claims del `User`.      | Lógica de negocio, SQL, validaciones de dominio.    |
-| **Servicio**     | Lógica de dominio + acceso a datos (vista para leer, paquete para escribir). | Conocer `HttpContext`, `IActionResult`, `Authorize`.|
-| **Oracle**       | Integridad, transacción, validación de invariantes.                          | Saber quién es el cliente HTTP.                     |
+| Capa           | Su única misión                                                              | NO debe hacer                                        |
+| -------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------- |
+| **Controller** | Decidir el HTTP (status code, ProblemDetails) y leer claims del `User`.      | Lógica de negocio, SQL, validaciones de dominio.     |
+| **Servicio**   | Lógica de dominio + acceso a datos (vista para leer, paquete para escribir). | Conocer `HttpContext`, `IActionResult`, `Authorize`. |
+| **Oracle**     | Integridad, transacción, validación de invariantes.                          | Saber quién es el cliente HTTP.                      |
 
 ::: tip BUENA PRÁCTICA — un controlador de buen tamaño es de **una línea por acción**
 Después de esta sesión, tus controladores tendrán acciones como:
@@ -77,6 +77,7 @@ builder.Services.AddScoped<IObservacionesServicio, ObservacionesServicio>();   /
 ```
 
 ::: warning IMPORTANTE — el error que te vas a encontrar si saltas la línea 2
+
 > `Unable to resolve service for type 'ua.IClaseOracleBd' while attempting to activate 'ObservacionesServicio'.`
 
 `builder.Build()` valida en desarrollo todos los constructores. Si tu servicio pide `IClaseOracleBd` y nadie ha registrado esa interfaz, **la app no arranca**. Es el error nº1 al introducir DI sobre la plantilla UA. La solución es exactamente la línea (2).
@@ -177,6 +178,26 @@ public abstract class ApiControllerBase : ControllerBase
 }
 ```
 
+::: info QUÉ DEVUELVE `HandleResult` — la tabla de traducción
+`HandleResult` es el único punto del proyecto que convierte un `Result<T>` en respuesta HTTP. Los controladores lo llaman ciegamente y no necesitan interpretar el `Result` por su cuenta:
+
+| `Result<T>` que llega al controlador   | HTTP devuelto               | Body de la respuesta                                       |
+| -------------------------------------- | --------------------------- | ---------------------------------------------------------- |
+| `Result.Success(valor)`                | `200 OK`                    | El valor serializado como JSON                             |
+| `Result.NotFound(code, msg)`           | `404 Not Found`             | `ProblemDetails { Title, Detail, Status: 404 }`            |
+| `Result.Validation(code, msg, errors)` | `400 Bad Request`           | `ValidationProblemDetails { errors, Detail, Status: 400 }` |
+| `Result.Fail(code, msg)`               | `500 Internal Server Error` | `ProblemDetails { Title, Detail, Status: 500 }`            |
+
+Por eso una acción del controlador se queda en **una sola línea**:
+
+```csharp
+public async Task<ActionResult> Listar() =>
+    HandleResult(await _tiposRecurso.ObtenerTodosAsync(Idioma));
+```
+
+Si el servicio devuelve `Success` → `200 OK` con la lista. Si devuelve `NotFound` → `404` con el mensaje. **El controlador no toma ninguna decisión sobre el HTTP.**
+:::
+
 Jerarquía completa de controladores:
 
 ```mermaid
@@ -207,10 +228,11 @@ classDiagram
 <!-- diagram id="jerarquia-controlador" caption: "ApiControllerBase aporta HandleResult; ControladorBase aporta los claims del token; los controladores los heredan los dos." -->
 
 ::: tip BUENA PRÁCTICA — qué pasa por dónde
+
 - El **servicio** SIEMPRE devuelve `Result<T>`. Si tiene que decir "no existe", devuelve `Result<T>.NotFound(...)`. NUNCA tira excepciones para flujo normal.
 - El **controlador** llama al servicio y pasa el resultado a `HandleResult`. NO interpreta el `Result` a mano.
 - Las **excepciones** se reservan para imprevistos reales (Oracle caído, red rota). Un `IExceptionHandler` global las convierte en 500 — pero eso es **sesión 13 (integración)**.
-:::
+  :::
 
 ## 2.3 Lectura: SELECT contra una vista + mapeo automático
 
@@ -218,11 +240,11 @@ classDiagram
 
 Esta interfaz expone los pocos métodos que el curso necesita. Los más importantes para lectura:
 
-| Método                                       | Para qué                                              | Devuelve            |
-| -------------------------------------------- | ----------------------------------------------------- | ------------------- |
-| `ObtenerTodosMapAsync<T>(sql, param, idioma)`| Lista de objetos T mapeados desde el cursor.          | `Task<IEnumerable<T>?>` |
-| `ObtenerPrimeroMapAsync<T>(sql, param, idioma)`| Un objeto T (o `null` si no hay filas).             | `Task<T?>`          |
-| `EjecutarParamsAsync(sql, parametros)`       | Llama a un procedimiento/función PL/SQL.              | `Task`              |
+| Método                                          | Para qué                                     | Devuelve                |
+| ----------------------------------------------- | -------------------------------------------- | ----------------------- |
+| `ObtenerTodosMapAsync<T>(sql, param, idioma)`   | Lista de objetos T mapeados desde el cursor. | `Task<IEnumerable<T>?>` |
+| `ObtenerPrimeroMapAsync<T>(sql, param, idioma)` | Un objeto T (o `null` si no hay filas).      | `Task<T?>`              |
+| `EjecutarParamsAsync(sql, parametros)`          | Llama a un procedimiento/función PL/SQL.     | `Task`                  |
 
 Las versiones síncronas (`ObtenerTodosMap<T>`, `EjecutarParams`) existen también; en el curso usamos siempre las **async**.
 
@@ -309,11 +331,11 @@ namespace uaReservas.Services.Reservas
 
 Tres cosas que se repiten en TODOS los servicios de lectura del curso (mira también `RecursosServicio` y `ReservasServicio`):
 
-| Pieza | Por qué |
-|---|---|
-| Leer de la **vista**, no de la tabla | La vista oculta columnas técnicas (`FECHA_MODIFICACION`, `USUARIO_MODIFICACION`...) y aplica filtros (`ACTIVO='S'`). Si la regla "qué se ve" cambia, se cambia en la BD, no en .NET. |
-| **`NormalizarIdioma`** antes de tocar SQL | Filtra el `idioma` del usuario a uno de los tres permitidos (`ES`/`CA`/`EN`). Cualquier otro valor cae a `ES`. Eso permite que la interpolación `ORDER BY NOMBRE_{idioma}` sea segura. |
-| **Parámetros nombrados** (`:id`, `:idTipo`) | Toda variable del cliente entra al SQL como parámetro. Nunca concatenación. Es el blindaje contra SQL injection. |
+| Pieza                                       | Por qué                                                                                                                                                                                |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Leer de la **vista**, no de la tabla        | La vista oculta columnas técnicas (`FECHA_MODIFICACION`, `USUARIO_MODIFICACION`...) y aplica filtros (`ACTIVO='S'`). Si la regla "qué se ve" cambia, se cambia en la BD, no en .NET.   |
+| **`NormalizarIdioma`** antes de tocar SQL   | Filtra el `idioma` del usuario a uno de los tres permitidos (`ES`/`CA`/`EN`). Cualquier otro valor cae a `ES`. Eso permite que la interpolación `ORDER BY NOMBRE_{idioma}` sea segura. |
+| **Parámetros nombrados** (`:id`, `:idTipo`) | Toda variable del cliente entra al SQL como parámetro. Nunca concatenación. Es el blindaje contra SQL injection.                                                                       |
 
 ::: tip BUENA PRÁCTICA — `RecursosServicio` añade un patrón más
 Cuando una vista tiene **muchas columnas**, declara la lista en una constante:
@@ -345,11 +367,11 @@ OJO: el parámetro debe ser `DynamicParameters` (o un objeto anónimo). Un `Dict
 
 ClaseOracleBD3 rellena las propiedades del DTO leyendo las columnas que devuelva el cursor. Su orden de resolución:
 
-| Prioridad | Cómo busca la columna                              | Ejemplo                                                  |
-| --------- | -------------------------------------------------- | -------------------------------------------------------- |
-| 1         | `[Columna("NOMBRE_EXACTO")]` si está presente      | `[Columna("IDPER")] int IdPersona` → busca `IDPER`       |
-| 2         | Nombre exacto                                      | `Email` → busca `EMAIL`                                  |
-| 3         | Conversión SNAKE_CASE automática                   | `FechaAlta` → busca `FECHA_ALTA`                         |
+| Prioridad | Cómo busca la columna                         | Ejemplo                                            |
+| --------- | --------------------------------------------- | -------------------------------------------------- |
+| 1         | `[Columna("NOMBRE_EXACTO")]` si está presente | `[Columna("IDPER")] int IdPersona` → busca `IDPER` |
+| 2         | Nombre exacto                                 | `Email` → busca `EMAIL`                            |
+| 3         | Conversión SNAKE_CASE automática              | `FechaAlta` → busca `FECHA_ALTA`                   |
 
 **Y el parámetro `idioma`** rellena propiedades que parecen el nombre raíz de una columna multiidioma:
 
@@ -361,13 +383,13 @@ public string Texto { get; set; } = "";   // se resuelve desde TEXTO_{idioma}
 
 Conversiones de tipo automáticas más útiles:
 
-| Oracle                    | .NET                          | Notas                                              |
-| ------------------------- | ----------------------------- | -------------------------------------------------- |
-| `NUMBER`                  | `int`, `long`, `decimal`      | Elige el tipo según la propiedad C#.               |
-| `VARCHAR2`                | `string`                       | Directo.                                           |
-| `VARCHAR2(1)` (`S`/`N`)   | `bool`                        | `'S'`/`'Y'`/`'1'`/`'SI'` → `true`, resto → `false`.|
-| `DATE`, `TIMESTAMP`       | `DateTime`                    | Directo.                                           |
-| `CLOB`                    | `string`                      | Para textos largos.                                |
+| Oracle                  | .NET                     | Notas                                               |
+| ----------------------- | ------------------------ | --------------------------------------------------- |
+| `NUMBER`                | `int`, `long`, `decimal` | Elige el tipo según la propiedad C#.                |
+| `VARCHAR2`              | `string`                 | Directo.                                            |
+| `VARCHAR2(1)` (`S`/`N`) | `bool`                   | `'S'`/`'Y'`/`'1'`/`'SI'` → `true`, resto → `false`. |
+| `DATE`, `TIMESTAMP`     | `DateTime`               | Directo.                                            |
+| `CLOB`                  | `string`                 | Para textos largos.                                 |
 
 Atributos adicionales:
 
@@ -449,6 +471,7 @@ int      codigo  = ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR");
 string?  mensaje = ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR");
 int?     idGen   = ErrorPaquetePlSql.LeerIntNullable(p, "P_ID_OBSERVACION_RESERVA");
 ```
+
 :::
 
 Patrón completo (real, no simplificado) para **`TiposRecursoServicio.CrearAsync`** — el mismo paquete y el mismo `_bd` que veremos en `RecursosServicio.CrearAsync` y `ReservasServicio.CrearAsync`. Es **idéntico** en estructura:
@@ -526,18 +549,19 @@ public async Task<Result<int>> CrearAsync(int codper, ReservaCrearDto dto)
     // resto identico al patron anterior
 }
 ```
+
 :::
 
-### 2.4.3 Traducción ORA-* → `Result<T>`
+### 2.4.3 Traducción ORA-\* → `Result<T>`
 
 `ErrorPaquetePlSql.DesdeCodigo(codigo, mensaje)` mira el `SQLCODE` y devuelve un `Error` ya clasificado:
 
-| Códigos                                                            | `ErrorType`     | HTTP |
-| ------------------------------------------------------------------ | --------------- | ---- |
-| `0`                                                                | (éxito)         | 200/201/204 |
-| `-20003`, `-20307`, `-20702`                                       | `NotFound`      | 404  |
-| `-20001`, `-20002`, `-20301..-20306`, `-20308`, `-20700`, `-20701`, `-20703` | `Validation` | 400  |
-| Cualquier otro                                                     | `Failure`       | 500  |
+| Códigos                                                                      | `ErrorType`  | HTTP        |
+| ---------------------------------------------------------------------------- | ------------ | ----------- |
+| `0`                                                                          | (éxito)      | 200/201/204 |
+| `-20003`, `-20307`, `-20702`                                                 | `NotFound`   | 404         |
+| `-20001`, `-20002`, `-20301..-20306`, `-20308`, `-20700`, `-20701`, `-20703` | `Validation` | 400         |
+| Cualquier otro                                                               | `Failure`    | 500         |
 
 Cuando añadas un código nuevo en un paquete (`RAISE_APPLICATION_ERROR(-20XYZ, '...')`), recuerda **añadirlo también al `switch` de `ErrorPaquetePlSql.DesdeCodigo`** para que tenga el `ErrorType` correcto.
 
@@ -624,13 +648,78 @@ public class TipoRecursosController : ControladorBase
 
 Cosas a fijarse:
 
-| Pieza | Por qué está ahí |
-|---|---|
-| Heredar de **`ControladorBase`** | Provee `Idioma`, `CodPer`, `Roles`, `ValidationProblemLocalizado(...)`. Cualquier controlador del proyecto lo hereda. |
-| **`HandleResult(...)`** | Vive en `ApiControllerBase` (que `ControladorBase` hereda). Traduce `Result<T>` → respuesta HTTP correcta: `200` con valor, `404 ProblemDetails`, `400 ValidationProblemDetails`, etc. Es la **única función que mira el `Result`**. |
-| `[ProducesResponseType<T>(...)]` | Documenta a Scalar / OpenAPI los códigos esperados y los tipos de respuesta. Sin esto, Scalar no sabe qué shape tiene el `200` ni qué errores documentar. |
-| `[Tags("TipoRecursos")]` | Agrupa en la UI de Scalar todos los endpoints bajo una sola pestaña. |
-| `CreatedAtAction(nameof(ObtenerPorId), ...)` | Devuelve `201` con cabecera `Location: /api/TipoRecursos/{id}` apuntando al recurso recién creado. Es el contrato REST para POST de creación. |
+| Pieza                                        | Por qué está ahí                                                                                                                                                                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Heredar de **`ControladorBase`**             | Provee `Idioma`, `CodPer`, `Roles`, `ValidationProblemLocalizado(...)`. Cualquier controlador del proyecto lo hereda.                                                                                                                |
+| **`HandleResult(...)`**                      | Vive en `ApiControllerBase` (que `ControladorBase` hereda). Traduce `Result<T>` → respuesta HTTP correcta: `200` con valor, `404 ProblemDetails`, `400 ValidationProblemDetails`, etc. Es la **única función que mira el `Result`**. |
+| `[ProducesResponseType<T>(...)]`             | Documenta a Scalar / OpenAPI los códigos esperados y los tipos de respuesta. Sin esto, Scalar no sabe qué shape tiene el `200` ni qué errores documentar.                                                                            |
+| `[Tags("TipoRecursos")]`                     | Agrupa en la UI de Scalar todos los endpoints bajo una sola pestaña.                                                                                                                                                                 |
+| `CreatedAtAction(nameof(ObtenerPorId), ...)` | Devuelve `201` con cabecera `Location: /api/TipoRecursos/{id}` apuntando al recurso recién creado. Es el contrato REST para POST de creación.                                                                                        |
+
+::: info CÓMO FUNCIONA `CreatedAtAction` paso a paso
+`nameof(ObtenerPorId)` no construye ninguna URL: solo produce el string `"ObtenerPorId"`. Es `CreatedAtAction` quien, a partir de ese nombre, recorre el sistema de rutas y monta la URL completa:
+
+```
+1. Busca la acción "ObtenerPorId" en este controlador
+         ↓
+2. Lee su plantilla de ruta → [HttpGet("{id:int}")]
+         ↓
+3. Combina con la ruta del controlador → [Route("api/[controller]")] = "api/TipoRecursos"
+         ↓
+4. Sustituye {id} con el valor de new { id = resultado.Value }  (p. ej. 42)
+         ↓
+5. Añade scheme + host de la petición actual
+         ↓
+   Resultado → Location: https://reservas.ua.es/api/TipoRecursos/42
+```
+
+La respuesta HTTP completa que recibe el cliente si Oracle asignó el id `42`:
+
+```
+HTTP/1.1 201 Created
+Location: https://reservas.ua.es/api/TipoRecursos/42
+Content-Type: application/json
+
+42
+```
+
+El cuerpo (`42`) es el tercer argumento de `CreatedAtAction`: el id del recurso recién creado. El cliente lo lee directamente sin tener que parsear la cabecera `Location`.
+
+**¿Por qué `nameof` y no el string `"ObtenerPorId"`?**  
+Si renombras el método a `ObtenerDetalle`, el compilador avisa del `nameof` roto. Con un string literal, la cabecera `Location` apuntaría a una ruta inexistente en silencio — nadie lo detectaría hasta que un cliente siguiera el enlace y obtuviera `404`.
+
+**¿Por qué `Crear` devuelve `Location` y `Actualizar` no?**
+
+Es el contrato REST estándar:
+
+| Verbo                         | Qué hace                                                   | Respuesta correcta | ¿`Location`?                                                         |
+| ----------------------------- | ---------------------------------------------------------- | ------------------ | -------------------------------------------------------------------- |
+| `POST /api/TipoRecursos`      | Crea un recurso **nuevo** (id desconocido antes de llamar) | `201 Created`      | **Sí** — el cliente no sabía la URL antes de la llamada              |
+| `PUT /api/TipoRecursos/42`    | Actualiza el recurso `42` (id ya conocido en la URL)       | `204 No Content`   | **No** — el cliente ya tiene la URL: la puso él mismo en la petición |
+| `DELETE /api/TipoRecursos/42` | Borra el recurso `42`                                      | `204 No Content`   | **No** — ya no existe, una URL no tiene sentido                      |
+
+En el `PUT` el cliente ya sabe exactamente a qué URL pertenece el recurso porque la puso en la ruta (`/api/TipoRecursos/42`). El `Location` solo tiene utilidad cuando el servidor es quien asigna el identificador (el `NEXTVAL` de Oracle en este caso).
+
+**¿Cómo maneja Vue ese `Location`?**
+
+En el proyecto usamos `peticion<T>()` de `@vueua/components/composables/use-axios`. Internamente hace `return response.data`, con lo que **devuelve directamente el cuerpo JSON** — el id `42` — sin exponer cabeceras:
+
+```typescript
+import { peticion, verbosAxios } from "@vueua/components/composables/use-axios";
+
+// POST → el body del 201 es el número 42, peticion<number> lo devuelve ya tipado
+const nuevoId = await peticion<number>("TipoRecursos", verbosAxios.POST, dto);
+// nuevoId === 42
+
+// Usos típicos tras la creación:
+await cargarLista(); // recargar la tabla
+router.push(`/tipo-recursos/${nuevoId}`); // navegar al detalle
+```
+
+La cabecera `Location` **no es accesible** a través de `peticion()`. Para leerla habría que usar la instancia `HttpApi` directamente y acceder a `response.headers['location']`, algo que en el proyecto no hacemos porque el id ya viene en el cuerpo.
+
+La cabecera `Location` es útil para clientes genéricos que siguen el estándar HTTP sin conocer la forma del body: `curl -i`, API gateways, scripts de integración. Para Vue, basta con el body.
+:::
 
 ::: danger ZONA PELIGROSA — datos del usuario SIEMPRE del token
 En `ReservasController.Crear` verás que el controlador llama a `_reservas.CrearAsync(CodPer, dto)` pasando `CodPer` (propiedad de `ControladorBase` leída del JWT) **como argumento aparte del DTO**. Aunque el cliente envíe un campo `codper` en el body, el controlador **no lo usa** — usa el del token. Esto evita que un usuario malicioso cree recursos a nombre de otra persona.
@@ -654,10 +743,10 @@ flowchart LR
 
 <!-- diagram id="tipos-test" caption: "Simulados prueban la lógica del controlador. Reales prueban el SQL contra Oracle." -->
 
-| Tipo            | Qué prueba                                                       | Por qué                                                                |
-| --------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Simulado**    | El controlador delega bien al servicio y traduce a HTTP correcto.| Rápido, siempre verde, no necesita BD. Va en CI.                       |
-| **Real**        | El SQL existe, mapea bien, las restricciones de Oracle funcionan.| Detecta drift entre el código y la BD. Se marca `[SkippableFact]` para no romper CI si no hay conexión. |
+| Tipo         | Qué prueba                                                        | Por qué                                                                                                 |
+| ------------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Simulado** | El controlador delega bien al servicio y traduce a HTTP correcto. | Rápido, siempre verde, no necesita BD. Va en CI.                                                        |
+| **Real**     | El SQL existe, mapea bien, las restricciones de Oracle funcionan. | Detecta drift entre el código y la BD. Se marca `[SkippableFact]` para no romper CI si no hay conexión. |
 
 ### 2.5.2 Tres piezas de infraestructura compartidas entre tests
 
@@ -761,7 +850,7 @@ En el curso **no usamos Moq, NSubstitute ni FakeItEasy**: los fakes son clases C
 2. Si la interfaz cambia, el compilador te lo dice.
 3. Las "huellas" (`IdiomasPedidos`, `CreadosRecibidos`) son `List` corrientes: el test las asserta con `Assert.Single`/`Assert.Equal`, no con `.Verify(x => x.Method())` de Moq.
 4. Cero NuGets adicionales en `uaReservas.Tests.csproj`.
-:::
+   :::
 
 ### 2.5.3 Test simulado: `TipoRecursosControllerSimuladoTests` real
 
@@ -897,15 +986,21 @@ public class OracleTestFixture : IDisposable
 Si no hay conexión configurada, el fixture **no falla**: marca `HayConexion = false` con un motivo, y cada test puede saltarse con `Skip.IfNot(...)`.
 
 ::: info CONTEXTO — `user-secrets` en el proyecto de tests
-`uaReservas.Tests` tiene su propio `UserSecretsId`. Para que los tests reales funcionen, hay que poner la cadena entera con:
+`uaReservas.Tests` tiene su propio `UserSecretsId`. Las credenciales son las **mismas** que usa la app (mismo esquema `CURSONORMWEB`), pero el formato del secret es distinto:
+
+|           | App principal                                    | Proyecto de tests                                      |
+| --------- | ------------------------------------------------ | ------------------------------------------------------ |
+| Secret(s) | `Oracle:UserId` + `Oracle:Password` por separado | `ConnectionStrings:oradb` como cadena completa         |
+| Lo lee    | La plantilla UA en `AddServicesUA()`             | `OracleTestFixture` con `GetConnectionString("oradb")` |
+
+Para configurar el proyecto de tests:
 
 ```powershell
 cd uaReservas.Tests
-$cadena = 'Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=laguar-n1-vip.cpd.ua.es)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=ORACTEST.UA.ES)));User Id=CURSONORMWEB;Password=8K1wLtuh_30d4sUM662JZ1xVW;Connection Lifetime=240;Pooling=false'
-dotnet user-secrets set "ConnectionStrings:oradb" $cadena
+dotnet user-secrets set "ConnectionStrings:oradb" "User Id=CURSONORMWEB;Password=<contraseña>;Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=laguar-n1-vip.cpd.ua.es)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=ORACTEST.UA.ES)));Connection Lifetime=240;Pooling=false"
 ```
 
-OJO: aquí la cadena viaja **entera** (`Data Source=...;User Id=...;Password=...`), no en piezas separadas (`Oracle:UserId`/`Oracle:Password`) como en la app principal. Es una concesión a la simplicidad de `OracleTestFixture`: lee la cadena ya construida y se la pasa directamente a `ClaseOracleBd`. Si no configuras esto, los tests `[SkippableFact]` se marcan como `Skipped` y la suite sigue verde.
+La contraseña es la misma que ya tienes en los secrets de la app (`Oracle:Password`). Si no configuras esto, los tests `[SkippableFact]` se marcan como `Skipped` y la suite sigue verde.
 :::
 
 ### 2.5.5 Test real: `TiposRecursoServicioRealTests`
@@ -970,7 +1065,7 @@ Los tests reales son **lentos**. Cada uno abre una conexión a Oracle y ejecuta 
 1. **Prueba el contrato con la BD**, no la lógica del servicio: que la vista existe, que las columnas se mapean, que el id inexistente devuelve `NotFound`. La lógica fina (¿el filtro funciona si hay 5 elementos?) va en tests simulados.
 2. **No asumas datos concretos en la BD** (`Assert.Equal("Sala de reuniones", x.Nombre)`). Asserta **forma**: hay al menos un registro, el id es positivo, el nombre no es null.
 3. **No escribas en la BD**. Si un test `Crear...` se ejecuta dos veces, deja basura. Para tests de escritura: o haces `Eliminar` al final, o trabajas dentro de una transacción que haces rollback. En la sesión 3 lo veremos.
-:::
+   :::
 
 ## 2.6 Ejercicio: cerrar `Observaciones` con servicio + tests
 
@@ -1090,17 +1185,17 @@ Una sola línea, debajo de los `AddScoped` de `TiposRecursoServicio` / `Recursos
 
 ### 2.6.3 Lista de verificación
 
-| ✅ | Comprobación                                                                          |
-| - | ------------------------------------------------------------------------------------ |
-| ☐ | `IObservacionesServicio.cs` y `ObservacionesServicio.cs` creados en `Services/Reservas/`. |
-| ☐ | `Program.cs` registra el servicio (línea `AddScoped<IObservacionesServicio, ...>`).   |
-| ☐ | `ObservacionesController` ya no tiene `_datos` estático — todo delega en el servicio. |
-| ☐ | `CrearAsync(codperAutor, dto)` recibe el codper por parámetro; el controlador le pasa `CodPer` de `ControladorBase`. |
-| ☐ | `dotnet build` sin errores ni warnings nuevos.                                       |
-| ☐ | Scalar muestra `POST /api/Observaciones` con `ValidationProblemDetails` 400 si los textos van vacíos. |
-| ☐ | `Home.vue → GET /api/Observaciones (ejercicio)` pinta datos reales y devuelve `200`.|
-| ☐ | `dotnet test` ejecuta los **dos** tests simulados sin tocar Oracle.                  |
-| ☐ | Los **dos** tests reales se ejecutan (verde) si hay user-secrets, o se marcan `Skipped` si no. |
+| ✅  | Comprobación                                                                                                         |
+| --- | -------------------------------------------------------------------------------------------------------------------- |
+| ☐   | `IObservacionesServicio.cs` y `ObservacionesServicio.cs` creados en `Services/Reservas/`.                            |
+| ☐   | `Program.cs` registra el servicio (línea `AddScoped<IObservacionesServicio, ...>`).                                  |
+| ☐   | `ObservacionesController` ya no tiene `_datos` estático — todo delega en el servicio.                                |
+| ☐   | `CrearAsync(codperAutor, dto)` recibe el codper por parámetro; el controlador le pasa `CodPer` de `ControladorBase`. |
+| ☐   | `dotnet build` sin errores ni warnings nuevos.                                                                       |
+| ☐   | Scalar muestra `POST /api/Observaciones` con `ValidationProblemDetails` 400 si los textos van vacíos.                |
+| ☐   | `Home.vue → GET /api/Observaciones (ejercicio)` pinta datos reales y devuelve `200`.                                 |
+| ☐   | `dotnet test` ejecuta los **dos** tests simulados sin tocar Oracle.                                                  |
+| ☐   | Los **dos** tests reales se ejecutan (verde) si hay user-secrets, o se marcan `Skipped` si no.                       |
 
 ::: tip BUENA PRÁCTICA — depuración cuando falla el POST
 Si al hacer POST en Scalar te llega un 500 sin explicación, **inspecciona el SQL del paquete primero** (`SQLERRM` viaja en `P_MENSAJE_ERROR`, no se pierde):
@@ -1108,7 +1203,7 @@ Si al hacer POST en Scalar te llega un 500 sin explicación, **inspecciona el SQ
 1. En `ObservacionesServicio`, **antes** de devolver el `Result`, pon un `_logger.LogError("Error PKG OBS: {Codigo} {Mensaje}", ErrorPaquetePlSql.LeerInt(p, "P_CODIGO_ERROR"), ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"))`.
 2. Vuelve a ejecutar.
 3. Lee el log: la causa raíz suele ser un parámetro `IN` mal nombrado, un `NOT NULL` que no se rellena o que el `idReserva` apunta a una reserva que no existe (FK).
-:::
+   :::
 
 ::: details Solución completa (revísala DESPUÉS de intentarlo)
 Cuando hayas terminado tu propia versión, compárala con la de referencia:
@@ -1138,16 +1233,16 @@ flowchart LR
 
 <!-- diagram id="resumen-sesion2" caption: "El flujo de la sesión: de las capas al ejercicio, pasando por Result<T>, lectura, escritura y tests." -->
 
-| Concepto                  | Dónde se aplica en `uaReservas`                                                |
-| ------------------------- | ------------------------------------------------------------------------------ |
-| Capas                     | `Controllers/Apis/*`, `Services/Reservas/*`, `Models/*`                        |
-| `Result<T>`               | `Models/Errors/Result.cs`, devuelto por **todos** los servicios.               |
-| `HandleResult`            | `Controllers/Apis/ApiControllerBase.cs`. Una sola implementación reusada.      |
-| Lectura                   | `ObtenerTodosMapAsync<T>` contra `VRES_*`.                                     |
-| Escritura                 | `EjecutarParamsAsync` contra `PKG_RES_*` con `DynamicParameters`.              |
-| Traducción de errores     | `Models/Errors/ErrorPaquetePlSql.cs` — un `switch` por código ORA.             |
-| Inyección de dependencias | `Program.cs` con la línea "alias" `IClaseOracleBd → ClaseOracleBd`.            |
-| Tests                     | `uaReservas.Tests/` con fakes a mano y `SkippableFact` para los reales.        |
+| Concepto                  | Dónde se aplica en `uaReservas`                                           |
+| ------------------------- | ------------------------------------------------------------------------- |
+| Capas                     | `Controllers/Apis/*`, `Services/Reservas/*`, `Models/*`                   |
+| `Result<T>`               | `Models/Errors/Result.cs`, devuelto por **todos** los servicios.          |
+| `HandleResult`            | `Controllers/Apis/ApiControllerBase.cs`. Una sola implementación reusada. |
+| Lectura                   | `ObtenerTodosMapAsync<T>` contra `VRES_*`.                                |
+| Escritura                 | `EjecutarParamsAsync` contra `PKG_RES_*` con `DynamicParameters`.         |
+| Traducción de errores     | `Models/Errors/ErrorPaquetePlSql.cs` — un `switch` por código ORA.        |
+| Inyección de dependencias | `Program.cs` con la línea "alias" `IClaseOracleBd → ClaseOracleBd`.       |
+| Tests                     | `uaReservas.Tests/` con fakes a mano y `SkippableFact` para los reales.   |
 
 ---
 

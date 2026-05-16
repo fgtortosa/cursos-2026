@@ -1,0 +1,16 @@
+﻿CREATE OR REPLACE FORCE EDITIONABLE VIEW "CURSONORMADM"."VRES_FRANJA_HORARIO_NIKKO" ("ID_FRANJA", "ID_RECURSO", "FECHA_INICIO", "FECHA_FIN", "ACTIVO", "REC_NOMBRE_ES", "REC_NOMBRE_CA", "REC_NOMBRE_EN") DEFAULT COLLATION "USING_NLS_COMP"  AS 
+  SELECT /* Vista de Franjas horarias
+
+            1026-05-11  Nikko  Creación de la tabla
+         */
+        fh.ID_FRANJA,
+        fh.ID_RECURSO,
+        fh.FECHA_INICIO,
+        fh.FECHA_FIN,
+        NVL(fh.ACTIVO, 'N'),
+        rec.NOMBRE_ES,
+        rec.NOMBRE_CA,
+        rec.NOMBRE_EN
+   FROM CURSONORMADM.TRES_FRANJA_HORARIO fh,
+    CURSONORMADM.TRES_RECURSO rec 
+   where fh.ID_RECURSO = rec.ID_RECURSO;

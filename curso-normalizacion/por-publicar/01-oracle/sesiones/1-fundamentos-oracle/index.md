@@ -944,7 +944,7 @@ Necesitas dos conexiones separadas:
 - Puerto: 1521
 - Database: ORACTEST.UA.ES -> Service name
 - Usuario: CURSONORMWEB
-- Contraseña: **O8XN"mA(Ij3U\SMCW-O5**
+- Contraseña: 8K1wLtuh_30d4sUM662JZ1xVW
 
 ::: warning IMPORTANTE
 Ejecuta siempre los scripts de creación conectado como **CURSONORMADM**. Comprobarás los grants conectándote como **CURSONORMWEB**.
