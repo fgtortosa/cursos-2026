@@ -1768,222 +1768,234 @@ Observa que **no aparece** `activo` ni `fechaModificacion`, aunque esas columnas
 El atributo `[ApiController]` valida automáticamente el `ModelState`. Si un DTO tiene DataAnnotations y los datos no son válidos, .NET devuelve un `400 Bad Request` con un `ValidationProblemDetails` **sin que escribamos código de validación en la acción**.
 :::
 
-## 1.5 Documentando la API: OpenAPI nativo de .NET 10 + Scalar
+## 1.5 Documentando y probando la API: Scalar
 
-Una API sin documentación es una API que **nadie sabe cómo usar**: ni la persona Vue que la consume, ni quien la mantenga dentro de 6 meses, ni los compañeros de otros equipos. Y en la UA tenemos un grado extra: muchas APIs las consumen **varias** aplicaciones (una en Vue, otra en .NET de otro servicio, una integración externa). El estándar de facto para documentar APIs HTTP es **OpenAPI** (antes "Swagger").
+Una API sin documentación es una API que **nadie sabe cómo usar**. **Scalar** es la UI que pinta la documentación OpenAPI de la API y, además, te permite **lanzar peticiones reales** desde el navegador. En este apartado vemos:
 
-::: info CONTEXTO — qué stack de documentación usa `uaReservas`
-En el curso usamos **Swashbuckle** (clásico, maduro y robusto) para **generar** el documento OpenAPI 3.x, y **Scalar** para **renderizar** la UI. Es la combinación que mejor funciona hoy contra .NET 10 cuando se quieren conservar los `<summary>` XML, las anotaciones `[ProducesResponseType]` y los esquemas de seguridad.
+- **Cómo documentar bien un endpoint** (XML + atributos `[ProducesResponseType]`).
+- **Cómo usar Scalar** para probar la API.
+- **Cómo cambiar el idioma** de la petición para ver el cambio en los textos de error.
+- **Cómo se ven los errores**: `ProblemDetails` (problemas de negocio) y `ValidationProblemDetails` (validación del modelo).
+- **Cómo lo recoge el front** (referencia lateral al composable `useGestionFormularios`).
 
-```mermaid
-flowchart LR
-    Code["Controladores<br/>+ XML docs<br/>+ ProducesResponseType"] --> Swash["Swashbuckle<br/>(AddSwaggerGen)"]
-    Swash --> JSON["/swagger/v1/swagger.json<br/>(OpenAPI)"]
-    JSON --> Scalar["Scalar UI<br/>(/scalar)"]
-    Scalar --> Browser["Tu navegador<br/>(prueba endpoints)"]
+::: info CONTEXTO — el setup ya está hecho, no hay que tocarlo
+`uaReservas` ya tiene los paquetes (`Microsoft.AspNetCore.OpenApi`, `Scalar.AspNetCore`, `Scalar.AspNetCore.Microsoft`) en el `.csproj` y el wiring en `Program.cs` (`builder.Services.AddOpenApi(...)`, `app.MapOpenApi()`, `app.MapScalarApiReference(...)` dentro del `if (Development || Staging)`). En esta sección nos centramos en **cómo usarlo**, no en cómo se monta.
 
-    style Code  fill:#d1ecf1,stroke:#0c5460
-    style JSON  fill:#fff3cd,stroke:#856404
-    style Scalar fill:#d4edda,stroke:#155724
-```
+URLs que te interesan en local:
 
-<!-- diagram id="pipeline-openapi-scalar" caption: "Swashbuckle genera el JSON; Scalar lo pinta. El JSON sigue accesible para Postman, generadores de clientes, etc." -->
+| URL                                                  | Para qué                                                       |
+| ---------------------------------------------------- | -------------------------------------------------------------- |
+| `https://localhost:44306/uareservas/openapi/v1.json` | Documento OpenAPI 3.x crudo. Cárgalo en Postman / generadores. |
+| `https://localhost:44306/uareservas/scalar/`         | UI de Scalar para explorar y probar la API.                    |
+
+En **producción** ninguna de las dos está expuesta: el `if` del `Program.cs` solo monta los endpoints en Development/Staging.
 :::
 
-### 1.5.1 Lo que ya tienes en `uaReservas.csproj`
+### 1.5.1 Documentar un endpoint **bien**
 
-```xml
-<ItemGroup>
-    <!-- Generador del JSON OpenAPI a partir de los controladores -->
-    <PackageReference Include="Swashbuckle.AspNetCore"        Version="10.1.7" />
+Lo que Scalar pinta sobre cada endpoint **lo dictas tú** desde el controlador con dos mecanismos: **comentarios XML** (`<summary>`, `<param>`, `<response>`) y **atributos** (`[ProducesResponseType]`, `[Tags]`). Plantilla recomendada — exactamente lo que tiene `TipoRecursosController`:
 
-    <!-- UI Scalar + puente con Swashbuckle -->
-    <PackageReference Include="Scalar.AspNetCore"             Version="2.14.11" />
-    <PackageReference Include="Scalar.AspNetCore.Microsoft"   Version="2.14.11" />
-    <PackageReference Include="Scalar.AspNetCore.Swashbuckle" Version="2.14.11" />
-</ItemGroup>
+```csharp
+/// <summary>
+/// API REST para el catalogo de tipos de recurso (TRES_TIPO_RECURSO).
+/// La autenticacion la garantiza el middleware: si la cookie del token no
+/// es valida, el pipeline devuelve 401 antes de entrar al metodo.
+/// La traduccion Result&lt;T&gt; -&gt; HTTP la hace HandleResult.
+/// </summary>
+[Route("api/[controller]")]
+[ApiController]
+[Authorize]                              // ← exige cookie JWT valida
+[Produces("application/json")]           // ← TODOS los endpoints devuelven JSON
+[Tags("TipoRecursos")]                   // ← Agrupacion en la sidebar de Scalar
+public class TipoRecursosController : ControladorBase
+{
+    private readonly ITiposRecursoServicio _tiposRecurso;
+    public TipoRecursosController(ITiposRecursoServicio tiposRecurso) =>
+        _tiposRecurso = tiposRecurso;
+
+    /// <summary>Lista todos los tipos de recurso resueltos al idioma del usuario.</summary>
+    /// <response code="200">Lista completa (puede estar vacia).</response>
+    /// <response code="401">No autenticado.</response>
+    [HttpGet]
+    [ProducesResponseType<List<TipoRecursoLectura>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult> Listar() =>
+        HandleResult(await _tiposRecurso.ObtenerTodosAsync(Idioma));
+
+    /// <summary>Devuelve un tipo por su id.</summary>
+    /// <param name="id">Identificador del tipo (ID_TIPO_RECURSO).</param>
+    /// <response code="200">Tipo encontrado.</response>
+    /// <response code="404">El tipo no existe.</response>
+    [HttpGet("{id:int}")]
+    [ProducesResponseType<TipoRecursoLectura>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> ObtenerPorId([FromRoute] int id) =>
+        HandleResult(await _tiposRecurso.ObtenerPorIdAsync(id, Idioma));
+}
 ```
 
-Y en `<PropertyGroup>`, las dos líneas que hacen que los `<summary>` XML lleguen al JSON OpenAPI:
-
-```xml
-<PropertyGroup>
-    <!-- Genera bin/Debug/net10.0/uaReservas.xml con todos los <summary> -->
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-
-    <!-- 1591 = "Missing XML comment for publicly visible type or member".
-         Sin esta línea cada propiedad de DTO sin <summary> sería un warning. -->
-    <NoWarn>$(NoWarn);1591</NoWarn>
-</PropertyGroup>
-```
+Cada acción declara **todos los códigos de respuesta posibles** vía `[ProducesResponseType]`. Scalar leerá esos atributos y los `<response>` XML y pintará la tabla de respuestas completa. El cuerpo se queda en una línea porque `HandleResult` mapea `Result<T>` a HTTP.
 
 ::: warning IMPORTANTE — escapar `<` y `>` en los `<summary>`
 Si en un `<summary>` escribes `Result<T>` o `List<int>`, el compilador interpreta `<T>` como una etiqueta XML y suelta `CS1570: XML comment has badly formed XML`. Escapa con `Result&lt;T&gt;` y `List&lt;int&gt;`. Es el error más típico al activar `GenerateDocumentationFile`.
 :::
 
-### 1.5.2 Activar Swagger + Scalar en `Program.cs`
+### 1.5.2 Usar Scalar: lo que ves
 
-Esto es **exactamente** lo que tiene `uaReservas/Program.cs`:
-
-```csharp
-using System.Reflection;
-using Microsoft.OpenApi;          // ⚠ OpenApi v2: ya NO es "Microsoft.OpenApi.Models"
-using Scalar.AspNetCore;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// ... (resto del builder: AddServicesUA, DI, AddControllersWithViews, etc.)
-
-// 1) Configurar Swashbuckle para generar el JSON OpenAPI.
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title       = builder.Configuration["App:NombreApp"] ?? "uaReservas API",
-        Version     = builder.Configuration["App:Version"]   ?? "1.0.0",
-        Description = builder.Configuration["App:DescripcionApp"] ??
-                      "API de reservas — proyecto de ejemplo del curso de normalización."
-    });
-
-    // Incluye los <summary>, <param> y <response> que MSBuild ha volcado al XML.
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath))
-    {
-        c.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
-    }
-
-    // Esquema de autenticación documental: el JWT viaja en una cookie HttpOnly,
-    // así que Scalar NO la podrá enviar desde la UI — pero queda DOCUMENTADO.
-    c.AddSecurityDefinition("CookieJWT", new OpenApiSecurityScheme
-    {
-        Type        = SecuritySchemeType.ApiKey,
-        In          = ParameterLocation.Cookie,
-        Name        = "X-Access-Token",
-        Description = "JWT corto (30 min) emitido tras el login CAS. " +
-                      "El navegador lo adjunta automáticamente como cookie HttpOnly."
-    });
-});
-
-var app = builder.Build();
-
-// 2) Activar OpenAPI + Scalar SOLO en desarrollo / staging.
-//    En producción no exponemos la documentación al mundo.
-if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
-{
-    // Sirve el JSON OpenAPI en /swagger/v1/swagger.json
-    app.UseSwagger();
-
-    // Scalar lee ese JSON y pinta su UI en /scalar
-    app.MapScalarApiReference(options =>
-    {
-        options.Title               = builder.Configuration["App:NombreApp"] ?? "uaReservas API";
-        options.OpenApiRoutePattern = "/swagger/{documentName}/swagger.json";
-        options.WithTheme(ScalarTheme.BluePlanet);
-        options.WithDefaultHttpClient(ScalarTarget.JavaScript, ScalarClient.Axios);
-    });
-
-    app.UseDeveloperExceptionPage();
-}
-```
-
-URLs útiles tras esto (con `App:DirApp = /uareservas`):
-
-| URL                                                  | Para qué                                                       |
-| ---------------------------------------------------- | -------------------------------------------------------------- |
-| `https://localhost:44306/uareservas/swagger/v1/swagger.json` | Documento OpenAPI 3.x crudo. Cárgalo en Postman / generadores. |
-| `https://localhost:44306/uareservas/scalar`          | **La UI bonita** de Scalar para explorar y probar la API.      |
-
-::: info CONTEXTO — namespace `Microsoft.OpenApi` (v2)
-Con `Microsoft.OpenApi` 2.x (el que arrastra Swashbuckle 10), `OpenApiInfo`, `OpenApiSecurityScheme`, `SecuritySchemeType` y `ParameterLocation` viven **directamente** en `Microsoft.OpenApi`. Si copias código de tutoriales antiguos verás `using Microsoft.OpenApi.Models;` — esa namespace **ya no existe** y dará `CS0234`.
-:::
-
-::: tip BUENA PRÁCTICA — Scalar solo en desarrollo / staging
-Como ves arriba, `UseSwagger()` y `MapScalarApiReference()` van **dentro del `if`** que comprueba el entorno. En producción nadie debe poder navegar `/scalar` desde fuera. Si necesitas que esté disponible en producción para integraciones internas, protege esas rutas con `[Authorize]` y/o un filtro por IP de campus.
-:::
-
-### 1.5.bis Cómo aprovecha Scalar lo que escribes en `ControladorBase` / `ApiControllerBase`
-
-`HandleResult` traduce `Result<T>` a respuestas HTTP estándar (`200`, `400`, `404`, `500`). Como `[ProducesResponseType]` se declara **en la acción**, Scalar muestra los códigos posibles de cada endpoint sin que tengas que volver a explicarlos: el `summary` cuenta el "qué" y los atributos cuentan los "cómo".
-
-### 1.5.3 Documentar un endpoint **bien**
-
-Un endpoint mal documentado dice solo "GET /api/Recursos devuelve algo". Uno bien documentado dice **qué devuelve, qué errores puede dar, qué tipos JSON y qué parámetros, con un resumen claro**. Plantilla recomendada (es exactamente lo que tiene `TipoRecursosController` en el proyecto):
-
-```csharp
-/// <summary>
-/// API REST para consultar los tipos de recurso (TRES_TIPO_RECURSO).
-///
-/// La autenticación la garantiza el middleware (UseAuthentication +
-/// UseAuthorization + [Authorize]). Si la cookie del token no es válida,
-/// el pipeline devuelve 401 antes de entrar al método.
-///
-/// El idioma de la petición lo resuelve ControladorBase: prioriza la
-/// cabecera "X-Idioma" si la hay, y si no usa el claim LENGUA del JWT.
-///
-/// La traducción Result&lt;T&gt; -&gt; HTTP la hace HandleResult, definido
-/// en ApiControllerBase (clase base de ControladorBase).
-/// </summary>
-[Route("api/[controller]")]
-[ApiController]
-[Authorize]                              // ← exige cookie JWT válida
-[Produces("application/json")]           // ← TODOS los endpoints devuelven JSON
-[Tags("TipoRecursos")]                   // ← Agrupación en la sidebar de Scalar
-public class TipoRecursosController : ControladorBase
-{
-    private readonly ITiposRecursoServicio _tiposRecurso;
-    public TipoRecursosController(ITiposRecursoServicio tiposRecurso)
-        => _tiposRecurso = tiposRecurso;
-
-    /// <summary>Devuelve la lista de tipos de recurso, resueltos al idioma del usuario.</summary>
-    /// <response code="200">Devuelve la lista completa (puede estar vacía).</response>
-    /// <response code="401">No autenticado (cookie JWT ausente o caducada).</response>
-    [HttpGet]
-    [ProducesResponseType(typeof(List<TipoRecursoLectura>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult> Listar() =>
-        HandleResult(await _tiposRecurso.ObtenerTodosAsync(ObtenerIdiomaPeticion()));
-
-    /// <summary>Devuelve un tipo de recurso por su id.</summary>
-    /// <param name="id">Identificador del tipo (ID_TIPO_RECURSO).</param>
-    /// <response code="200">Tipo encontrado.</response>
-    /// <response code="401">No autenticado.</response>
-    /// <response code="404">El tipo no existe.</response>
-    [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(TipoRecursoLectura), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> ObtenerPorId(int id) =>
-        HandleResult(await _tiposRecurso.ObtenerPorIdAsync(id, ObtenerIdiomaPeticion()));
-}
-```
-
-Observa cómo cada acción declara **todos los códigos de respuesta posibles** vía `[ProducesResponseType]`: Scalar leerá esos atributos junto con los `<response>` XML y pintará la tabla de respuestas completa. El cuerpo de la acción se queda en **una línea** porque `HandleResult` hace el trabajo de mapear `Result<T>` a HTTP.
-
-### 1.5.4 Buenas prácticas con los comentarios XML
-
-::: tip BUENA PRÁCTICA — qué comentar y qué no
-- **Comenta**: `<summary>` del endpoint (para qué sirve), `<param>` de cada parámetro **si no son obvios**, `<response>` de cada código posible.
-- **No comentes** lo que ya dice el nombre: `// Obtiene el id` sobre `ObtenerPorId(int id)` es ruido.
-- **No comentes** propiedades de DTOs si ya tienen nombres claros. Pero **sí** comenta unidades o reglas: `/// <summary>Duración en minutos (múltiplo de Recurso.Granulidad).</summary>`.
-- **Escapa `<` y `>`** en los `<summary>` cuando hablen de genéricos: `Result&lt;T&gt;`, `List&lt;int&gt;`. Si no, `CS1570`.
-:::
-
-### 1.5.5 Cómo se ve en Scalar y cómo se prueba
-
-Abre `https://localhost:44306/uareservas/scalar`. Lo que vas a ver:
+Abre `https://localhost:44306/uareservas/scalar/`. Lo que verás:
 
 | Zona              | Qué muestra                                                                            |
 | ----------------- | -------------------------------------------------------------------------------------- |
-| **Sidebar**       | Endpoints agrupados por `[Tags]` (Recursos, Reservas…).                                |
+| **Sidebar**       | Endpoints agrupados por `[Tags]` (Recursos, Reservas, TipoRecursos…).                  |
 | **Panel central** | `summary`, parámetros, ejemplos de petición/respuesta, modelos JSON expandibles.       |
 | **Try it out**    | Formulario para lanzar la llamada **real** desde el navegador.                         |
 | **Code samples**  | Snippets ya hechos en Axios/Fetch/cURL — útiles para pegar en Vue.                     |
 
 ::: warning IMPORTANTE — Scalar y la cookie de autenticación
-Scalar ejecuta las pruebas **en el mismo dominio que la app**, así que si has iniciado sesión via CAS, **la cookie viaja sola** y el "Try it out" devuelve los datos de tu sesión real. Si pruebas la API con un usuario distinto, abre Scalar en una ventana privada con ese login.
+Scalar ejecuta las pruebas **en el mismo dominio que la app**, así que si has iniciado sesión via CAS, **la cookie viaja sola** y el "Try it out" devuelve los datos de **tu sesión real**. Si pruebas la API con un usuario distinto, abre Scalar en una ventana privada con ese login.
+:::
 
-Esto es lo mismo que vimos en 1.0: la cookie es del navegador, no de la herramienta concreta.
+### 1.5.3 Probar con idiomas distintos — la cabecera `X-Idioma`
+
+Una de las cosas que más se prueban en Scalar es **cómo cambian los textos según el idioma**. La plantilla UA tiene tres niveles de resolución de idioma (ya implementados en `Program.cs` y `ControladorBase`):
+
+| Prioridad | Origen                                                        |
+| --------- | ------------------------------------------------------------- |
+| 1         | Cabecera HTTP **`X-Idioma`** (la que controlamos desde Scalar) |
+| 2         | Querystring `?idioma=ca`                                      |
+| 3         | Claim `LENGUA` del JWT (el idioma del usuario logueado)       |
+
+Cómo probar el cambio en Scalar:
+
+1. Despliega un endpoint (por ejemplo `GET /api/TipoRecursos`).
+2. Pulsa **Test Request** (o "Try it out").
+3. En la pestaña **Headers**, añade:
+   - Name: `X-Idioma`
+   - Value: `ca` (o `en`, `es`, `va` — `va` se normaliza a `ca` en el servidor)
+4. Pulsa **Send**.
+
+La respuesta devolverá los nombres `nombreCa` / nombres en valenciano. Si quitas la cabecera y tienes sesión iniciada, devolverá lo que diga tu `LENGUA` del CAS (normalmente `es`).
+
+::: info CONTEXTO — quién aplica el idioma
+- En **lecturas**, el servicio (`TiposRecursoServicio.ObtenerTodosAsync(Idioma)`) le pasa el idioma a `ClaseOracleBD3`, que rellena la propiedad `Nombre` desde `NOMBRE_{IDIOMA}` automáticamente.
+- En **errores de validación**, el `Resources/Plantilla/PlantillaErrores.es.resx` / `.ca.resx` / `.en.resx` traduce los mensajes según `Accept-Language` / `X-Idioma`. Lo verás en la siguiente sección.
+
+Cambiar `X-Idioma` te permite probar las tres cosas al mismo tiempo: nombres traducidos, mensajes de error traducidos y formato de fechas/números si aplica.
+:::
+
+### 1.5.4 Cómo se ven los errores: `ProblemDetails` y `ValidationProblemDetails`
+
+Los errores en .NET 10 viajan en JSON con un formato **estandarizado** (RFC 9457). Hay dos tipos en `uaReservas` y los verás distintos en Scalar / DevTools:
+
+**`ProblemDetails`** — para errores de negocio o estado (`404`, `409`, `500`):
+
+```http
+HTTP/1.1 404 Not Found
+Content-Type: application/problem+json
+
+{
+  "type":   "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+  "title":  "No encontrado",
+  "status": 404,
+  "detail": "No existe un tipo de recurso con id 999.",
+  "instance": "/api/TipoRecursos/999",
+  "codigo": "TIPO_RECURSO_NO_ENCONTRADO"
+}
+```
+
+**`ValidationProblemDetails`** — para errores de validación del modelo (`400`). Lleva el campo extra **`errors`** con los fallos agrupados por propiedad:
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/problem+json
+
+{
+  "type":   "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title":  "Uno o más errores de validación.",
+  "status": 400,
+  "errors": {
+    "NombreEs": [ "El campo NombreEs es obligatorio." ],
+    "Codigo":   [ "La longitud máxima de Código es 50.", "El código no puede contener espacios." ]
+  }
+}
+```
+
+Para **provocar un `ValidationProblemDetails`** desde Scalar:
+
+1. `POST /api/TipoRecursos`, pestaña **Body**.
+2. Envía un JSON con un campo `NombreEs` vacío:
+   ```json
+   { "codigo": "  espacios  ", "nombreEs": "", "nombreCa": "Sala", "nombreEn": "Room" }
+   ```
+3. Pulsa **Send**.
+
+Verás un `400` con `errors.NombreEs` y `errors.Codigo` rellenados. El idioma de los mensajes lo decide otra vez la cabecera `X-Idioma` (`es` te lo da en castellano, `ca` en valenciano).
+
+Para **provocar un `ProblemDetails` 404**:
+
+1. `GET /api/TipoRecursos/999999`.
+2. Send.
+
+Verás un `404` con `codigo: "TIPO_RECURSO_NO_ENCONTRADO"` y `detail` en el idioma de la cabecera.
+
+::: tip BUENA PRÁCTICA — Scalar como banco de pruebas de errores
+Diseña los endpoints sabiendo que **los errores tienen forma estable**. Si tu cliente Vue espera `error.response.data.errors.NombreEs`, ese contrato lo fija `ValidationProblemDetails`, no tu código. Scalar te permite verificar el contrato antes de tocar Vue.
+:::
+
+### 1.5.5 Cómo lo recoge el front: `useGestionFormularios` (referencia lateral)
+
+En el cliente Vue del curso tenemos un composable que se traga `ValidationProblemDetails` directamente y lo expone como estado reactivo: **`useGestionFormularios`** (en `@vueua/lib`, ruta `componentes/vue/vueua-lib/src/composables/use-gestion-formularios/`). No es tema de esta sesión — pero merece saber que existe porque cierra el círculo "API → Vue → usuario".
+
+Lo que devuelve el composable (resumido):
+
+| Pieza                                    | Para qué                                                          |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| `modelState` (Ref&lt;ErroresFormulario&gt;) | Objeto con los errores por campo (`{ NombreEs: ["..."], … }`). |
+| `hayErrores` (Ref&lt;boolean&gt;)        | `true` si hay cualquier error pendiente.                          |
+| `mensajeError` (Ref&lt;string&gt;)       | Mensaje general (no asociado a campo).                            |
+| `errorDeCampo(c)` / `erroresDeCampo(c)`  | Lee el primer error / todos los errores de un campo.              |
+| **`adaptarProblemDetails(error)`**       | **La función clave**: recibe el error de Axios y rellena `modelState` y `mensajeError`. |
+| `inicializarMensajeError()`              | Limpia el estado antes de reintentar.                             |
+| `validarFormulario(refFormulario)`       | Lanza la validación HTML5 nativa del `<form>`.                    |
+
+Patrón de uso en Vue (simplificado):
+
+```ts
+// En una vista que crea un TipoRecurso
+import { useGestionFormularios } from '@vueua/lib';
+import { llamadaAxios, verbosAxios } from '@vueua/lib';
+
+const { modelState, mensajeError, errorDeCampo, adaptarProblemDetails,
+        inicializarMensajeError } = useGestionFormularios();
+
+async function guardar() {
+  inicializarMensajeError();
+  try {
+    const id = await llamadaAxios('TipoRecursos', verbosAxios.POST, formulario.value);
+    // 201 → emit('creado', id) o lo que toque
+  } catch (err) {
+    // 400 ValidationProblemDetails → rellena modelState[NombreEs], modelState[Codigo], etc.
+    // 404 / 500 ProblemDetails → rellena mensajeError con el title/detail.
+    adaptarProblemDetails(err);
+  }
+}
+```
+
+Y en el template:
+
+```vue
+<input v-model="formulario.nombreEs" />
+<small v-if="errorDeCampo('NombreEs')" class="text-danger">
+  {{ errorDeCampo('NombreEs') }}
+</small>
+
+<div v-if="mensajeError" class="alert alert-danger">{{ mensajeError }}</div>
+```
+
+::: info CONTEXTO — por qué lo mencionamos aquí
+Es **el motivo** por el que la API devuelve `ValidationProblemDetails` con la forma exacta de `errors.NombrePropiedad`: `useGestionFormularios.adaptarProblemDetails` espera **esa estructura**. Si cambias el formato en el servidor (por ejemplo, devolviendo `{ campos: [...] }` en vez de `{ errors: { ... } }`), el composable deja de funcionar y todos los formularios del curso pierden el `errorDeCampo`. Por eso `ValidationProblemDetails` no es opcional ni "una forma cualquiera de devolver errores": es **el contrato del que dependen los formularios**.
+
+La sesión 3 (Validación + Errores) profundiza en el composable y en cómo se construyen las validaciones del lado servidor. Aquí solo necesitas saber que existe y que el formato de `ValidationProblemDetails` no se toca.
 :::
 
 ### 1.5.6 Convenciones UA para una API "muy bien documentada"
@@ -1997,8 +2009,9 @@ Aplicar esta lista a cualquier controlador nuevo:
 | ☐ | `[Tags("…")]` para agrupar en Scalar (suele coincidir con la entidad).                       |
 | ☐ | `<summary>` XML en clase y en **cada** acción.                                                |
 | ☐ | `<param>` y `<response>` para parámetros y códigos de respuesta no triviales.                 |
-| ☐ | `[ProducesResponseType(typeof(T), 200)]` para el caso bueno.                                  |
-| ☐ | `[ProducesResponseType(typeof(ProblemDetails), 4xx/5xx)]` para los errores tipados.           |
+| ☐ | `[ProducesResponseType<T>(200)]` para el caso bueno.                                          |
+| ☐ | `[ProducesResponseType<ProblemDetails>(4xx/5xx)]` para los errores tipados.                   |
+| ☐ | `[ProducesResponseType<ValidationProblemDetails>(400)]` cuando el endpoint recibe un DTO.     |
 | ☐ | Verbos HTTP correctos: GET = leer, POST = crear, PUT = actualizar todo, PATCH = parcial, DELETE = borrar. |
 | ☐ | Rutas en plural (`/api/Recursos`, `/api/Reservas`).                                           |
 | ☐ | Parámetros de ruta con tipo (`{id:int}`) cuando son numéricos: error 404 automático si no.    |
