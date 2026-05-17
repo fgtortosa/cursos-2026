@@ -2053,6 +2053,136 @@ Para el probador `Home.vue` usamos **`peticion<T>`** porque es lo más cercano a
 Mientras desarrollas la API, **el JSON que vuelca el `<pre>` es el contrato real con Vue**. Si modificas el servicio (por ejemplo, conectar la lectura a Oracle vía `ClaseOracleBD3` en la sesión 2), los botones siguen funcionando sin tocar Vue siempre que el JSON tenga la misma forma. Ese es el sentido del DTO como contrato: a Vue solo le importa qué JSON recibe, no quién lo genera.
 :::
 
+## 1.8.5 De Oracle al toast: ciclo completo de un error {#flujo-errores}
+
+Los tres botones de la sección **"Errores Oracle"** del probador (`Sesion1ProbadorApi.vue`) llaman a endpoints que **provocan a propósito** errores en paquetes PL/SQL para que se vea el recorrido completo. Esta sección documenta ese recorrido, paso a paso. La gestión "de verdad" del error (registro estructurado con `ClaseErrores`, traza completa en Serilog, envío de correo al equipo) se trata en la **sesión 13 — Errores** y en la **sesión 20 — Serilog**: aquí solo nos importa entender el camino del mensaje hasta que el usuario lo ve.
+
+### 1.8.5.1 Visión general
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant V as Vue<br/>(boton del probador)
+    participant API as API .NET<br/>(controller + servicio)
+    participant ORA as Oracle<br/>(PKG_RES_TIPO_RECURSO_ERR)
+
+    V->>API: POST /api/TipoRecursos/PruebasErrores/recurso-no-existe
+    API->>ORA: EXEC PROBAR_RECURSO_NO_EXISTE(OUT P_CODIGO_ERROR, P_MENSAJE_ERROR)
+    Note over ORA: RAISE_APPLICATION_ERROR(-20702, 'TIPO_RECURSO_NO_EXISTE|123')
+    ORA-->>API: P_CODIGO_ERROR = -20702<br/>P_MENSAJE_ERROR = '...#TIPO_RECURSO_NO_EXISTE|123#'
+    Note over API: ErrorPaquetePlSql.DesdeCodigo -><br/>Error{Type=NotFound, MessageKey, Args}
+    Note over API: HandleResult traduce a 404 ProblemDetails<br/>(con Detail localizado via IStringLocalizer)
+    API-->>V: 404 + ProblemDetails JSON
+    Note over V: gestionarError() lee el status y<br/>llama a avisarError -> toast rojo
+```
+
+### 1.8.5.2 Lado servidor: del PL/SQL al JSON
+
+El paquete `PKG_RES_TIPO_RECURSO_ERR` lanza `RAISE_APPLICATION_ERROR` con un código en rango `-20000` y un mensaje en el formato convenido por la UA:
+
+```sql
+-- PKG_RES_TIPO_RECURSO_ERR.PROBAR_RECURSO_NO_EXISTE
+RAISE_APPLICATION_ERROR(-20702,
+    'TIPO_RECURSO_NO_EXISTE|123');   -- "clave|arg1|arg2..." dentro de #...#
+```
+
+El servicio en .NET (`TiposRecursoServicio.EjecutarPruebaErrorAsync`) **no** lee la excepción: pasa parámetros OUT (`P_CODIGO_ERROR`, `P_MENSAJE_ERROR`) al `EJECUTAR` del paquete y luego comprueba si vienen rellenos:
+
+```csharp
+var p = new DynamicParameters();
+p.Add("P_CODIGO_ERROR",  null, direccion: ParameterDirection.Output);
+p.Add("P_MENSAJE_ERROR", null, direccion: ParameterDirection.Output);
+
+try { await _bd.EjecutarParamsAsync(procedimiento, p); }
+catch (BDException ex) { return ErrorPaquetePlSql.AResultFailure<bool>(ex); }
+
+var failure = ErrorPaquetePlSql.AResultFailure<bool>(
+    ErrorPaquetePlSql.LeerInt(p, "P_CODIGO_ERROR"),
+    ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"));
+if (failure is not null) return failure;
+```
+
+::: tip DOS CAMINOS, EL MISMO DESTINO
+- Si el paquete **gestiona** el error y devuelve `P_CODIGO_ERROR` ≠ 0 → `AResultFailure` lo convierte.
+- Si el paquete **deja escapar** la `ORA-xxxxx` → `ClaseOracleBD3` lanza `BDException` y la sobrecarga `AResultFailure(BDException)` la traduce igualmente.
+
+En los dos casos acabamos con un `Result<T>.Failure(Error)` con la misma forma.
+:::
+
+`ErrorPaquetePlSql.DesdeCodigo` mapea el código numérico a uno de los tres `ErrorType` del proyecto:
+
+| Rango Oracle | `ErrorType` | HTTP que devuelve `HandleResult` |
+|--------------|-------------|----------------------------------|
+| `-20003`, `-20307`, `-20702` | `NotFound` | **404** `ProblemDetails` |
+| `-20001..-20002`, `-20301..-20308`, `-20700..-20701`, `-20703` | `Validation` | **400** `ValidationProblemDetails` |
+| Cualquier otro `SQLCODE ≠ 0` | `Failure` | **500** `ProblemDetails` genérico |
+
+El mensaje del paquete viene como `...#CLAVE|arg1|arg2#`. El parser extrae la **clave** (p. ej. `TIPO_RECURSO_NO_EXISTE`) y los **argumentos**. Luego `ApiControllerBase.HandleResult` los localiza con `IStringLocalizer<SharedResource>` y los mete en el campo `Detail` del `ProblemDetails`:
+
+```csharp
+ErrorType.NotFound => NotFound(new ProblemDetails {
+    Title  = error.Code,           // "ORA-20702"
+    Detail = mensaje,              // "El tipo de recurso 123 no existe." (es/ca/en)
+    Status = StatusCodes.Status404NotFound
+}),
+```
+
+::: warning DOS PIEZAS DE INFORMACIÓN, DOS DESTINOS
+El cuerpo de la respuesta lleva el mensaje **localizado y limpio** que verá el usuario (`Detail`). El mensaje técnico original (con el `ORA-xxxxx` y la pila Oracle) **no** viaja al cliente: queda en `Error.TechnicalMessage` para que la sesión 20 (Serilog) lo registre en el sink correspondiente. Esa separación es la que permite enseñar al usuario "el tipo de recurso 123 no existe" sin filtrar nombres de procedimientos.
+:::
+
+### 1.8.5.3 Lado cliente: del `peticion<T>` al toast
+
+En `Sesion1ProbadorApi.vue`, cada botón llama a `llamar<T>(url, etiqueta, metodo)`, que sigue el patrón canónico de la librería UA:
+
+```ts
+try {
+  const datos = await peticion<T>(url, metodo, parametros)
+  salida.value = JSON.stringify(datos, null, 2)
+} catch (error: any) {
+  gestionarError(error, t("Home.api.errores.titulo", { etiqueta }),
+                        t("Home.api.errores.detalle", { etiqueta }))
+  // … además se vuelca el cuerpo del error en el <pre> para que se vea
+}
+```
+
+`gestionarError` (en `@vueua/components/composables/use-axios`) lee el `status` y elige cómo notificar:
+
+```ts
+switch (status) {
+  case 400:
+    if (responseData?.errors) {                          // ValidationProblemDetails con errores por campo
+      return { Estado: 'Error', Datos: responseData.errors, ProblemDetails: problemDetails }
+    }
+    avisarError(titulo, problemDetails?.detail ?? toErrorMessage(data, textoFallo))
+    break
+  case 401: avisarError(titulo, …); break
+  case 403: avisarError('Error de acceso', …); break
+  case 500: avisarError(titulo, …); break
+  default:  avisarError(titulo, textoFallo)
+}
+```
+
+`avisarError` es el **toast rojo** que aparece en la esquina inferior de la pantalla. Internamente añade un nuevo elemento al `ToastContainer` que la plantilla UA monta una sola vez bajo `<body>` con `<Teleport>` (lo verás en la sesión 10 al estudiar `Teleport` y en la sesión 9 al estudiar `useToast`).
+
+::: tip POR QUÉ EL 400 ES UN CASO ESPECIAL
+Cuando la API responde **400 con `ValidationProblemDetails`** y el cuerpo trae `errors` (un diccionario `campo → mensajes`), `gestionarError` **no lanza el toast**: devuelve los errores a quien llamó para que `useGestionFormularios` los pinte campo a campo. Esto se ve en la **sesión 12 (Validación)**. Para el resto de códigos, el toast es la respuesta por defecto.
+:::
+
+### 1.8.5.4 Cómo se enlaza con sesiones futuras
+
+| Sesión | Qué se profundiza |
+|--------|-------------------|
+| **3 (.NET)** | El mismo `HandleResult` aplicado al CRUD real (no solo a errores de prueba): `ValidationProblemDetails` con `errors` por campo. |
+| **13 (Integración)** | `ErrorHandlerMiddleware` y `ClaseErrores`: cómo se gestiona el error **antes** de devolverlo (notificación al equipo, logs estructurados). |
+| **20 (Avanzadas)** | Serilog con sinks Console / Oracle / File / Email: dónde acaba `Error.TechnicalMessage` que aquí dejamos al margen. |
+| **12 (Integración)** | `useGestionFormularios` consume los `errors` del `ValidationProblemDetails` (caso 400 con campos) y los pinta al lado del input. |
+
+::: info LECTURA RECOMENDADA EN EL CÓDIGO
+- Servidor: `Models/Errors/ErrorPaquetePlSql.cs` (parser), `Models/Errors/Error.cs`, `Models/Errors/Result.cs`, `Controllers/Apis/ApiControllerBase.cs::HandleResult`.
+- Cliente: `@vueua/components/composables/use-axios::gestionarError` y `@vueua/components/composables/use-toast::avisarError`.
+:::
+
 ## 1.9 Ejercicio: API de `Observaciones` de reservas
 
 Vamos a construir una API nueva entera, **desde cero**, replicando el patrón que ya hemos visto en `TipoRecursos`. La parte de base de datos está hecha (tabla, vista, paquete PL/SQL); tú haces los DTOs y el controlador en memoria. La sesión 2 enganchará un servicio real contra Oracle sobre el mismo controlador.
