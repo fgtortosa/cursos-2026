@@ -319,28 +319,33 @@ Con `const` no decimos "el dato no cambia". Decimos "esta referencia reactiva no
 
 ### `ref` — Referencia reactiva
 
-`ref` crea una referencia reactiva a cualquier valor:
+`ref` crea una referencia reactiva a cualquier valor. Este es el ejemplo de la demo `Sesion6HolaVue.vue` del sandbox:
 
 ```html
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const contador = ref<number>(0)
-const nombre = ref<string>('Juan')
-const tareas = ref<string[]>([])
+// 'nombre' es una "caja" que Vue vigila. Cuando cambia el valor
+// interno, el template se vuelve a pintar solo.
+const nombre = ref<string>('Mundo')
 
-function incrementar() {
-  contador.value++          // En script: usamos .value
+function saludarADuke() {
+  nombre.value = 'Duke (la mascota de Java)'   // .value en el script
 }
 </script>
 
 <template>
-  <!-- En template: sin .value (Vue lo hace automáticamente) -->
-  <p>Contador: {{ contador }}</p>
-  <p>Hola {{ nombre }}</p>
-  <button @click="incrementar">+1</button>
+  <!-- En template: sin .value (Vue lo desempaqueta solo) -->
+  <div class="display-4 my-3">Hola, {{ nombre }} 👋</div>
+
+  <!-- v-model: enlace bidireccional con el input -->
+  <input v-model="nombre" type="text" class="form-control" />
+
+  <button class="btn btn-primary" @click="saludarADuke">Saludar a Duke</button>
 </template>
 ```
+
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6HolaVue.vue`.
 
 ::: warning IMPORTANTE
 - En el `<script>`: usa `contador.value`
@@ -351,28 +356,35 @@ Si olvidas `.value` en el script, el código no funciona. Si pones `.value` en e
 
 ### `reactive` — Objeto reactivo
 
-Para objetos, también existe `reactive`:
+Para **objetos** existe `reactive`. La demo `Sesion6RefVsReactive.vue` coloca un `ref` y un `reactive` lado a lado para que se vea la diferencia:
 
 ```html
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { ref, reactive } from 'vue'
 
-const usuario = reactive({
-  nombre: 'Juan',
-  edad: 25,
-  ciudad: 'Alicante'
+// ---- Izquierda: ref<number> ----
+const contadorA = ref<number>(0)
+function incrementarA() { contadorA.value++ }
+
+// ---- Derecha: reactive({ ... }) ----
+const estadoB = reactive({
+  count: 0,
+  ultimaAccion: 'ninguna',
 })
-
-function cumplirAnios() {
-  usuario.edad++          // Sin .value: acceso directo a propiedades
+function incrementarB() {
+  estadoB.count++                       // ✓ modifica propiedad → reactivo
+  estadoB.ultimaAccion = 'increment'
+  // estadoB = { count: 0, ... }        // ✗ NO reasignar: rompe la reactividad
 }
 </script>
 
 <template>
-  <p>{{ usuario.nombre }} tiene {{ usuario.edad }} años</p>
-  <button @click="cumplirAnios">Cumplir años</button>
+  <div>Contador A (ref): {{ contadorA }}</div>
+  <div>Contador B (reactive): {{ estadoB.count }} — última acción: {{ estadoB.ultimaAccion }}</div>
 </template>
 ```
+
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6RefVsReactive.vue`.
 
 ### `ref` vs `reactive` — Cuándo usar cada uno
 
@@ -389,32 +401,53 @@ Prefiere **`ref`** en la mayoría de casos. Es más clara, funciona con todo y t
 
 ## 1.5 Interpolación: mostrar datos en el template {#interpolacion}
 
-Usa llaves dobles `{{ }}` para mostrar valores reactivos en el template:
+Usa llaves dobles `{{ }}` para mostrar valores reactivos en el template. La demo `Sesion6Interpolacion.vue` agrupa los siete usos típicos partiendo de un objeto `persona`:
 
 ```html
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const persona = ref({
+  nombre: 'Ana Garcia',
+  edad: 27,
+  email: 'ana@ua.es',
+  notas: [7.5, 8.2, 9.0, 6.5],
+  rol: 'PDI' as 'PDI' | 'PTGAS' | 'Alumno',
+})
+
+function aniosDesdeNacimiento(edad: number): number {
+  return new Date().getFullYear() - edad
+}
+</script>
+
 <template>
-  <!-- Texto simple -->
-  <p>Hola {{ nombre }}</p>
+  <!-- 1. Propiedades simples -->
+  <p>Nombre: <strong>{{ persona.nombre }}</strong></p>
 
-  <!-- Operaciones -->
-  <p>{{ precio * cantidad }}</p>
+  <!-- 2. Aritmética -->
+  <p>Edad en meses: {{ persona.edad * 12 }}</p>
 
-  <!-- Operador ternario (if/else en una línea) -->
-  <p>{{ edad >= 18 ? 'Mayor de edad' : 'Menor de edad' }}</p>
+  <!-- 3. Concatenación y template literals -->
+  <p>{{ `${persona.nombre} (${persona.rol})` }}</p>
 
-  <!-- Métodos de string -->
-  <p>{{ nombre.toUpperCase() }}</p>
+  <!-- 4. Ternario inline -->
+  <p>¿Mayor de edad? {{ persona.edad >= 18 ? 'Si' : 'No' }}</p>
 
-  <!-- Llamar funciones -->
-  <p>{{ calcularTotal(precio, impuesto) }}</p>
+  <!-- 5. Llamadas a funciones del script -->
+  <p>Año aproximado: {{ aniosDesdeNacimiento(persona.edad) }}</p>
 
-  <!-- Template literal -->
-  <p>{{ `Mi nombre es ${nombre} y tengo ${edad} años` }}</p>
+  <!-- 6. Métodos de arrays/strings -->
+  <p>Media: {{ (persona.notas.reduce((a, b) => a + b, 0) / persona.notas.length).toFixed(2) }}</p>
+
+  <!-- 7. Atributos: ':' (alias de v-bind), no llaves -->
+  <a :href="`mailto:${persona.email}`">Escribir a {{ persona.nombre }}</a>
 </template>
 ```
 
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6Interpolacion.vue`.
+
 ::: warning IMPORTANTE
-La interpolación solo acepta **expresiones** (que devuelven un valor). No acepta sentencias como `if`, `for` o declaraciones de variables. Para lógica condicional en templates, usamos directivas (`v-if`, `v-for`), que veremos en la sesión 2.
+La interpolación solo acepta **expresiones** (que devuelven un valor). No acepta sentencias como `if`, `for` o asignaciones (`{{ x = 5 }}` está prohibido). Para lógica condicional en templates usamos directivas (`v-if`, `v-for`), que veremos en la sesión 7.
 :::
 
 ## 1.6 Depuración básica {#debug-basico}
@@ -502,7 +535,23 @@ Si falla alguno de los tres puntos, ya tienes una pista de dónde está el probl
 En esta sesión no necesitas una depuración avanzada: primero revisa **Console**, luego **Vue Devtools** y por último el código.
 :::
 
-## 1.7 Lo que viene en las próximas sesiones {#preview}
+## 1.7 Pruébalo en el proyecto {#sandbox}
+
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-6/` viven cinco demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-6`:
+
+| Demo | Concepto que ilustra | Fichero |
+|------|----------------------|---------|
+| `Sesion6HolaVue.vue` | Estructura `.vue` mínima, `ref<string>`, `v-model` | `sesion-6/Sesion6HolaVue.vue` |
+| `Sesion6TypeScriptBasico.vue` | Primitivos, arrays, `const`/`let`, union types, `any` vs `unknown` | `sesion-6/Sesion6TypeScriptBasico.vue` |
+| `Sesion6RefVsReactive.vue` | Dos contadores lado a lado: `ref<number>` vs `reactive({...})` | `sesion-6/Sesion6RefVsReactive.vue` |
+| `Sesion6Interpolacion.vue` | Los siete usos típicos de `{{ ... }}` sobre un objeto `persona` | `sesion-6/Sesion6Interpolacion.vue` |
+| `Sesion6DemoTipoRecurso.vue` | Demo integradora con un `TipoRecursoLectura[]` mock y navegación | `sesion-6/Sesion6DemoTipoRecurso.vue` |
+
+::: tip CÓMO TRABAJAR LAS DEMOS
+Abre cada fichero en VS Code, lee el `<script setup>` y luego el `<template>`. Modifica un valor, guarda y observa cómo Vue redibuja **solo** lo que ha cambiado. La integradora `Sesion6DemoTipoRecurso.vue` ya usa el mismo DTO (`TipoRecursoLectura`) que devolverá la API real en la sesión 9; cambiar el mock por una llamada axios no toca el template.
+:::
+
+## 1.8 Lo que viene en las próximas sesiones {#preview}
 
 ### Sesión 2: Datos e interactividad
 
