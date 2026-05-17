@@ -355,3 +355,310 @@ Las integraciones con sistemas externos (UXXI, Sigma…) generan códigos de err
 - `Resources/SharedResource.{es,ca,en}.resx` — claves que ya existen (`TIPO_RECURSO_NO_EXISTE`, `TIPO_RECURSO_CON_ASOCIADOS`, `ERROR_TECNICO`).
 - `uaReservas.Tests/ErrorPaquetePlSqlTests.cs` — tests del parser para cada formato.
 :::
+
+## 13.4 Las cuatro excepciones UA y cuándo siguen teniendo sentido {#excepciones-ua}
+
+Aunque la mayoría de errores ahora viajan en `Result<T>`, las **cuatro excepciones UA históricas** siguen existiendo en los nugets de la plantilla. La pregunta correcta no es "¿las uso?" sino "¿en qué casos concretos tienen aún sentido en el modelo nuevo?".
+
+### 13.4.1 La jerarquía completa
+
+```mermaid
+classDiagram
+    class Exception
+    class BDException {
+      +EnumBDException TipoExcepcion
+    }
+    class MantenimientoException
+    class InfoException
+    class AppException {
+      +ctor(message, params object[] args)
+    }
+
+    Exception <|-- BDException
+    Exception <|-- MantenimientoException
+    Exception <|-- InfoException
+    Exception <|-- AppException
+
+    note for BDException "ua.Models (ClaseOracleBD3)<br/>La lanza el ORM tras ORA-xxxxx.<br/>Convertida a Result<T> por<br/>ErrorPaquetePlSql.DesdeBDException"
+    note for MantenimientoException "ua.Models<br/>Modo mantenimiento programado"
+    note for InfoException "ua.Models<br/>Aviso informativo<br/>(no es un error)"
+    note for AppException "ua.Models.Plantilla.Errores<br/>Flujos MVC clásicos"
+```
+
+<!-- diagram id="s13-jerarquia-excepciones" caption: "Las cuatro excepciones UA históricas y su namespace/uso" -->
+
+### 13.4.2 Cuándo usar cada una
+
+| Excepción | Lanzada por | En el modelo nuevo se usa para… | Lo que **no** se hace ya |
+|-----------|-------------|---------------------------------|---------------------------|
+| **`BDException`** (Usuario / Sistema) | `ClaseOracleBD3` automáticamente al recibir `ORA-`. | **No se lanza a mano**. Se atrapa en el servicio con `catch (BDException ex)` y se pasa a `ErrorPaquetePlSql.AResultFailure<T>(ex)` que la convierte en `Result.Failure(Error)`. | Devolver un `BadRequest` con `bdex.Message` directo desde el controlador (patrón antiguo). |
+| **`AppException`** | El propio código del proyecto. | Solo si quedan vistas MVC clásicas (Razor) que no han migrado a `Result<T>`. En la API moderna **no se lanza**. | Convertirla en `400` desde controladores que ya devuelven `Result<T>`. |
+| **`InfoException`** | El propio código. | Mostrar al usuario un **aviso** que no es realmente un error (`500` con un texto informativo). En la API, en su lugar devuelve un `Result.Success(...)` con metainfo o un `200 + body`. | Usarla como sustituto de validación. |
+| **`MantenimientoException`** | El propio código durante una ventana programada. | Cortar requests cuando la app está en modo mantenimiento. Pasa al middleware con notificación. | Confundirla con error: es un corte deliberado. |
+
+::: tip REGLA DE PULGAR PARA ESCRIBIR CÓDIGO NUEVO
+- **Servicio:** captura `BDException` y devuelve `Result<T>.Failure(...)`. **No** propagues `BDException`.
+- **Controlador:** **no** lances excepciones — devuelve `HandleResult(result)`.
+- **`MantenimientoException`** solo si tu proyecto necesita un modo mantenimiento real. Mírate el patrón en `PlantillaMVCCore.Errores` si lo activas.
+- **`AppException` / `InfoException`:** evita lanzarlas en código nuevo. Si lo haces, hazlo a sabiendas de que pasarán por el middleware.
+:::
+
+### 13.4.3 El patrón `try { } catch (BDException ex) { … }` que aún ves
+
+Es exactamente lo que hace `TiposRecursoServicio.EjecutarPruebaErrorAsync` cuando la excepción Oracle corta la llamada antes de leer los parámetros OUT:
+
+```csharp
+try
+{
+    await _bd.EjecutarParamsAsync(procedimiento, p);
+}
+catch (BDException ex)
+{
+    return ErrorPaquetePlSql.AResultFailure<bool>(ex);   // ← BDException → Result.Failure(Error)
+}
+```
+
+Es la única excepción que sigue cazándose explícitamente en el servicio, **y solo para convertirla en `Result`**. A partir de ese punto el flujo es el mismo que cualquier otro error: `HandleResult` decide el HTTP y `RegistrarErrorTecnico` decide si avisar al equipo.
+
+## 13.5 `ErrorHandlerMiddleware`: el último cortafuegos {#middleware}
+
+Cuando una excepción **no** se atrapa en el servicio y **no** la convierte ningún helper, escapa hacia arriba. El `ErrorHandlerMiddleware` de `PlantillaMVCCore.Errores` la captura en el último momento y decide qué hacer.
+
+### 13.5.1 Qué hace y cómo decide
+
+```mermaid
+flowchart TD
+    EX[Excepción no controlada] --> MID[ErrorHandlerMiddleware.Invoke]
+    MID -->|"AppException"| HTTP400[400 + Message]
+    MID -->|"KeyNotFoundException"| HTTP404[404 + texto genérico]
+    MID -->|"InfoException"| HTTP500i[500 + Message]
+    MID -->|"OperationCanceledException"| HTTP500x[500 + texto genérico]
+    MID -->|"BDException / MantenimientoException / otra"| NOT[INotificadorError.Notificar]
+    NOT --> HTTP500[500 + texto genérico<br/>o stack en Dev]
+    HTTP400 --> DEC{¿API o MVC?}
+    HTTP404 --> DEC
+    HTTP500i --> DEC
+    HTTP500x --> DEC
+    HTTP500 --> DEC
+    DEC -->|Path empieza por /api| JSON["{ message, code }"]
+    DEC -->|resto| RED["Redirect /{idioma}/Error/Index"]
+    style NOT fill:#fff3e0
+    style JSON fill:#e3f2fd
+    style RED fill:#e3f2fd
+```
+
+<!-- diagram id="s13-middleware-decision" caption: "ErrorHandlerMiddleware: clasifica la excepción, decide notificar, y responde según sea API o MVC" -->
+
+### 13.5.2 Lo que decide la notificación
+
+Solo se invoca a `INotificadorError.Notificar` para errores **que no son** de las cuatro excepciones "controladas":
+
+- `AppException`, `KeyNotFoundException`, `InfoException`, `OperationCanceledException` → **no** notifican.
+- Cualquier otra (`BDException`, `MantenimientoException`, `NullReferenceException`…) → **sí** notifica.
+
+::: tip POR QUÉ ALGUNAS NO NOTIFICAN
+- `AppException` se diseñó como "error de aplicación esperable" — equivalente a una validación. Era el `Result.Validation` de antes.
+- `KeyNotFoundException` es el "no encontrado" en el patrón MVC clásico.
+- `InfoException` no es un error: es un aviso al usuario.
+- `OperationCanceledException` suele venir de que el cliente cerró la pestaña.
+
+Llenar el correo con estos eventos era ruido. Por eso quedaron fuera.
+:::
+
+### 13.5.3 Decisión JSON vs MVC
+
+El middleware mira la ruta:
+
+- Si **empieza por `/api`** → responde con JSON: `{ "message": "…", "code": 500 }`.
+- Si no → redirige a `/{idioma}/Error/Index` (vista Razor genérica).
+
+::: warning EL CONTRATO JSON DEL MIDDLEWARE NO ES `ProblemDetails`
+El cuerpo `{ message, code }` es el formato histórico del middleware UA. **Coexiste** con el `ProblemDetails` que devuelve `HandleResult`. En el cliente, `gestionarError` reconoce los dos (`responseData?.message` para el primero, `problemDetails?.detail` para el segundo).
+
+Cuando la app esté completamente migrada, lo natural es que el middleware emita también `ProblemDetails`. Hasta entonces, conviven sin problema.
+:::
+
+### 13.5.4 `UseExceptionHandler("/Error")` que ya tiene el proyecto
+
+`uaReservas/Program.cs` registra hoy el manejador estándar de ASP.NET:
+
+```csharp
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");   // redirige a HomeController.Error()
+    app.UseHsts();
+}
+```
+
+Esto **no** sustituye al `ErrorHandlerMiddleware` de la UA: solo da una vista de respaldo para entornos sin él. Si activas `UseErrorHandlerMiddleware()` se enchufa **antes** del routing y se ocupa de todas las excepciones; `UseExceptionHandler("/Error")` queda como red de seguridad por si el middleware UA estuviera deshabilitado.
+
+Para activarlo cuando esté listo, basta con añadir antes de `app.UseRouting()`:
+
+```csharp
+app.UseErrorHandlerMiddleware();   // o app.UseMiddleware<ErrorHandlerMiddleware>()
+```
+
+::: tip EN ESTE PROYECTO HOY
+`uaReservas` no llama a `UseErrorHandlerMiddleware()`. Los errores controlados (`Result.Failure`) generan respuestas correctas con `HandleResult` y no llegan al middleware. Las excepciones **inesperadas** caen al `UseExceptionHandler("/Error")` estándar, que devuelve la vista `Home/Error` y **no notifica** por correo.
+
+La sesión 13 te enseña los dos modelos para que sepas cuándo merece la pena cablear el middleware UA (lo veremos en §13.6).
+:::
+
+## 13.6 `AddClaseErrores`: notificación por correo {#add-clase-errores}
+
+`ClaseErrores` es el servicio UA que **compone y envía** el correo de error al equipo. Se registra en `Program.cs` con los enriquecedores que aportan datos útiles al mensaje.
+
+### 13.6.1 Configuración mínima en `appsettings.json`
+
+`uaReservas` ya tiene un esqueleto en `appsettings.json`:
+
+```json
+"GestionErrores": {
+  "Activo": true,
+  "EnvioA": "xx@ua.es",
+  "Titulo": "[Error aplicación Plantilla UACloud]"
+}
+```
+
+Las claves recomendadas para producción son las del patrón UA:
+
+| Clave | Para qué | Sugerencia |
+|-------|----------|------------|
+| `GestionErrores:Activo` | Permite apagar el envío sin tocar código | `true` en preproducción y producción |
+| `GestionErrores:EnvioA` | Destinatarios separados por coma | `equipo@ua.es,oncall@ua.es` |
+| `GestionErrores:Remitente` | From del correo | `wwwadm@ua.es` |
+| `GestionErrores:ResponderA` | Reply-To | `noresponder@ua.es` |
+| `GestionErrores:Titulo` | Prefijo del asunto | `[uaReservas] Error detectado` |
+| `GestionErrores:ThrottlingMinutos` | Cooldown entre dos correos del **mismo** error | `5` |
+| `GestionErrores:EnvioEnDesarrollo` | Si `false`, NO envía desde `localhost` / `.campus.ua.es` | `false` |
+| `App:MensajeErrorxDefecto` | Texto que verá el usuario en errores 500 | `Se ha producido un error. Inténtelo más tarde.` |
+
+::: tip THROTTLING — POR QUÉ ES IMPORTANTE
+Si un servicio se cae y mil requests reciben el mismo error en 10 segundos, el throttling evita 1000 correos idénticos al equipo. Con `ThrottlingMinutos = 5`, el segundo correo del **mismo** error tarda al menos 5 minutos en salir. La clave de igualdad es el tipo de excepción + stack trace, no el mensaje literal.
+:::
+
+### 13.6.2 Enriquecedores
+
+`AddClaseErrores` devuelve un builder al que se le encadenan **enriquecedores** que añaden secciones al correo:
+
+| Enriquecedor | Sección que añade al correo |
+|--------------|-----------------------------|
+| `ConEnriquecedorAplicacion()` | `App:NombreApp`, versión, entorno (`Development`/`Staging`/`Production`), servidor, fecha. |
+| `ConEnriquecedorPeticionHttp()` | URL completa, método HTTP, IP del cliente, User-Agent, query string, cuerpo del POST (con secretos filtrados). |
+| `ConEnriquecedorUsuarioCAS()` | `CodPer`, correo, nombre, roles del usuario autenticado. |
+| `ExcluyendoTipos(...)` | Lista de tipos de excepción que **nunca** disparan correo (típicamente `OperationCanceledException`). |
+
+### 13.6.3 `Program.cs` recomendado
+
+```csharp
+using ua;
+using ua.Models.Plantilla.Errores;
+using ua.Models.Plantilla.Errores.Enriquecedores;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Notificación de errores por correo
+builder.Services.AddClaseErrores(builder.Configuration)
+    .ConEnriquecedorAplicacion()         // App:NombreApp, versión, entorno
+    .ConEnriquecedorPeticionHttp()       // URL, IP, UserAgent, body
+    .ConEnriquecedorUsuarioCAS()         // CodPer, correo, roles
+    .ExcluyendoTipos(typeof(OperationCanceledException));
+
+builder.Services.AddControllersWithViews();
+// … resto
+
+var app = builder.Build();
+
+// Middleware UA antes del routing
+app.UseErrorHandlerMiddleware();
+
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
+```
+
+### 13.6.4 Los dos puntos de enganche del correo
+
+Aquí está la idea clave del modelo nuevo: el correo se dispara **desde dos sitios diferentes**, y cada uno cubre la mitad de los casos.
+
+```mermaid
+flowchart LR
+    subgraph rutaA["A · Excepción inesperada"]
+        EX[throw NRE / TimeoutException] --> MID[ErrorHandlerMiddleware]
+        MID --> NOT1[INotificadorError.Notificar]
+    end
+
+    subgraph rutaB["B · Result.Failure con TechnicalMessage"]
+        SVC[Servicio: Result.Failure] --> HR[HandleResult]
+        HR --> RTE[RegistrarErrorTecnico]
+        RTE -.->|"opcional: envía correo<br/>via INotificadorError"| NOT2[INotificadorError.Notificar]
+    end
+
+    NOT1 --> COR[ClaseErrores → SMTP]
+    NOT2 --> COR
+    COR --> EQ[Equipo]
+
+    style rutaA fill:#ffebee
+    style rutaB fill:#fff3e0
+    style COR fill:#e3f2fd
+```
+
+<!-- diagram id="s13-dos-rutas-correo" caption: "Dos puntos de inyección del correo: middleware para lo que escapa, RegistrarErrorTecnico para lo controlado pero relevante" -->
+
+#### Ruta A — Middleware (sin tocar código)
+
+Lo que **ya está** activado al llamar a `UseErrorHandlerMiddleware()`. Cualquier excepción que no esté en la lista exenta dispara el correo. No requiere cambios en los servicios.
+
+#### Ruta B — `RegistrarErrorTecnico` (opt-in por endpoint)
+
+`ApiControllerBase.RegistrarErrorTecnico` se llama **siempre** que `HandleResult` recibe un `Failure`, pero hoy solo loguea. Para enviar correo en errores `Failure` (típico: el `error-tecnico` del paquete de pruebas), inyecta `INotificadorError` y notifica:
+
+```csharp
+// ApiControllerBase.cs — esbozo recomendado
+private void RegistrarErrorTecnico(Error error)
+{
+    if (string.IsNullOrWhiteSpace(error.TechnicalMessage)) return;
+
+    var logger = HttpContext.RequestServices.GetService<ILogger<ApiControllerBase>>();
+    logger?.LogWarning(
+        "Error tecnico {Code}: {TechnicalMessage}",
+        error.Code, error.TechnicalMessage);
+
+    // Notificación por correo solo para Failure (no para Validation / NotFound).
+    if (error.Type != ErrorType.Failure) return;
+
+    var notificador = HttpContext.RequestServices.GetService<INotificadorError>();
+    notificador?.Notificar(
+        $"Error técnico {error.Code}",
+        new ErrorTecnicoControlado(error),       // wrapper que expone error.TechnicalMessage
+        ctx => ctx.Operacion = error.Code);
+}
+```
+
+::: tip POR QUÉ ENVIAR CORREO TAMBIÉN DESDE `RegistrarErrorTecnico`
+Sin esto, un `error-tecnico` del paquete Oracle que se reproduce 100 veces al día se quedaría **solo en logs**. Con la notificación, llega al equipo igual que un `NullReferenceException`. El throttling de `ClaseErrores` evita que los 100 correos lleguen — solo llega el primero y luego se rearma cada `ThrottlingMinutos`.
+
+A cambio, **no** notifiques `Validation` ni `NotFound` desde aquí: son errores **del cliente**, no del servidor. La regla queda en el `if (error.Type != ErrorType.Failure) return;`.
+:::
+
+### 13.6.5 Modo simple (v1.x) y compatibilidad
+
+Si tu proyecto aún no tiene el `INotificadorError` enriquecido (versión 1.x del nuget), `ClaseErrores` se registra a mano:
+
+```csharp
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ClaseCorreo>();
+builder.Services.AddScoped<ClaseErrores>();
+```
+
+Y se usa directamente desde el middleware:
+
+```csharp
+context.RequestServices.GetService<ClaseErrores>()?
+    .GenerarError(error?.Message + " - " + error?.StackTrace, false);
+```
+
+`AddClaseErrores(builder.Configuration)` envuelve los dos modelos: si está disponible `INotificadorError`, lo usa; si no, cae al patrón v1.x. **Migrar no requiere tocar el código de los servicios**.
+
