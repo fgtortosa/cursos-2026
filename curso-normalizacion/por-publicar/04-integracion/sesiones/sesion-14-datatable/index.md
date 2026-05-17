@@ -29,7 +29,7 @@ El contenido detallado de esta sesión está pendiente de publicación.
 
 Pendiente de publicación.
 
-Material de referencia: [DataTable server-side (.NET)](../../parte-dotnet/sesiones/sesion-4-datatable-clasecrud/)
+Material de referencia: [DataTable server-side (.NET)](../../parte-dotnet/sesiones/sesion-04-datatable-clasecrud/)
 
 ## 14.2 Lado servidor: ClaseCrudUtils {#servidor}
 

@@ -26,9 +26,9 @@ Al finalizar este bloque, el alumno será capaz de:
 
 | Sesión | Título | Duración |
 | ------ | ------ | -------- |
-| [Sesión 3: Introducción a .NET](./sesiones/sesion-0-introduccion-dotnet/) | Estructura del proyecto, Program.cs, inyección de dependencias, C# útil | ~1 h 30 |
-| [Sesión 4: Modelos y primer API](./sesiones/sesion-1-dtos-apis/) | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | ~1 h 30 |
-| [Sesión 5: Servicios y acceso a Oracle](./sesiones/sesion-2-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit | ~1 h 30 |
+| [Sesión 3: Introducción a .NET](./sesiones/sesion-00-introduccion-dotnet/) | Estructura del proyecto, Program.cs, inyección de dependencias, C# útil | ~1 h 30 |
+| [Sesión 4: Modelos y primer API](./sesiones/sesion-01-dtos-apis/) | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | ~1 h 30 |
+| [Sesión 5: Servicios y acceso a Oracle](./sesiones/sesion-02-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit | ~1 h 30 |
 
 ::: tip CONTINUACIÓN EN INTEGRACIÓN
 Los temas de validación avanzada, gestión de errores global, DataTable y consumo desde Vue se cubren en las sesiones de **Integración full-stack** (sesiones 11-14), donde se ven de extremo a extremo:

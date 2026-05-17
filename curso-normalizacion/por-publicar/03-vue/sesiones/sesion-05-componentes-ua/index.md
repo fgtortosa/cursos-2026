@@ -462,6 +462,6 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 ## Referencias {#referencias}
 
 - [Documentación de `@vueua/components`](https://preproddesa.campus.ua.es/ComponentesVue/) — catálogo y demos en vivo.
-- [Skill `ua-validacion`](../../../profesor/) — para encadenar este bloque con la validación cross-capa de la sesión 12.
+- [Skill `ua-validacion`]() — para encadenar este bloque con la validación cross-capa de la sesión 12.
 - Sesión 8 — slots, lifecycle, `defineModel` (base teórica de `DialogModal` y `SpinnerModal`).
 - Sesión 9 — composables, `useToast`, `BotonLoading`, arquitectura tres capas (base de la demo integradora).

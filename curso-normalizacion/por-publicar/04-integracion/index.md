@@ -43,7 +43,7 @@ Las sesiones de integración reutilizan y amplían contenido de las partes anter
 
 | Sesión integración | Material de referencia (.NET) |
 |---|---|
-| Sesión 11 | [Ref: OpenAPI y Scalar](../parte-dotnet/sesiones/sesion-5-openapi-scalar/) |
-| Sesión 12 | [Ref: Validación y errores](../parte-dotnet/sesiones/sesion-3-validacion-errores/) |
-| Sesión 13 | [Ref: Validación y errores](../parte-dotnet/sesiones/sesion-3-validacion-errores/) |
-| Sesión 14 | [Ref: DataTable server-side](../parte-dotnet/sesiones/sesion-4-datatable-clasecrud/) |
+| Sesión 11 | [Ref: OpenAPI y Scalar](../parte-dotnet/sesiones/sesion-05-openapi-scalar/) |
+| Sesión 12 | [Ref: Validación y errores](../parte-dotnet/sesiones/sesion-03-validacion-errores/) |
+| Sesión 13 | [Ref: Validación y errores](../parte-dotnet/sesiones/sesion-03-validacion-errores/) |
+| Sesión 14 | [Ref: DataTable server-side](../parte-dotnet/sesiones/sesion-04-datatable-clasecrud/) |

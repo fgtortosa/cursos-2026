@@ -18,7 +18,7 @@ Al finalizar esta sesión, el alumno será capaz de:
 :::
 
 ::: tip NOTA
-Material de referencia en parte-dotnet/sesiones/sesion-5-openapi-scalar/.
+Material de referencia en parte-dotnet/sesiones/sesion-05-openapi-scalar/.
 :::
 
 ## 18.1 Tests unitarios con xUnit {#tests-unitarios-xunit}

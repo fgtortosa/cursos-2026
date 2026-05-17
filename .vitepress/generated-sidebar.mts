@@ -211,46 +211,29 @@ export const generatedSidebar = {
           "link": "/curso-normalizacion/05-avanzadas/"
         },
         {
+          "text": "Proyecto final del curso",
+          "link": "/curso-normalizacion/06-proyecto-final/"
+        },
+        {
+          "text": "Curso Normalización — Guía para Claude",
+          "link": "/curso-normalizacion/CLAUDE"
+        },
+        {
           "text": "Organización del curso",
           "link": "/curso-normalizacion/organizacion-del-curso"
+        },
+        {
+          "text": "Plan de alineación — Sesiones Vue del curso ↔ `uaReservas` ↔ `vueua-lib`",
+          "link": "/curso-normalizacion/PLAN-ALINEACION-TEMARIO-CURSO-NORMALIZACION"
+        },
+        {
+          "text": "Revisión didáctica · Sesiones Vue (S6–S10)",
+          "link": "/curso-normalizacion/REVISION-DIDACTICA-S6-S10"
         }
       ]
     }
   ],
   "/curso-normalizacion/profesor/": [
-    {
-      "text": "Material Docente .NET",
-      "items": [
-        {
-          "text": "Indice",
-          "link": "/curso-normalizacion/02-dotnet/guia-profesor/"
-        },
-        {
-          "text": "Guia del profesor — Sesion 3: Introduccion a .NET y conceptos previos",
-          "link": "/curso-normalizacion/02-dotnet/guia-profesor/sesion-0"
-        },
-        {
-          "text": "Guia del profesor — Sesion 4: Modelos y primer API",
-          "link": "/curso-normalizacion/02-dotnet/guia-profesor/sesion-1"
-        },
-        {
-          "text": "Guia del profesor — Sesion 5: Servicios y acceso a Oracle",
-          "link": "/curso-normalizacion/02-dotnet/guia-profesor/sesion-2"
-        },
-        {
-          "text": "Guia del profesor — Material de referencia: Validacion, errores y buenas practicas",
-          "link": "/curso-normalizacion/02-dotnet/guia-profesor/sesion-3"
-        },
-        {
-          "text": "Guia del profesor — Material de referencia: DataTable server-side y ClaseCrud",
-          "link": "/curso-normalizacion/02-dotnet/guia-profesor/sesion-4"
-        },
-        {
-          "text": "Guia del profesor — Material de referencia: OpenAPI, Scalar y pruebas de integracion",
-          "link": "/curso-normalizacion/02-dotnet/guia-profesor/sesion-5"
-        }
-      ]
-    },
     {
       "text": "Material Docente Vue",
       "items": [

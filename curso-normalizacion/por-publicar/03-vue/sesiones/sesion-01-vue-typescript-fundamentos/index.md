@@ -401,7 +401,7 @@ Prefiere **`ref`** en la mayoría de casos. Es más clara, funciona con todo y t
 
 ## 1.5 Interpolación: mostrar datos en el template {#interpolacion}
 
-Usa llaves dobles `{{ }}` para mostrar valores reactivos en el template. La demo `Sesion6Interpolacion.vue` agrupa los siete usos típicos partiendo de un objeto `persona`:
+Usa llaves dobles <code v-pre>{{ }}</code> para mostrar valores reactivos en el template. La demo `Sesion6Interpolacion.vue` agrupa los siete usos típicos partiendo de un objeto `persona`:
 
 ```html
 <script setup lang="ts">
@@ -447,7 +447,7 @@ function aniosDesdeNacimiento(edad: number): number {
 > Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6Interpolacion.vue`.
 
 ::: warning IMPORTANTE
-La interpolación solo acepta **expresiones** (que devuelven un valor). No acepta sentencias como `if`, `for` o asignaciones (`{{ x = 5 }}` está prohibido). Para lógica condicional en templates usamos directivas (`v-if`, `v-for`), que veremos en la sesión 7.
+La interpolación solo acepta **expresiones** (que devuelven un valor). No acepta sentencias como `if`, `for` o asignaciones (<code v-pre>{{ x = 5 }}</code> está prohibido). Para lógica condicional en templates usamos directivas (`v-if`, `v-for`), que veremos en la sesión 7.
 :::
 
 ## 1.6 Depuración básica {#debug-basico}
@@ -544,7 +544,7 @@ En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-6/` viven cinco demos nav
 | `Sesion6HolaVue.vue` | Estructura `.vue` mínima, `ref<string>`, `v-model` | `sesion-6/Sesion6HolaVue.vue` |
 | `Sesion6TypeScriptBasico.vue` | Primitivos, arrays, `const`/`let`, union types, `any` vs `unknown` | `sesion-6/Sesion6TypeScriptBasico.vue` |
 | `Sesion6RefVsReactive.vue` | Dos contadores lado a lado: `ref<number>` vs `reactive({...})` | `sesion-6/Sesion6RefVsReactive.vue` |
-| `Sesion6Interpolacion.vue` | Los siete usos típicos de `{{ ... }}` sobre un objeto `persona` | `sesion-6/Sesion6Interpolacion.vue` |
+| `Sesion6Interpolacion.vue` | Los siete usos típicos de <code v-pre>{{ ... }}</code> sobre un objeto `persona` | `sesion-6/Sesion6Interpolacion.vue` |
 | `Sesion6DemoTipoRecurso.vue` | Demo integradora con un `TipoRecursoLectura[]` mock y navegación | `sesion-6/Sesion6DemoTipoRecurso.vue` |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
@@ -586,8 +586,8 @@ Crea un componente `TarjetaPresentacion.vue` con:
    - Un párrafo: `"Vivo en [ciudad] y soy [profesion]"`
    - Los hobbies en una lista `<ul>` (manual, sin `v-for` por ahora)
    - Estado con operador ternario: "Activo" / "Inactivo"
-   - Año aproximado de nacimiento: `{{ 2025 - edad }}`
-   - Un mensaje con ternario: `{{ edad >= 50 ? '¡Veterano!' : '¡Joven aún!' }}`
+   - Año aproximado de nacimiento: <code v-pre>{{ 2025 - edad }}</code>
+   - Un mensaje con ternario: <code v-pre>{{ edad >= 50 ? '¡Veterano!' : '¡Joven aún!' }}</code>
 
 ::: tip PISTA DIDÁCTICA
 En esta sesión todavía **no** usamos interfaces. Primero asentamos `ref`, `.value` e interpolación. Los contratos de datos llegarán en la sesión 2.

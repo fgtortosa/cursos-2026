@@ -345,7 +345,7 @@ flowchart LR
     A[onMounted] -->|"Carga inicial<br/>una sola vez"| OK1[✅]
     B[watchEffect / watch] -->|"Cargar al cambiar<br/>un id, filtro, etc."| OK2[✅]
     C[Evento de usuario<br/>@click, @submit] -->|"Recargar manual,<br/>guardar, eliminar"| OK3[✅]
-    D[Bloque del template] -->|"Antipatrón:<br/>{{ cargar() }}"| KO[❌]
+    D[Bloque del template] -->|"Antipatrón:<br/>cargar() en template"| KO[❌]
     style OK1 fill:#e8f5e9
     style OK2 fill:#e8f5e9
     style OK3 fill:#e8f5e9
@@ -362,7 +362,7 @@ flowchart LR
 | `@click="recargar"` | Botón "Recargar" o "Reintentar" tras error. |
 
 ::: warning EVITAR
-Nunca llames a una función async desde el template (`{{ cargar() }}`). El template se reevalúa decenas de veces y dispararás peticiones repetidas y rebotes infinitos.
+Nunca llames a una función async desde el template (<code v-pre>{{ cargar() }}</code>). El template se reevalúa decenas de veces y dispararás peticiones repetidas y rebotes infinitos.
 :::
 
 ### 11.5.2 Patrón canónico en el composable

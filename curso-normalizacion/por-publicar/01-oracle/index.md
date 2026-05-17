@@ -23,8 +23,8 @@ Al finalizar este bloque serás capaz de:
 
 | Sesión                                                       | Título                                                                                    |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| [Sesión 1](./sesiones/1-fundamentos-oracle/)                 | Fundamentos de oracle                                                                     |
-| [Ejercicio sesión 1](./sesiones/2-ejercicio-fundamentos/)    | Inspección del schema y diseño de un catálogo                                             |
-| [Sesión 2](./sesiones/3-tablas-vistas/)                      | Tablas, vistas y paquetes                                                                 |
-| [Ejercicio sesión 2A](./sesiones/4-ejercicio-tablas-vistas/) | Diseño de vistas (`VRES_FRANJA_HORARIO`, `VRES_HORARIO_DIA`)                              |
-| [Ejercicio sesión 2B](./sesiones/5-paquetes/)                | Procedimientos en paquetes (`ACTUALIZAR_BLOQUEADO`, `CREAR_HORARIO_DIA`, `CREAR_RESERVA`) |
+| [Sesión 1](./sesiones/sesion-01-fundamentos-oracle/)                 | Fundamentos de oracle                                                                     |
+| [Ejercicio sesión 1](./sesiones/sesion-02-ejercicio-fundamentos/)    | Inspección del schema y diseño de un catálogo                                             |
+| [Sesión 2](./sesiones/sesion-03-tablas-vistas/)                      | Tablas, vistas y paquetes                                                                 |
+| [Ejercicio sesión 2A](./sesiones/sesion-04-ejercicio-tablas-vistas/) | Diseño de vistas (`VRES_FRANJA_HORARIO`, `VRES_HORARIO_DIA`)                              |
+| [Ejercicio sesión 2B](./sesiones/sesion-05-paquetes/)                | Procedimientos en paquetes (`ACTUALIZAR_BLOQUEADO`, `CREAR_HORARIO_DIA`, `CREAR_RESERVA`) |
