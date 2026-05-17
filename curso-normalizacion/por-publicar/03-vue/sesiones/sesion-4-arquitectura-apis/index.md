@@ -140,101 +140,122 @@ Rel(serv, api, "GET/POST/PUT/DELETE", "JSON/HTTPS")
 La **vista** no debe saber **cómo** se piden los datos. El **composable** no debe saber **a qué URL** se piden. El **servicio** no debe saber **cómo se pintan**. Si rompes esta regla, los cambios pequeños se vuelven cambios grandes.
 :::
 
-### Ejemplo completo: gestión de usuarios
+### Ejemplo completo: listado de recursos
 
-**1. Servicio** — solo llamadas HTTP:
+Es el patrón real que vive en el sandbox (demo `Sesion9ArquitecturaTresCapas.vue`). El servicio todavía es **mock** — en la sesión 11 se reemplaza por la versión con `useAxios` y la vista no cambia.
+
+**1. Servicio** — habla con la "API" y devuelve DTOs en formato servidor:
 
 ```typescript
-// src/services/useUsuariosService.ts
-import { llamadaAxios, verbosAxios } from 'vueua-useaxios/services/useAxios'
+// src/services/recursosServicioMock.ts
+export interface IClaseRecursoDto {
+  Id: number          // PascalCase como llegaría de la API .NET
+  Nombre: string
+  Tipo: string
+  Activo: boolean
+}
 
-export function useUsuariosService() {
-  const obtenerUsuarios = async () => {
-    return await llamadaAxios('/usuarios', verbosAxios.GET)
+const DATOS: IClaseRecursoDto[] = [
+  { Id: 1, Nombre: 'Aula 12',          Tipo: 'Aula',   Activo: true },
+  { Id: 2, Nombre: 'Aula 14',          Tipo: 'Aula',   Activo: false },
+  { Id: 3, Nombre: 'Sala reuniones A', Tipo: 'Sala',   Activo: true },
+  { Id: 4, Nombre: 'Proyector',        Tipo: 'Equipo', Activo: true },
+]
+
+function dormir(ms: number) {
+  return new Promise<void>(resolve => setTimeout(resolve, ms))
+}
+
+export function useRecursosServicioMock() {
+  async function listar(): Promise<IClaseRecursoDto[]> {
+    await dormir(1200)
+    return DATOS.slice()    // copia: no exponemos el array original
   }
-
-  const crearUsuario = async (usuario: { nombre: string; email: string }) => {
-    return await llamadaAxios('/usuarios', verbosAxios.POST, usuario)
-  }
-
-  const eliminarUsuario = async (id: number) => {
-    return await llamadaAxios(`/usuarios/${id}`, verbosAxios.DELETE)
-  }
-
-  return { obtenerUsuarios, crearUsuario, eliminarUsuario }
+  return { listar }
 }
 ```
 
-**2. Composable** — lógica reactiva de la vista:
+**2. Composable** — estado reactivo + adaptador DTO → interfaz cliente:
 
 ```typescript
-// src/composables/useUsuarios.ts
-import { ref, computed } from 'vue'
-import { useUsuariosService } from '@/services/useUsuariosService'
+// src/composables/useRecursos.ts
+import { ref } from 'vue'
+import { useRecursosServicioMock, type IClaseRecursoDto } from '@/services/recursosServicioMock'
 
-export function useUsuarios() {
-  const { obtenerUsuarios, crearUsuario, eliminarUsuario } = useUsuariosService()
+export interface IClaseRecurso {
+  id: number; nombre: string; tipo: string; activo: boolean
+}
 
-  const usuarios = ref<any[]>([])
-  const cargando = ref<boolean>(false)
-  const filtro = ref<string>('')
+function dtoARecurso(dto: IClaseRecursoDto): IClaseRecurso {
+  return { id: dto.Id, nombre: dto.Nombre, tipo: dto.Tipo, activo: dto.Activo }
+}
 
-  const usuariosFiltrados = computed(() =>
-    usuarios.value.filter((u: any) =>
-      u.nombre.toLowerCase().includes(filtro.value.toLowerCase())
-    )
-  )
+export function useRecursos() {
+  const servicio = useRecursosServicioMock()
+  const recursos = ref<IClaseRecurso[]>([])
+  const cargando = ref(false)
+  const error    = ref<string | null>(null)
 
-  const cargarUsuarios = async () => {
+  async function cargar() {
     cargando.value = true
+    error.value = null
     try {
-      const response = await obtenerUsuarios()
-      usuarios.value = response.data.value
+      const dtos = await servicio.listar()
+      recursos.value = dtos.map(dtoARecurso)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Error desconocido'
     } finally {
       cargando.value = false
     }
   }
 
-  const agregar = async (nombre: string, email: string) => {
-    await crearUsuario({ nombre, email })
-    await cargarUsuarios()
-  }
-
-  const eliminar = async (id: number) => {
-    await eliminarUsuario(id)
-    usuarios.value = usuarios.value.filter((u: any) => u.id !== id)
-  }
-
-  return { usuarios, cargando, filtro, usuariosFiltrados, cargarUsuarios, agregar, eliminar }
+  return { recursos, cargando, error, cargar }
 }
 ```
 
-**3. Vista** — solo UI:
+**3. Vista** — solo UI, componentes UA y `onMounted`:
 
 ```html
-<!-- src/views/Usuarios.vue -->
+<!-- views/sesiones-vue/sesion-9/Sesion9ArquitecturaTresCapas.vue -->
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useUsuarios } from '@/composables/useUsuarios'
+import { BotonLoading } from '@vueua/components/ui/boton-loading'
+import { SpinnerModal } from '@vueua/components/ui/spinner-modal'
+import { avisar, avisarError } from '@vueua/components/composables/use-toast'
+import { useRecursos } from '@/composables/useRecursos'
 
-const { usuariosFiltrados, filtro, cargando, cargarUsuarios, eliminar } = useUsuarios()
+const { recursos, cargando, error, cargar } = useRecursos()
 
-onMounted(() => cargarUsuarios())
+async function recargar() {
+  await cargar()
+  if (error.value) { avisarError('Error', error.value); return }
+  avisar('Cargado', `${recursos.value.length} recursos disponibles`)
+}
+
+onMounted(() => { void cargar() })
 </script>
 
 <template>
-  <div>
-    <h1>Gestión de Usuarios</h1>
-    <input v-model="filtro" placeholder="Buscar..." class="form-control mb-3" />
+  <BotonLoading class="btn btn-primary mb-3" :loading="cargando" @click="recargar">
+    Recargar
+  </BotonLoading>
 
-    <p v-if="cargando">Cargando...</p>
-    <ul v-else class="list-group">
-      <li v-for="u in usuariosFiltrados" :key="u.id" class="list-group-item d-flex justify-content-between">
-        {{ u.nombre }} — {{ u.email }}
-        <button @click="eliminar(u.id)" class="btn btn-sm btn-danger">Eliminar</button>
-      </li>
-    </ul>
-  </div>
+  <div v-if="error" class="alert alert-danger">{{ error }}</div>
+
+  <table v-if="!cargando && !error" class="table table-striped">
+    <tbody>
+      <tr v-for="r in recursos" :key="r.id">
+        <td>{{ r.id }}</td><td>{{ r.nombre }}</td><td>{{ r.tipo }}</td>
+        <td>
+          <span class="badge" :class="r.activo ? 'bg-success' : 'bg-secondary'">
+            {{ r.activo ? 'Si' : 'No' }}
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <SpinnerModal v-model:visible="cargando" titulo="Cargando" mensaje="Consultando…" />
 </template>
 ```
 
@@ -791,6 +812,22 @@ Antes de dar por buena una práctica de arquitectura, revisa estos puntos:
 
 ::: warning CRITERIO DE CALIDAD
 Si un alumno solo prueba el "camino feliz" y no revisa errores de red o validación, la práctica no está completa aunque funcione visualmente.
+:::
+
+## 4.8 Pruébalo en el proyecto {#sandbox}
+
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-9/` hay cinco demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-9`:
+
+| Demo | Concepto que ilustra | Fichero |
+|------|----------------------|---------|
+| `Sesion9ContadorComposable.vue` | Composable casero (`useContador`) con dos instancias **independientes** | `sesion-9/Sesion9ContadorComposable.vue` + `composables/useContador.ts` |
+| `Sesion9UseUtils.vue` | Composable sin estado: `generateUniqueId` y `deepClone` de `@vueua/components` | `sesion-9/Sesion9UseUtils.vue` |
+| `Sesion9UseToast.vue` | `avisar / avisarError / avisarPersonalizado`, grupos y toast persistente | `sesion-9/Sesion9UseToast.vue` |
+| `Sesion9BotonLoading.vue` | Patrón "ocupado" como **componente** (`<BotonLoading>`) y como **directiva** (`v-loading`) | `sesion-9/Sesion9BotonLoading.vue` |
+| `Sesion9ArquitecturaTresCapas.vue` | Integradora: Vista → `useRecursos` → `recursosServicioMock` con `SpinnerModal` y `useToast` | `sesion-9/Sesion9ArquitecturaTresCapas.vue` + `composables/useRecursos.ts` + `services/recursosServicioMock.ts` |
+
+::: tip CÓMO TRABAJAR LAS DEMOS
+La integradora `Sesion9ArquitecturaTresCapas.vue` es el "estado final" de esta sesión: la vista no sabe de dónde vienen los datos, el composable transforma DTOs PascalCase del servidor a camelCase del cliente, y el servicio aún es mock. Cuando en la sesión 11 sustituyas `recursosServicioMock` por uno con `useAxios`, ni la vista ni el composable se tocan.
 :::
 
 ---
