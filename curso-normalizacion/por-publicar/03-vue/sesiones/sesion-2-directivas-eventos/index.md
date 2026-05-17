@@ -351,31 +351,35 @@ const esActivo = ref<boolean>(true)
 
 ### Vincular clases CSS (muy común)
 
-Las llaves `{ }` representan un objeto donde la **clave** es el nombre de la clase y el **valor** es una condición booleana:
+Las llaves `{ }` representan un objeto donde la **clave** es el nombre de la clase y el **valor** es una condición booleana. La demo `Sesion7Semaforo.vue` lo combina con un **union type** para que TypeScript impida valores fuera del dominio:
 
 ```html
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const estaActivo = ref<boolean>(true)
-const tieneError = ref<boolean>(false)
-const claseBase = ref<string>('btn')
+type EstadoSemaforo = 'rojo' | 'ambar' | 'verde'
+const estado = ref<EstadoSemaforo>('rojo')
 </script>
 
 <template>
-  <!-- Objeto de clases: se aplica la clase si la condición es true -->
-  <div :class="{ activo: estaActivo, error: tieneError }">
-    Contenido
+  <div
+    class="semaforo"
+    :class="{
+      'semaforo--rojo':  estado === 'rojo',
+      'semaforo--ambar': estado === 'ambar',
+      'semaforo--verde': estado === 'verde',
+    }"
+  >
+    Estado actual: <strong>{{ estado }}</strong>
   </div>
-  <!-- Renderiza: <div class="activo">Contenido</div> -->
 
-  <!-- Array: combina clase fija + clase condicional -->
-  <button :class="[claseBase, { 'btn-activo': estaActivo }]">
-    Botón
-  </button>
-  <!-- Renderiza: <button class="btn btn-activo">Botón</button> -->
+  <button class="btn btn-danger"  @click="estado = 'rojo'">Rojo</button>
+  <button class="btn btn-warning" @click="estado = 'ambar'">Ambar</button>
+  <button class="btn btn-success" @click="estado = 'verde'">Verde</button>
 </template>
 ```
+
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7Semaforo.vue`. Intentar `estado.value = 'azul'` en el script falla en compilación: ese es el valor del union type.
 
 ::: warning IMPORTANTE
 Si el nombre de clase tiene guion (ej: `btn-activo`), debe ir entre comillas: `'btn-activo'`.
@@ -485,73 +489,47 @@ function enviarFormulario() {
 
 Los métodos de arrays son fundamentales en Vue para transformar, filtrar y agregar datos. Todos son **inmutables** (no modifican el array original, excepto `.sort()`).
 
-### `.map()` — Transformar cada elemento
-
-Retorna un **nuevo array** del mismo tamaño con cada elemento transformado:
+La demo `Sesion7MetodosArrays.vue` muestra los cuatro métodos clave sobre el mismo array de reservas y todos como `computed`:
 
 ```typescript
-interface IClaseProducto {
+interface IClaseReserva {
   id: number
-  nombre: string
-  precio: number
+  recurso: string
+  horas: number
+  confirmada: boolean
 }
 
-const productos: IClaseProducto[] = [
-  { id: 1, nombre: 'Laptop', precio: 800 },
-  { id: 2, nombre: 'Mouse', precio: 20 },
-  { id: 3, nombre: 'Teclado', precio: 45 }
-]
+const reservas = ref<IClaseReserva[]>([
+  { id: 1, recurso: 'Aula 12',          horas: 2, confirmada: true },
+  { id: 2, recurso: 'Sala reuniones A', horas: 1, confirmada: false },
+  { id: 3, recurso: 'Aula 12',          horas: 3, confirmada: true },
+  { id: 4, recurso: 'Proyector',        horas: 1, confirmada: true },
+])
 
-// Extraer solo nombres
-const nombres: string[] = productos.map(p => p.nombre)
-// ['Laptop', 'Mouse', 'Teclado']
+// .map → transforma cada elemento; mismo tamaño que el original.
+const titulares = computed(() =>
+  reservas.value.map(r => `${r.recurso} (${r.horas}h)`)
+)
 
-// Añadir IVA a cada precio
-const conIva = productos.map(p => ({
-  ...p,
-  precioConIva: p.precio * 1.21
-}))
-```
+// .filter → deja solo los que cumplen.
+const confirmadas = computed(() =>
+  reservas.value.filter(r => r.confirmada)
+)
 
-### `.filter()` — Filtrar elementos
+// .find → primero que cumple, o undefined.
+const primeraSinConfirmar = computed(() =>
+  reservas.value.find(r => !r.confirmada)
+)
 
-Retorna un nuevo array con los elementos que **cumplen la condición**:
-
-```typescript
-// Productos caros (> 30€)
-const caros = productos.filter(p => p.precio > 30)
-// [{ id: 1, nombre: 'Laptop', precio: 800 }, { id: 3, nombre: 'Teclado', precio: 45 }]
-
-// Buscar por nombre (case-insensitive)
-const busqueda = 'mouse'
-const resultado = productos.filter(p =>
-  p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+// .reduce → acumula. Aquí, horas confirmadas totales.
+const horasConfirmadas = computed(() =>
+  reservas.value
+    .filter(r => r.confirmada)
+    .reduce((total, r) => total + r.horas, 0)
 )
 ```
 
-### `.find()` — Buscar un elemento
-
-Retorna el **primer** elemento que cumple la condición (o `undefined`):
-
-```typescript
-const producto = productos.find(p => p.id === 2)
-// { id: 2, nombre: 'Mouse', precio: 20 }
-
-const noExiste = productos.find(p => p.id === 99)
-// undefined
-```
-
-### `.reduce()` — Acumular / agregar
-
-Reduce el array a un **único valor** (suma, conteo, agrupación...):
-
-```typescript
-// Sumar precios
-const total = productos.reduce((acumulador, producto) => {
-  return acumulador + producto.precio
-}, 0) // 0 es el valor inicial del acumulador
-// 865
-```
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7MetodosArrays.vue`. Encadenar `.filter().reduce()` es legible y no muta el array original.
 
 ### `.some()` y `.every()` — Verificar condiciones
 
@@ -607,17 +585,27 @@ const mejoresAprobados = estudiantes
 
 ### Spread operator (`...`) y clonación superficial
 
+La demo `Sesion7SpreadDestructuring.vue` recorre los cuatro patrones (spread, destructuring, `?.` y `??`) sobre un mismo `IClaseUsuario`:
+
 ```typescript
-const tarea = { id: 1, texto: 'Preparar sesión', completada: false }
+interface IClaseUsuario {
+  nombre: string
+  email?: string
+  direccion?: { ciudad: string; codigoPostal?: string }
+}
 
-// Clonar objeto
-const copia = { ...tarea }
+const usuario = ref<IClaseUsuario>({
+  nombre: 'Ada Lovelace',
+  email: 'ada@uacloud.ua.es',
+  direccion: { ciudad: 'Alicante' },
+})
 
-// Combinar objetos
-const completa = { ...tarea, prioridad: 'alta' }
+// 1) Spread para clonar y modificar SIN mutar el original.
+const usuarioRenombrado = { ...usuario.value, nombre: 'Ada L.' }
 
-// Sobrescribir propiedades
-const actualizada = { ...tarea, completada: true }
+// 2) Spread con arrays.
+const numeros = [1, 2, 3]
+const numerosAmpliados = [0, ...numeros, 4]
 ```
 
 ::: warning IMPORTANTE
@@ -634,20 +622,17 @@ const copiaReal = structuredClone(usuario)
 
 ### Destructuring
 
-Extrae propiedades de un objeto en variables individuales:
+Extrae propiedades de un objeto en variables individuales. Continuando con el mismo `usuario` de la demo:
 
 ```typescript
-const usuario = { nombre: 'Ana', edad: 25, ciudad: 'Alicante' }
+// Destructuring con renombrado y default.
+const { nombre: nombreUsuario, email = '(sin correo)' } = usuario.value
 
-const { nombre, edad } = usuario
-console.log(nombre)  // 'Ana'
-console.log(edad)    // 25
+// Acceso seguro a campos opcionales anidados.
+const codigoPostal = usuario.value.direccion?.codigoPostal
 
-// Con renombrado
-const { nombre: nombreUsuario } = usuario
-
-// Con valor por defecto
-const { ciudad = 'Desconocida' } = usuario
+// Nullish: '' es válido, solo cae al fallback con null/undefined.
+const cpVisible = codigoPostal ?? 'sin CP'
 ```
 
 ### Optional chaining (`?.`) y Nullish coalescing (`??`)
@@ -689,6 +674,23 @@ Usa `??` en lugar de `||` cuando quieras distinguir entre "valor vacío pero vá
 
 ::: info PUENTE A LA SESIÓN 3
 En esta sesión trabajamos `v-model`, handlers y validaciones básicas. En la sesión 3 verás el patrón completo de formulario con **estado derivado** usando `computed`: normalización de entrada, habilitar/deshabilitar acciones y criterio `computed` vs método.
+:::
+
+## 2.11 Pruébalo en el proyecto {#sandbox}
+
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-7/` hay seis demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-7`:
+
+| Demo | Concepto que ilustra | Fichero |
+|------|----------------------|---------|
+| `Sesion7Semaforo.vue` | `:class` con objeto + union type (`'rojo' \| 'ambar' \| 'verde'`) | `sesion-7/Sesion7Semaforo.vue` |
+| `Sesion7VifVshow.vue` | `v-if` destruye/crea nodo; `v-show` solo cambia `display` | `sesion-7/Sesion7VifVshow.vue` |
+| `Sesion7ListaTareas.vue` | `v-for`, `:key` estable, `v-model` en checkbox, `@keyup.enter` | `sesion-7/Sesion7ListaTareas.vue` |
+| `Sesion7MetodosArrays.vue` | `.map / .filter / .find / .reduce` sobre reservas, todos como `computed` | `sesion-7/Sesion7MetodosArrays.vue` |
+| `Sesion7SpreadDestructuring.vue` | Spread, destructuring, `?.`, `??` sobre `IClaseUsuario` | `sesion-7/Sesion7SpreadDestructuring.vue` |
+| `Sesion7TablaRecursos.vue` | Demo integradora: filtro + checkbox + tabla con clases dinámicas | `sesion-7/Sesion7TablaRecursos.vue` |
+
+::: tip CÓMO TRABAJAR LAS DEMOS
+Abre `Sesion7TablaRecursos.vue` con F12 abierto y mira cómo Vue solo redibuja las filas afectadas al teclear en el filtro o marcar "solo activos". Esta vista es el "antes" del DataTable con paginación servidor que veremos en la sesión 14.
 :::
 
 ---
