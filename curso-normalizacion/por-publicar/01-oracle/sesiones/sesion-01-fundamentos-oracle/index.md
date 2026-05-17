@@ -7,7 +7,7 @@ outline: [2, 4]
 # Sesión 1 — Fundamentos Oracle
 
 ::: info CONTEXTO
-**Duración:** 1 hora — 30 min teoría + 30 min práctica
+**Duración:** 1 h 30 min
 
 Esta sesión consolida la arquitectura ADM/WEB que viste en el Curso de Bienvenida y la amplía con las decisiones de diseño que debes tomar al arrancar un proyecto real: qué convenciones seguir, cómo nombrar cada objeto, qué restricciones poner en las tablas y qué permisos otorgar.
 
@@ -921,7 +921,7 @@ Diseña las vistas con columnas `_ES` / `_CA` y deja que la librería haga la se
 
 ## Práctica — Sesión 1 {#practica}
 
-**Duración:** 30 minutos
+**Duración:** 1 h 30 min
 **Herramienta:** DBeaver o SQL Developer para VS Code
 
 Esta práctica te prepara para el [ejercicio entregable de la sesión 1](../2-ejercicio-fundamentos/), donde aplicarás los conceptos sobre una tabla nueva.
@@ -1034,3 +1034,11 @@ Aunque `NUMBER(1) IN (0,1)` también funcionaría, la convención de la UA es `V
 2. `'S'` y `'N'` son legibles directamente al hacer `SELECT` desde una herramienta SQL.
 3. `ClaseOracleBD3` trata `'S'/'N'` como `bool` automáticamente.
    :::
+
+---
+
+<!-- NAV:START -->
+| Anterior | Inicio | Siguiente |
+|---|---|---|
+| — | [Índice del curso](../../../) | [Sesión 2: Ejercicio: inspección del schema y catálogo →](../../../01-oracle/sesiones/sesion-02-ejercicio-fundamentos/) |
+<!-- NAV:END -->

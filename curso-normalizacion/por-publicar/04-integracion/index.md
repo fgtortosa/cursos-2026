@@ -1,30 +1,30 @@
 ---
-title: Integración full-stack — Sesiones 11 a 14
-description: Sesiones de integración donde cada tema se cubre de extremo a extremo (Oracle → .NET → Vue)
+title: Integración full-stack — Sesiones 14 a 17
+description: Sesiones de integración donde cada tema se cubre de extremo a extremo (Oracle → .NET → Vue).
 outline: deep
 ---
 
 # Integración full-stack
 
-Esta sección cubre las **sesiones 11 a 14** del curso. Cada sesión trata un tema transversal de extremo a extremo, conectando Oracle, .NET y Vue en un flujo completo.
+Esta sección cubre las **sesiones 14 a 17** del curso. Cada sesión trata un tema transversal de extremo a extremo, conectando Oracle, .NET y Vue en un flujo completo.
 
 ## Requisitos previos
 
 ::: warning IMPORTANTE
 Estas sesiones asumen que se han completado las partes anteriores:
-- [Parte Oracle](../parte-oracle/) (sesiones 1-2)
-- [Parte .NET](../parte-dotnet/) (sesiones 3-5)
-- [Parte Vue](../parte-vue/) (sesiones 6-10)
+- [Parte Oracle](../01-oracle/) (sesiones 1-5).
+- [Parte .NET](../02-dotnet/) (sesiones 6-8).
+- [Parte Vue](../03-vue/) (sesiones 9-13).
 :::
 
-## Sesiones
+## Sesiones de este bloque
 
-| Sesión | Título | Enfoque |
-|--------|--------|---------|
-| [Sesión 11: Llamadas a la API y autenticación](./sesiones/sesion-11-api-autenticacion/) | Cómo Vue habla con .NET, CAS/JWT, OpenAPI y Scalar | API + Auth |
-| [Sesión 12: Validación en todas las capas](./sesiones/sesion-12-validacion/) | DataAnnotations, FluentValidation, ModelState y errores en Vue | Validación |
-| [Sesión 13: Gestión de errores de extremo a extremo](./sesiones/sesion-13-errores/) | Result\<T\>, ProblemDetails, IExceptionHandler, toasts y modales | Errores |
-| [Sesión 14: DataTable de extremo a extremo](./sesiones/sesion-14-datatable/) | ClaseCrudUtils en .NET + vueua-datatable en Vue | DataTable |
+| Sesión | Título | Duración |
+|--------|--------|----------|
+| [Sesión 14: Llamadas a la API y autenticación](./sesiones/sesion-14-api-autenticacion/) | Cómo Vue habla con .NET, CAS/JWT, OpenAPI y Scalar | 1 h 30 min |
+| [Sesión 15: Validación en todas las capas](./sesiones/sesion-15-validacion/) | DataAnnotations, FluentValidation, ModelState y errores en Vue | 1 h 30 min |
+| [Sesión 16: Gestión de errores de extremo a extremo](./sesiones/sesion-16-errores/) | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts y modales | 1 h 30 min |
+| [Sesión 17: DataTable de extremo a extremo](./sesiones/sesion-17-datatable/) | `ClaseCrudUtils` en .NET + `@vueua/components` DataTable en Vue | 1 h 30 min |
 
 ## Flujo de integración
 
@@ -37,13 +37,6 @@ p_codigo_error ──────────► ProblemDetails (RFC 7807) ─�
 LISTAR paginado ─────────► ClaseCrudUtils ───────────────► vueua-datatable
 ```
 
-## Material de referencia
+## Material de apoyo
 
-Las sesiones de integración reutilizan y amplían contenido de las partes anteriores:
-
-| Sesión integración | Material de referencia (.NET) |
-|---|---|
-| Sesión 11 | [Ref: OpenAPI y Scalar](../parte-dotnet/sesiones/sesion-05-openapi-scalar/) |
-| Sesión 12 | [Ref: Validación y errores](../parte-dotnet/sesiones/sesion-03-validacion-errores/) |
-| Sesión 13 | [Ref: Validación y errores](../parte-dotnet/sesiones/sesion-03-validacion-errores/) |
-| Sesión 14 | [Ref: DataTable server-side](../parte-dotnet/sesiones/sesion-04-datatable-clasecrud/) |
+- [Tests y evaluación](./test/) — Banco de preguntas, autoevaluación y práctica IA-fix por sesión.

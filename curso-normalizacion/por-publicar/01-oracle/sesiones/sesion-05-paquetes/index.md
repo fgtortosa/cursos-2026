@@ -381,3 +381,11 @@ Entrega:
 ::: tip SIGUIENTE PASO
 Con esto cierras la parte Oracle. La siguiente sesión (parte .NET) toma estos packages y los conecta desde `ClaseOracleBd.EjecutarParamsAsync`, validando los parámetros `P_CODIGO_ERROR` / `P_MENSAJE_ERROR` exactamente como `ReservaService.cs` y `HorarioDiaService.cs` del proyecto de referencia.
 :::
+
+---
+
+<!-- NAV:START -->
+| Anterior | Inicio | Siguiente |
+|---|---|---|
+| [← Sesión 4: Ejercicio: diseño de vistas](../../../01-oracle/sesiones/sesion-04-ejercicio-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 6: Introducción a .NET →](../../../02-dotnet/sesiones/sesion-06-introduccion-dotnet/) |
+<!-- NAV:END -->

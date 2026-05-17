@@ -229,3 +229,11 @@ Entrega:
 ::: tip SIGUIENTE PASO
 Continúa con el [Ejercicio 2B — Procedimientos en paquetes](../5-paquetes/), donde implementarás `ACTUALIZAR_BLOQUEADO`, `CREAR` de horario por día y `CREAR` de reserva con sus validaciones reutilizables.
 :::
+
+---
+
+<!-- NAV:START -->
+| Anterior | Inicio | Siguiente |
+|---|---|---|
+| [← Sesión 3: Tablas, vistas y paquetes](../../../01-oracle/sesiones/sesion-03-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 5: Ejercicio: procedimientos en paquetes →](../../../01-oracle/sesiones/sesion-05-paquetes/) |
+<!-- NAV:END -->

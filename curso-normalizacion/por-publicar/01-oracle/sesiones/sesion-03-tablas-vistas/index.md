@@ -7,7 +7,7 @@ outline: [2, 4]
 # Sesión 2 — Tablas, vistas y paquetes
 
 ::: info CONTEXTO
-**Duración:** 1 hora teoría + 30 min práctica
+**Duración:** 1 h 30 min
 
 Pasamos de la arquitectura ADM/WEB a construirla con objetos reales del schema `CURSONORMADM`. Trabajamos sobre `TRES_TIPO_RECURSO`, `VRES_TIPO_RECURSO` y `PKG_RES_TIPO_RECURSO`. Esta sesión cubre las **dos formas de editar datos**:
 
@@ -1937,3 +1937,11 @@ END;
 ::: tip BUENA PRÁCTICA
 Captura excepciones específicas (`DUP_VAL_ON_INDEX`, `NO_DATA_FOUND`) cuando puedas convertirlas en mensajes funcionales. Reserva `WHEN OTHERS` para hacer `ROLLBACK` y luego `RAISE` — nunca para "tragarte" errores en silencio. En nuestros packages, `WHEN OTHERS` no relanza: convierte la excepción en `P_CODIGO_ERROR` / `P_MENSAJE_ERROR`.
 :::
+
+---
+
+<!-- NAV:START -->
+| Anterior | Inicio | Siguiente |
+|---|---|---|
+| [← Sesión 2: Ejercicio: inspección del schema y catálogo](../../../01-oracle/sesiones/sesion-02-ejercicio-fundamentos/) | [Índice del curso](../../../) | [Sesión 4: Ejercicio: diseño de vistas →](../../../01-oracle/sesiones/sesion-04-ejercicio-tablas-vistas/) |
+<!-- NAV:END -->
