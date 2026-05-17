@@ -37,24 +37,35 @@ En esta sesión no buscamos memorizar APIs, sino decidir bien el patrón: `compu
 
 ## 3.1 Propiedades Computadas (`computed`) {#computed}
 
-Una `computed` es un valor que se **calcula automáticamente** a partir de otras propiedades reactivas. Vue la cachea y solo la recalcula cuando cambian sus dependencias.
+Una `computed` es un valor que se **calcula automáticamente** a partir de otras propiedades reactivas. Vue la cachea y solo la recalcula cuando cambian sus dependencias. La demo `Sesion8Computed.vue` lo ilustra con el cálculo del IVA:
 
 ```html
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 
-const nombre = ref<string>('Juan')
-const apellido = ref<string>('García')
+const precioBase = ref<number>(100)
+const tipoIva = ref<number>(21)
 
-const nombreCompleto = computed(() => `${nombre.value} ${apellido.value}`)
+// Valores derivados: reactivos y cacheados.
+const ivaImporte  = computed(() => (precioBase.value * tipoIva.value) / 100)
+const precioTotal = computed(() => precioBase.value + ivaImporte.value)
+
+// Computed con setter: bidireccional. Útil cuando hay operación inversa.
+const precioRedondeado = computed({
+  get: () => Math.round(precioTotal.value * 100) / 100,
+  set: nuevo => { precioBase.value = nuevo / (1 + tipoIva.value / 100) },
+})
 </script>
 
 <template>
-  <input v-model="nombre" placeholder="Nombre">
-  <input v-model="apellido" placeholder="Apellido">
-  <p>Nombre completo: {{ nombreCompleto }}</p>
+  <input v-model.number="precioBase" type="number" />
+  <input v-model.number="tipoIva"    type="number" />
+  <p>IVA: {{ ivaImporte.toFixed(2) }} € · Total: {{ precioTotal.toFixed(2) }} €</p>
+  <input v-model.number="precioRedondeado" type="number" step="0.01" />
 </template>
 ```
+
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Computed.vue`. Si pones el mismo cálculo en un método y lo invocas dos veces en el template, se ejecuta dos veces; el `computed` se ejecuta una sola.
 
 ### `computed` vs método
 
@@ -351,34 +362,47 @@ flowchart LR
 
 ### Ejemplo: Input personalizado
 
-**Con defineModel** (recomendado):
+La demo `Sesion8DefineModel.vue` usa `InputEditable.vue` como componente hijo. Es el patrón "real" con etiqueta + botón "Limpiar":
 
 ```html
-<!-- InputTexto.vue -->
+<!-- InputEditable.vue (hijo) -->
 <script setup lang="ts">
-const model = defineModel<string>()
+// defineModel reemplaza a defineProps + defineEmits('update:modelValue').
+const valor = defineModel<string>({ required: true })
+
+defineProps<{ etiqueta: string }>()
+
+function limpiar(): void { valor.value = '' }
 </script>
 
 <template>
-  <input v-model="model" placeholder="Escribe algo..." />
+  <div class="input-group">
+    <span class="input-group-text">{{ etiqueta }}</span>
+    <input v-model="valor" type="text" class="form-control" />
+    <button class="btn btn-outline-secondary" type="button" @click="limpiar">Limpiar</button>
+  </div>
 </template>
 ```
 
-**Uso en el padre:**
+**Uso en el padre** (`Sesion8DefineModel.vue`):
 
 ```html
 <script setup lang="ts">
 import { ref } from 'vue'
-import InputTexto from '@/components/InputTexto.vue'
+import InputEditable from './InputEditable.vue'
 
-const texto = ref<string>('')
+const nombre = ref('')
+const apellido = ref('Lovelace')
 </script>
 
 <template>
-  <InputTexto v-model="texto" />
-  <p>Texto: {{ texto }}</p>
+  <InputEditable v-model="nombre"   etiqueta="Nombre" />
+  <InputEditable v-model="apellido" etiqueta="Apellido" />
+  <p>Hola, <strong>{{ nombre }} {{ apellido }}</strong></p>
 </template>
 ```
+
+> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8DefineModel.vue` + `InputEditable.vue`.
 
 ### Toggle personalizado
 
@@ -641,36 +665,41 @@ Usa `try/catch/finally` en operaciones asíncronas que afecten a la UI.
 
 ## 3.7 Slots: contenido dinámico y layout reutilizable {#slots}
 
-Los **slots** permiten que el componente padre inyecte contenido HTML en un componente hijo.
-
-**Componente Hijo** (`Tarjeta.vue`):
+Los **slots** permiten que el componente padre inyecte contenido HTML en un componente hijo. La demo `Sesion8Slots.vue` usa `TarjetaUA.vue` con **tres slots** (cabecera / default / acciones) y _fallback_ para cuando el padre no rellena alguno:
 
 ```html
+<!-- TarjetaUA.vue (hijo) -->
 <template>
-  <div class="card">
-    <header>
-      <slot name="cabecera"></slot>
-    </header>
-    <main>
-      <slot></slot>
-    </main>
+  <div class="card border-primary mb-3">
+    <div class="card-header bg-primary text-white">
+      <slot name="cabecera"><em>Tarjeta sin titulo</em></slot>
+    </div>
+    <div class="card-body">
+      <slot><p class="text-muted mb-0">Tarjeta sin contenido.</p></slot>
+    </div>
+    <div class="card-footer text-end">
+      <slot name="acciones" />
+    </div>
   </div>
 </template>
 ```
 
-**Componente Padre**:
+**Uso en el padre** (`Sesion8Slots.vue`):
 
 ```html
-<template>
-  <Tarjeta>
-    <template #cabecera>
-      <h2>Mi Título</h2>
-    </template>
+<TarjetaUA>
+  <template #cabecera>🗓️ Reserva confirmada</template>
 
-    <p>Este es el contenido principal</p>
-  </Tarjeta>
-</template>
+  <p><strong>Recurso:</strong> Aula 12<br /><strong>Fecha:</strong> 16/05/2026 — 10:00 a 12:00</p>
+
+  <template #acciones>
+    <button class="btn btn-sm btn-outline-secondary me-2">Editar</button>
+    <button class="btn btn-sm btn-danger">Eliminar</button>
+  </template>
+</TarjetaUA>
 ```
+
+> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Slots.vue` + `TarjetaUA.vue`. Cuando veas `<DialogModal>` en la sesión 10, sus slots `#header / #body / #buttons` son exactamente este patrón.
 
 ## 3.8 Nota: Provide / Inject {#provide-inject}
 
@@ -711,6 +740,25 @@ Cuando un alumno empieza a combinar componentes, aparecen dudas repetidas. Este 
 
 ::: tip REGLA PRÁCTICA
 Si dudas entre dos enfoques, elige el que deje una única fuente de verdad del estado y haga más predecible el flujo de datos.
+:::
+
+## 3.10 Pruébalo en el proyecto {#sandbox}
+
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-8/` hay ocho demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-8`:
+
+| Demo | Concepto que ilustra | Fichero |
+|------|----------------------|---------|
+| `Sesion8Computed.vue` | `computed` con dependencias + `computed` con setter (IVA bidireccional) | `sesion-8/Sesion8Computed.vue` |
+| `Sesion8PropsEmits.vue` | Padre → hijo (`titulo`) + hijo → padre (`@cambio`) con `TarjetaContador` | `sesion-8/Sesion8PropsEmits.vue` + `TarjetaContador.vue` |
+| `Sesion8PropsEmitsModal.vue` | API declarativa (`v-model:visible`) vs imperativa (`ref + show()`) de `PopUpModal` | `sesion-8/Sesion8PropsEmitsModal.vue` |
+| `Sesion8DefineModel.vue` | `v-model` sobre un componente personalizado (`InputEditable`) | `sesion-8/Sesion8DefineModel.vue` + `InputEditable.vue` |
+| `Sesion8Watchers.vue` | `watch(consulta, ...)` vs `watchEffect(...)` con historial visible | `sesion-8/Sesion8Watchers.vue` |
+| `Sesion8Lifecycle.vue` | `onMounted` + `SpinnerModal` controlado por `v-model:visible` | `sesion-8/Sesion8Lifecycle.vue` |
+| `Sesion8Slots.vue` | Tres slots (cabecera / default / acciones) con _fallback_ en `TarjetaUA` | `sesion-8/Sesion8Slots.vue` + `TarjetaUA.vue` |
+| `Sesion8FormularioReserva.vue` | Integradora: `computed` (validación), `defineModel`, slots — sin axios todavía | `sesion-8/Sesion8FormularioReserva.vue` |
+
+::: tip CÓMO TRABAJAR LAS DEMOS
+La integradora `Sesion8FormularioReserva.vue` reúne todo: `puedeReservar` es un `computed` que habilita el botón solo cuando los tres campos son válidos, `InputEditable` usa `defineModel`, y `TarjetaUA` aporta la estructura visual con slots. Cuando en la sesión 10 sustituyas `TarjetaUA` por `DialogModal`, el resto del código apenas cambia.
 :::
 
 ---
