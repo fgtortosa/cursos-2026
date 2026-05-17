@@ -662,3 +662,263 @@ context.RequestServices.GetService<ClaseErrores>()?
 
 `AddClaseErrores(builder.Configuration)` envuelve los dos modelos: si está disponible `INotificadorError`, lo usa; si no, cae al patrón v1.x. **Migrar no requiere tocar el código de los servicios**.
 
+## 13.7 Notificación al usuario en Vue: la familia `useToast` {#toasts}
+
+En el lado del cliente, los errores y avisos se presentan con la familia `useToast` de `@vueua/components`. Ya la viste en la sesión 9; aquí la repasamos como **vocabulario común** del bloque de integración.
+
+### 13.7.1 Las cuatro variantes
+
+```ts
+import {
+  avisar,                 // toast verde (éxito)
+  avisarError,            // toast rojo (error)
+  avisarPersonalizado,    // toast custom: 'aviso' (amarillo), 'informa' (azul), 'espera' (con spinner)
+  cerrarToast,
+  cerrarToastsPorGrupo,
+} from '@vueua/components/composables/use-toast';
+```
+
+| Función | Color / icono | Cuándo usarla |
+|---------|---------------|---------------|
+| `avisar(titulo, contenido)` | Verde · check | Confirmación de operación correcta (`Guardado`, `Eliminado`, `Enviado`). |
+| `avisarError(titulo, contenido)` | Rojo · cruz | El servidor devolvió error y queremos que el usuario lo vea explícitamente. |
+| `avisarPersonalizado(t, c, 'aviso')` | Amarillo · ⚠ | Advertencia: la operación se completó pero hay algo a revisar. |
+| `avisarPersonalizado(t, c, 'informa')` | Azul · ℹ | Información sin gravedad (`Tu sesión expira en 5 minutos`). |
+| `avisarPersonalizado(t, c, 'espera', 0)` | Toast con spinner, persistente | Operación larga en curso. **Hay que cerrarlo a mano** cuando termine. |
+
+### 13.7.2 Matriz de decisión: ¿qué toast para qué situación?
+
+```mermaid
+flowchart TD
+    EV{Evento} -->|"200 Ok del POST/PUT/DELETE"| OK[avisar verde]
+    EV -->|"400 ValidationProblemDetails con errors por campo"| FORM[NO toast<br/>pinta bajo los inputs<br/>useGestionFormularios]
+    EV -->|"400 con errors '' o sin errors"| BAN[Banner global<br/>+ opcional toast rojo]
+    EV -->|"401 / 403"| RED[avisarError + redirect]
+    EV -->|"404 del recurso pedido"| ERR1[avisarError 'No encontrado']
+    EV -->|"500 inesperado"| ERR2[avisarError genérico]
+    EV -->|"Aviso de negocio<br/>(plazas limitadas, fecha próxima…)"| AV[avisarPersonalizado 'aviso']
+    EV -->|"Información (sesión, novedades)"| INFO[avisarPersonalizado 'informa']
+    EV -->|"Operación larga arrancando"| SP[avisarPersonalizado 'espera' 0<br/>+ cerrarToast al terminar]
+```
+
+<!-- diagram id="s13-matriz-toasts" caption: "Qué variante de useToast usar según el evento" -->
+
+::: tip QUIÉN INVOCA QUÉ
+- **Éxitos:** los llamas tú desde el código (`avisar('Guardado', ...)`).
+- **Errores HTTP:** `gestionarError` (sesión 1 §1.8.5 y sesión 11 §11.4) los dispara automáticamente según `status`.
+- **Validación de campos:** **no uses toast**. Va en el formulario con `useGestionFormularios`.
+
+La regla de oro: **un toast por evento del usuario**. Si rellenó cinco campos mal, no muestres cinco toasts — pinta los cinco errores en el formulario y, opcionalmente, un único banner global.
+:::
+
+### 13.7.3 Toast de operación larga (patrón canónico)
+
+Cuando arranca un trabajo de fondo (importar fichero, recalcular, etc.) que dura varios segundos, abre un toast persistente con `'espera'` y `tiempo = 0`, captura su id y ciérralo al terminar:
+
+```ts
+import { avisar, avisarError, avisarPersonalizado, cerrarToast }
+  from '@vueua/components/composables/use-toast';
+
+async function exportar() {
+  const idEspera = avisarPersonalizado(
+    'Procesando',
+    'Estamos generando el informe. Esto puede tardar…',
+    'espera',
+    0   // 0 = no se cierra solo
+  );
+
+  try {
+    const blob = await peticion<Blob>('Informes/exportar', verbosAxios.GET, null, null,
+      { responseType: 'blob' });
+    avisar('Listo', 'El informe se ha generado correctamente.');
+    descargar(blob, 'informe.pdf');
+  } catch (e) {
+    avisarError('No se pudo exportar', 'Inténtalo de nuevo más tarde.');
+  } finally {
+    cerrarToast(idEspera);   // SIEMPRE: éxito o fallo
+  }
+}
+```
+
+::: warning EL `finally` NO ES OPCIONAL
+Si el `cerrarToast` solo se llamara en el `try`, un fallo dejaría el toast "Procesando…" en pantalla para siempre. `finally` cierra el toast **siempre**, hayamos terminado bien o mal.
+:::
+
+### 13.7.4 Grupos: cerrar varios toasts a la vez
+
+Si una pantalla dispara varios toasts relacionados con la misma operación, agrúpalos:
+
+```ts
+avisar('Recurso 1 guardado', 'Aula 12',          'es', 'reservas');
+avisar('Recurso 2 guardado', 'Sala A',           'es', 'reservas');
+avisar('Recurso 3 guardado', 'Proyector',        'es', 'reservas');
+
+// En cualquier momento:
+cerrarToastsPorGrupo('reservas');
+```
+
+Útil cuando una operación batch termina y queremos limpiar el "ruido" antes de mostrar el resumen final.
+
+## 13.8 Confirmar antes de operaciones destructivas {#confirmar}
+
+Borrar, archivar, enviar definitivo: cualquier acción que el usuario no pueda deshacer **debe** pedir confirmación. `PopUpModal` de la sesión 10 ofrece las dos APIs (declarativa e imperativa) que ya conoces; aquí las repasamos en el contexto de errores.
+
+### 13.8.1 Patrón canónico: confirmar → operar → toast
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant V as Vue (vista)
+    participant M as PopUpModal
+    participant API as API .NET
+    participant T as useToast
+
+    U->>V: clic "Eliminar Aula 12"
+    V->>M: show() — pide confirmación
+    M-->>U: "¿Eliminar Aula 12? No se puede deshacer."
+    U-->>M: Aceptar
+    M-->>V: resolve(true)
+    V->>API: DELETE /api/Recursos/12
+    API-->>V: 204 No Content / 200 Ok
+    V->>T: avisar('Eliminado', 'Aula 12 borrada')
+    T-->>U: toast verde
+
+    Note over U,V: Si el usuario cancela:
+    U-->>M: Cancelar / ESC
+    M-->>V: resolve(false)
+    Note over V: No se llama a la API. Sin toast.
+
+    Note over API,V: Si la API falla:
+    API-->>V: 400 / 404 / 500
+    V->>T: gestionarError → avisarError
+    T-->>U: toast rojo
+```
+
+<!-- diagram id="s13-confirmar-borrar" caption: "Patrón canónico de confirmación antes de borrar" -->
+
+### 13.8.2 Implementación con la API imperativa
+
+La forma más limpia cuando la confirmación está **en mitad** de una función async:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { PopUpModal } from '@vueua/components/ui/popup-modal';
+import { peticion, verbosAxios, gestionarError } from '@vueua/components/composables/use-axios';
+import { avisar } from '@vueua/components/composables/use-toast';
+
+interface IRecurso { id: number; nombre: string }
+const recursos = ref<IRecurso[]>([]);
+
+// Ref imperativo al modal
+const confirmEliminar = ref<InstanceType<typeof PopUpModal>>();
+const aEliminar = ref<IRecurso | null>(null);
+
+async function eliminar(recurso: IRecurso) {
+  aEliminar.value = recurso;
+
+  const confirmado = await confirmEliminar.value?.show();
+  if (!confirmado) return;                              // cancelado: salir limpio
+
+  try {
+    await peticion<void>(`Recursos/${recurso.id}`, verbosAxios.DELETE);
+    recursos.value = recursos.value.filter(r => r.id !== recurso.id);
+    avisar('Eliminado', `${recurso.nombre} se ha eliminado.`);
+  } catch (e: any) {
+    gestionarError(e, 'No se pudo eliminar', `Error al borrar ${recurso.nombre}.`);
+  }
+}
+</script>
+
+<template>
+  <ul>
+    <li v-for="r in recursos" :key="r.id" class="d-flex">
+      <span class="flex-grow-1">{{ r.nombre }}</span>
+      <button class="btn btn-sm btn-danger" @click="eliminar(r)">Eliminar</button>
+    </li>
+  </ul>
+
+  <PopUpModal ref="confirmEliminar">
+    <template #header>¿Eliminar {{ aEliminar?.nombre }}?</template>
+    <template #body>Esta acción no se puede deshacer.</template>
+  </PopUpModal>
+</template>
+```
+
+::: tip POR QUÉ LA API IMPERATIVA AQUÍ
+La confirmación es un **único paso** dentro de la función `eliminar`. Con `await modal.show()` el código se lee de arriba abajo. Si usaras la API declarativa (`v-model:visible`), tendrías que partir la lógica en dos funciones (`onClickEliminar` y `onConfirmarEliminar`) y mantener un `pendienteId` en una `ref` aparte. Más código y más estado.
+:::
+
+### 13.8.3 Cuándo usar la API declarativa
+
+Cuando el modal **no** vive solo dentro de una función async, sino que su visibilidad es **estado** de la vista (porque otros bloques también lo consultan o cambian):
+
+```vue
+<button class="btn btn-danger" @click="abrirConfirmacion = true">Eliminar</button>
+
+<PopUpModal v-model:visible="abrirConfirmacion"
+            @confirmar="onConfirmar"
+            @cancelar="onCancelar">
+  <template #header>¿Eliminar el recurso?</template>
+  <template #body>Esta acción no se puede deshacer.</template>
+</PopUpModal>
+```
+
+Si dudas, empieza por la **imperativa**. La declarativa solo gana si más de un elemento de la UI necesita saber si el modal está abierto.
+
+### 13.8.4 Buenas prácticas de UX en confirmaciones
+
+- **Sé específico en el `#header`.** "¿Eliminar?" obliga al usuario a leer el cuerpo; "¿Eliminar **Aula 12**?" ya se entiende.
+- **Resalta lo irreversible en `#body`.** "Esta acción no se puede deshacer." o "Se perderán las reservas asociadas."
+- **Etiqueta el botón principal con el verbo concreto.** `PopUpModal` lo permite vía slot `#buttons` si no quieres el "Aceptar" por defecto. "Eliminar" rojo es mejor que "Aceptar" genérico.
+- **El cancelar no necesita toast.** Si el usuario cancela, no ha pasado nada; un toast sobre algo que no ocurrió es ruido.
+- **No abuses.** Pedir confirmación para cada clic acaba en "Aceptar automático". Reserva la confirmación para **acciones destructivas**.
+
+## 13.9 Sandbox y resumen final {#sandbox}
+
+### 13.9.1 Casos que puedes disparar hoy
+
+| Caso | Cómo dispararlo | Qué cubre de esta sesión |
+|------|-----------------|---------------------------|
+| Error 404 controlado | Probador → botón `recurso-no-existe` (ORA-20702) | §13.1, §13.2, §13.3 (caso 3 con args), `Result.NotFound` |
+| Error 400 controlado | Probador → botón `recurso-con-asociados` (ORA-20703) | §13.1, §13.3 (caso 3), banner global en `useGestionFormularios` |
+| Error 500 controlado con `TechnicalMessage` | Probador → botón `error-tecnico` | §13.1, §13.6 (la ruta B del correo desde `RegistrarErrorTecnico`) |
+| Error 400 automático por DataAnnotation | Scalar → POST `/api/TipoRecursos` con `Codigo=""` | §12.3 (DataAnnotations) y §13.1 (validación bloqueada) |
+| Toast de éxito | Cualquier guardado correcto desde el CRUD de la sesión 10 | §13.7 — `avisar` |
+| Confirmación + borrado | "Eliminar" del CRUD integrador (`Sesion10CrudRecursos.vue`) | §13.8 — `PopUpModal` |
+
+### 13.9.2 De Oracle a Vue, todo junto
+
+| Dónde nace | Cómo viaja | HTTP | Qué ve el usuario | Qué ve el equipo |
+|------------|-----------|------|---------------------|--------------------|
+| DataAnnotation `[Required]` | `[ApiController]` → `ValidationProblemDetails` | 400 | Mensaje bajo el input (`useGestionFormularios.errorDeCampo`) | Nada (no es bug) |
+| FluentValidation regla global | `[ApiController]` → `errors[""]` | 400 | Banner global (`erroresGlobales`) | Nada |
+| Servicio: `Result.NotFound` | `HandleResult` → `ProblemDetails` | 404 | Toast rojo (`gestionarError`) | Nada |
+| Servicio: `Result.Validation` | `HandleResult` → `ValidationProblemDetails` | 400 | Banner global o campo según `errors` | Nada |
+| Servicio: `Result.Failure` con `TechnicalMessage` | `HandleResult` → `ProblemDetails` | 500 | Toast genérico | `RegistrarErrorTecnico` → log + correo (si se notifica) |
+| Oracle `BDException` (Usuario, `#…#`) | `ErrorPaquetePlSql.DesdeBDException` → `Result.Validation`/`Failure` según rango | 400 / 500 | Banner global (mensaje localizado) | `RegistrarErrorTecnico` (solo si `Failure`) |
+| Oracle `BDException` (Sistema, sin `#…#`) | `ErrorPaquetePlSql.DesdeBDException` → `Result.Failure` | 500 | Toast genérico | Log + correo via `RegistrarErrorTecnico` |
+| Excepción inesperada (NRE, timeout) | `ErrorHandlerMiddleware` → `{ message, code }` | 500 | Toast genérico | `INotificadorError.Notificar` → correo |
+
+### 13.9.3 Checklist para una funcionalidad lista para producción
+
+- [ ] El servicio devuelve `Result<T>` y **no lanza excepciones** para flujos esperables.
+- [ ] El controlador hereda de `ApiControllerBase` y termina con `HandleResult(result)`.
+- [ ] Los mensajes Oracle visibles usan formato `# Resources.SharedResource.CLAVE|args #` (caso 3) cuando sea posible.
+- [ ] Los errores técnicos Oracle (sin `#`) llegan al `TechnicalMessage` y disparan `RegistrarErrorTecnico`.
+- [ ] El formulario Vue usa `useGestionFormularios({ aislado: true })` con `errorDeCampo` / `erroresDeCampo` / banner global.
+- [ ] El `catch` de la llamada axios distingue `400 con errors` (a `adaptarProblemDetails`) del resto (a `gestionarError`).
+- [ ] Las operaciones destructivas piden confirmación con `PopUpModal`.
+- [ ] El éxito muestra un `avisar(...)`; el error muestra `avisarError(...)`; los avisos en curso usan `'espera'` con `tiempo = 0` y `cerrarToast` en `finally`.
+- [ ] `Program.cs` activa `AddClaseErrores().ConEnriquecedor*()` y `UseErrorHandlerMiddleware()`.
+- [ ] `appsettings.{Production,Preproduccion}.json` define `EnvioA`, `Titulo` y `ThrottlingMinutos`.
+- [ ] Los `.resx` (`SharedResource.{es,ca,en}.resx`) contienen las claves referenciadas desde PL/SQL.
+
+## 13.10 Próxima sesión {#siguiente}
+
+En la **sesión 14 — DataTable + ClaseCrud** aplicamos todo lo visto a un listado con paginación servidor, filtros, ordenación y acciones por fila (incluyendo eliminación con confirmación). Los errores que ahora dominas vuelven a aparecer en cada acción: añadir, editar, borrar, exportar. Ya tienes los reflejos: `Result<T>` en servidor, `useGestionFormularios` y `useToast` en cliente, `PopUpModal` para lo irreversible.
+
+En la **sesión 20 — Serilog** sustituimos el `ILogger` que aparece en `RegistrarErrorTecnico` por un pipeline estructurado con sinks Console, Oracle, File y Email. El `TechnicalMessage` deja de ser una cadena pegada y se convierte en propiedades estructuradas (`Code`, `UserCodPer`, `RequestPath`, `Operation`). El correo del equipo se compone también ahí, con plantillas y reglas de routing por severidad.
+
+
