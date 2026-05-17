@@ -1,6 +1,6 @@
 ---
 title: "Sesión 12: Validación en todas las capas"
-description: Pipeline de validación Oracle → .NET → Vue con DataAnnotations, FluentValidation, ValidationProblemDetails y useGestionFormularios v2
+description: Del modelo "excepciones + middleware" al modelo "Result<T> + HandleResult". DataAnnotations, FluentValidation, ValidationProblemDetails y useGestionFormularios.
 outline: deep
 ---
 
@@ -9,380 +9,500 @@ outline: deep
 [[toc]]
 
 ::: info CONTEXTO
-La validación no es un problema de una capa: es un contrato entre Oracle, el servidor .NET y el formulario Vue. En esta sesión construimos ese contrato de punta a punta, con un formato de error único que todas las capas entienden y que el frontend puede pintar sin lógica extra.
+La validación recorre toda la aplicación: Oracle protege la integridad, .NET valida los datos del cliente, Vue da feedback inmediato al usuario. Ninguna capa basta por sí sola: la del cliente se puede saltar editando el navegador; la del servidor se puede saltar llamando a la API con `curl`; la de la base de datos llega tarde para el usuario. Las **tres** son necesarias, y se comunican a través de un **único formato de respuesta**: `ValidationProblemDetails`.
+
+Esta sesión enseña ese pipeline completo. Más importante que la sintaxis es **entender qué cambia respecto del modelo anterior** del Servicio de Informática (excepciones + middleware) y por qué.
 :::
 
 ## Objetivos
 
 Al finalizar esta sesión, el alumno será capaz de:
 
-- Entender qué valida cada capa y por qué no se puede confiar en una sola
-- Aplicar DataAnnotations para reglas de campo simples
-- Crear validaciones cruzadas con FluentValidation
-- Configurar el formato estándar de respuesta (`ValidationProblemDetails`)
-- Heredar de `ApiControllerUA` y usar `ProblemaValidacion()` para errores manuales y de Oracle
-- Pintar errores de campo y errores globales en el formulario Vue con `useGestionFormularios` v2
+- Distinguir **error esperable** de **error inesperado** y elegir el mecanismo adecuado para cada uno.
+- Explicar el cambio del modelo "excepción + middleware" al modelo "`Result<T>` + `HandleResult`" y qué problemas resuelve.
+- Aplicar **DataAnnotations** para reglas de un solo campo.
+- Añadir **FluentValidation** cuando aparecen reglas cruzadas o asíncronas.
+- Reconocer cómo viaja un error de Oracle (paquete `PKG_RES_*_ERR`) hasta convertirse en un `400 ValidationProblemDetails`.
+- Saber dónde se centraliza el envío de correo / log estructurado del error técnico (`RegistrarErrorTecnico` en `ApiControllerBase`).
+- Pintar errores por campo y errores globales en Vue con `useGestionFormularios`.
 
----
+## 12.1 El cambio profundo: de excepciones a `Result<T>` {#cambio-profundo}
 
-## 12.1 El pipeline de validación {#pipeline}
+Antes de hablar de DataAnnotations o FluentValidation hay que entender **qué modelo de gestión de errores** usa `uaReservas`. No es el modelo histórico del Servicio de Informática, y conviene que el alumno se lo represente bien antes de tocar código.
 
-Cada capa tiene su responsabilidad. Ninguna reemplaza a las otras.
+### 12.1.1 El modelo anterior (que ya no usamos)
 
+```mermaid
+flowchart LR
+    A[Controller] -->|llama| B[Servicio]
+    B -->|lanza| EX1((BDException))
+    B -->|lanza| EX2((AppException))
+    B -->|lanza| EX3((Excepción de sistema))
+    EX1 --> M[ErrorHandlerMiddleware]
+    EX2 --> M
+    EX3 --> M
+    M -->|400 / 500 / correo| C[Cliente]
+    style EX1 fill:#ffebee
+    style EX2 fill:#ffebee
+    style EX3 fill:#ffebee
 ```
-Oracle (constraints + RAISE_APPLICATION_ERROR)
-    │
-    ▼
-.NET — DataAnnotations + FluentValidation           → 400 ValidationProblemDetails
-.NET — BDException.Usuario capturado en controlador → 400 ValidationProblemDetails (error global)
-.NET — BDException.Sistema → ErrorHandlerMiddleware → 500 + correo al desarrollador
-    │
-    ▼
-Vue — useGestionFormularios v2
-    adaptarProblemDetails() → modelState (errores por campo)
-                            → erroresGlobales (validaciones cruzadas, errores Oracle de usuario)
+
+<!-- diagram id="s12-modelo-antiguo" caption: "Modelo anterior: cualquier problema es una excepción que el middleware captura" -->
+
+**Idea base:** "todo error es una excepción". Si el usuario no existe → `AppException`. Si Oracle rechaza → `BDException`. Si la BD está caída → `BDException` también. El middleware atrapa **todas** y decide qué devolver.
+
+Funciona, pero arrastra problemas:
+
+| Problema | Consecuencia |
+|----------|--------------|
+| Las excepciones son **caras**: capturar pila, recorrer `catch` blocks. | Bajo rendimiento en errores frecuentes (validación). |
+| Una excepción **no aparece** en la firma del método. | Un `await servicio.CrearAsync(dto)` no avisa al lector de que puede tirar `AppException`. |
+| Hay que decidir el HTTP **en el middleware**. | El controlador, que conoce mejor el contexto, no participa. |
+| Validación esperable y bug imprevisto **usan el mismo canal**. | El log se llena de "excepciones" que no son fallos. |
+| Para añadir un campo `errors` por campo, el middleware tiene que conocer una clase ad-hoc (`ClaseErroresWebAPI`). | El formato no es el estándar `ProblemDetails`. |
+
+### 12.1.2 El modelo actual: `Result<T>` + `HandleResult`
+
+```mermaid
+flowchart LR
+    A[Controller] -->|llama| B[Servicio]
+    B -->|Result.Success T| OK1[Result IsSuccess]
+    B -->|Result.Failure Error| OK2[Result IsFailure]
+    OK1 --> H[HandleResult]
+    OK2 --> H
+    H -->|200 + body| C[Cliente]
+    H -->|400 ValidationProblemDetails| C
+    H -->|404 ProblemDetails| C
+    H -->|500 ProblemDetails| C
+    note[Las excepciones reales<br/>siguen escapando<br/>al middleware]
+    style OK1 fill:#e8f5e9
+    style OK2 fill:#fff3e0
 ```
 
-### Qué valida cada capa
+<!-- diagram id="s12-modelo-actual" caption: "Modelo actual: error esperable viaja en Result<T>; las excepciones siguen yendo al middleware solo para lo realmente inesperado" -->
 
-| Capa | Qué valida | Cómo |
-|------|-----------|------|
-| Oracle | Integridad estructural: NOT NULL, UNIQUE, CHECK, FK | Constraints de tabla |
-| Oracle | Reglas de negocio que solo la BD conoce | `RAISE_APPLICATION_ERROR` |
-| .NET DTO | Formato y presencia de campo: required, longitud, email, rango | DataAnnotations |
-| .NET Validator | Reglas cruzadas y async: fecha fin > inicio, email único | FluentValidation |
-| Vue | Feedback inmediato al usuario (UX) | HTML5 + `useGestionFormularios` |
+Ahora el servicio devuelve un `Result<T>` **siempre**. No lanza excepción para "datos inválidos" o "no encontrado" — los empaqueta:
 
-::: warning POR QUÉ VALIDAR EN MÚLTIPLES CAPAS
-Un usuario puede manipular el navegador y saltarse las validaciones de Vue. Un atacante puede hacer peticiones HTTP directas y saltarse el frontend por completo. Las validaciones de .NET son las que protegen de verdad los datos; las de Vue son para mejorar la experiencia del usuario.
+```csharp
+public Task<Result<bool>> EliminarAsync(int id)
+{
+    // ...llamada al paquete PL/SQL...
+    var failure = ErrorPaquetePlSql.AResultFailure<bool>(
+        codigoError, mensajeError);
+    if (failure is not null) return failure;     // Result<bool>.Failure(Error{Type=Validation|NotFound|Failure})
+
+    return Result<bool>.Success(true);
+}
+```
+
+El controlador no escribe ni un `if/else`:
+
+```csharp
+[HttpDelete("{id}")]
+public async Task<ActionResult> Eliminar(int id) =>
+    HandleResult(await _tiposRecurso.EliminarAsync(id));
+```
+
+`HandleResult` (en `ApiControllerBase`) hace el `switch` por `ErrorType` y devuelve **un único formato**:
+
+| `ErrorType` | HTTP | Body |
+|-------------|------|------|
+| `Success`   | 200 | `result.Value` |
+| `Validation` | 400 | `ValidationProblemDetails` con `errors` (puede tener clave `""` para errores globales) |
+| `NotFound`  | 404 | `ProblemDetails` |
+| `Failure`   | 500 | `ProblemDetails` genérico |
+
+### 12.1.3 ¿Qué ha cambiado de verdad?
+
+| Antes (excepciones + middleware) | Ahora (`Result<T>` + `HandleResult`) |
+|----------------------------------|--------------------------------------|
+| El servicio **tira** excepciones específicas (`AppException`, `BDException.Usuario`). | El servicio **devuelve** `Result<T>.Failure(Error)`. Sin excepciones para flujos esperables. |
+| El controlador rara vez ve los errores: el middleware los atrapa. | El controlador tiene el `Result<T>` en la mano y lo pasa a `HandleResult`. |
+| El cuerpo de la respuesta es una clase ad-hoc (`ClaseErroresWebAPI`). | El cuerpo es **estándar `ProblemDetails` / `ValidationProblemDetails`** (RFC 7807). |
+| Los `try/catch` están desperdigados (en el servicio, en el controlador, en el middleware). | Solo hay **un** sitio donde se decide qué devolver: `HandleResult`. |
+| El log se llena de excepciones "esperables". | Solo loguean los errores con `TechnicalMessage` no vacío (errores de verdad, no validaciones). |
+
+::: tip LA REGLA DE ORO QUE NACE DE ESTE CAMBIO
+**Lanza excepción solo cuando no sabes qué hacer.** Un dato inválido, un recurso no encontrado, un error de negocio devuelto por Oracle: todo eso es esperable y viaja en `Result<T>`. Una caída de la BD, un timeout, un fallo de configuración: eso sí es inesperado y debe escapar como excepción para que el middleware lo capture, lo registre y avise.
 :::
 
-### El formato de error único
+### 12.1.4 El middleware sigue ahí, pero para menos cosas
 
-Todas las respuestas de validación del servidor usan el mismo formato `ValidationProblemDetails` (RFC 7807):
+Las excepciones que **escapan** del controlador (no porque un servicio las tire a propósito, sino porque algo se rompió de verdad) siguen las captura el `ErrorHandlerMiddleware` de la plantilla UA. Su trabajo ahora es más simple:
+
+- Loggear con Serilog (sesión 20).
+- Enviar correo al equipo si el entorno está configurado para ello (sesión 13).
+- Devolver un `500 ProblemDetails` genérico al cliente.
+
+No tiene que distinguir entre "validación", "no encontrado" y "bug": esos ya los resolvió el controlador con `HandleResult` mucho antes de llegar al middleware.
+
+## 12.2 Las cuatro capas de validación {#pipeline}
+
+Con el modelo claro, vamos al pipeline completo. Cada capa tiene su responsabilidad y ninguna duplica el trabajo de las otras.
+
+```mermaid
+flowchart TB
+    V[Vue · useGestionFormularios] -->|JSON sospechoso| AC{ApiController}
+    AC -->|DataAnnotations fallan| R400_1[400 automático<br/>ValidationProblemDetails]
+    AC -->|DA OK| FV{FluentValidation}
+    FV -->|reglas cruzadas fallan| R400_2[400 automático<br/>con errors per-campo y ""]
+    FV -->|FV OK| SVC[Servicio]
+    SVC -->|regla de negocio: not found| R404[Result.NotFound]
+    SVC -->|regla de negocio: rechazo| R400_3[Result.Validation]
+    SVC -->|Oracle: PKG_RES_*_ERR| ORA{Oracle}
+    ORA -->|RAISE_APPLICATION_ERROR<br/>en rango -20xxx| EPP[ErrorPaquetePlSql.DesdeCodigo]
+    EPP --> R400_3
+    EPP --> R404
+    EPP --> R500[Result.Failure]
+    R404 & R400_3 & R500 --> HR[HandleResult]
+    HR --> RESP[HTTP + ProblemDetails]
+    RESP --> V
+    style V fill:#e3f2fd
+    style R400_1 fill:#fff3e0
+    style R400_2 fill:#fff3e0
+    style R400_3 fill:#fff3e0
+    style R404 fill:#fff3e0
+    style R500 fill:#ffebee
+```
+
+<!-- diagram id="s12-pipeline-validacion" caption: "Pipeline completo: cuatro filtros sobre los datos del cliente, una sola respuesta" -->
+
+### 12.2.1 Tabla resumen
+
+| Capa | Qué valida | Cómo | Quién devuelve el `400` |
+|------|------------|------|--------------------------|
+| **Oracle** (BD) | Integridad estructural (NOT NULL, UNIQUE, FK, CHECK) | Constraints. | No llega al cliente: provocaría `BDException`. Suele ser última red de seguridad. |
+| **Oracle** (paquetes) | Reglas de negocio que solo la BD conoce | `RAISE_APPLICATION_ERROR(-20xxx, '...')` | El servicio .NET, con `ErrorPaquetePlSql.AResultFailure` → `Result.Failure(...)` → `HandleResult`. |
+| **.NET — DTO** | Presencia, longitud, rango, formato | DataAnnotations (`[Required]`, `[Range]`, `[StringLength]`) | `[ApiController]` automáticamente. El controlador ni se ejecuta. |
+| **.NET — Validator** | Reglas cruzadas (campo A vs campo B), reglas asíncronas | FluentValidation | `AddFluentValidationAutoValidation()` automáticamente, antes del controlador. |
+| **.NET — Servicio** | Reglas de negocio que requieren consultar BD pero **no** son delegables a paquetes | `Result.Validation(...)` / `Result.NotFound(...)` | `HandleResult`. |
+| **Vue** | Feedback inmediato (UX) | `required`, `min`, `max` HTML5 + `useGestionFormularios.validarFormulario` | Bloquea el submit; **no** sustituye la validación del servidor. |
+
+::: warning POR QUÉ VALIDAR EN VARIAS CAPAS NO ES DUPLICAR
+Cada capa protege contra una amenaza distinta:
+
+- **Vue** protege contra equivocaciones honestas del usuario.
+- **DataAnnotations** protege el contrato del DTO frente a clientes mal escritos.
+- **FluentValidation** protege reglas que requieren conocer todo el DTO.
+- **Servicio + Oracle** protegen la **integridad real** de los datos: nadie puede saltárselas, ni un atacante con `curl`.
+
+Quitar la primera capa empeora la UX; quitar las del servidor compromete los datos. No son intercambiables.
+:::
+
+### 12.2.2 El formato de respuesta es siempre el mismo
+
+Da igual qué capa rechace los datos: el JSON que recibe Vue tiene la misma forma:
 
 ```json
 {
-  "title": "Error de validación",
-  "detail": "Revise los campos del formulario",
+  "type": "https://tools.ietf.org/html/rfc7807",
+  "title": "ORA-20703",
+  "detail": "El tipo de recurso tiene recursos asociados.",
   "status": 400,
   "errors": {
-    "NombreEs": ["El nombre en español es obligatorio"],
-    "Granularidad": ["La granularidad no puede superar la duración máxima"],
-    "": ["El expediente ya está cerrado y no puede modificarse"]
+    "NombreEs": ["El nombre en español es obligatorio."],
+    "Granularidad": ["La granularidad no puede superar la duración máxima."],
+    "": ["El tipo de recurso tiene recursos asociados."]
   }
 }
 ```
 
-La clave `""` (vacía) recoge errores que no pertenecen a un campo concreto — validaciones cruzadas o mensajes de Oracle de tipo usuario.
+| Clave en `errors` | Quién la pone | Significado |
+|-------------------|---------------|-------------|
+| Nombre de propiedad (`NombreEs`, `Granularidad`) | DataAnnotations / FluentValidation `RuleFor(x => x.Campo)` | Error específico de **ese** campo. Vue lo pinta debajo del input. |
+| Clave vacía `""` | FluentValidation `RuleFor(x => x).Custom((d, ctx) => ctx.AddFailure("", "..."))`, o paquete Oracle con error global | Error **transversal**. Vue lo pinta como banner encima del formulario. |
 
----
+Esa simetría —cualquier validación rota, el mismo formato— es lo que hace que `useGestionFormularios` en Vue sea simple: no le importa **quién** rechazó, solo **qué** y **dónde**.
 
-## 12.2 DataAnnotations: validación de campos {#data-annotations}
+## 12.3 DataAnnotations: la primera línea {#data-annotations}
 
-Las DataAnnotations son atributos que añadimos directamente en las propiedades del DTO. `[ApiController]` las valida automáticamente **antes** de ejecutar la acción — si el DTO falla, el controlador no llega a ejecutarse y se devuelve un `400` directamente.
+Las DataAnnotations son atributos en las propiedades del DTO. Como el controlador lleva `[ApiController]` (lo aporta `ControllerBase` en el proyecto), .NET ejecuta esas validaciones **antes** de entrar al método. Si fallan, devuelve 400 directamente con `ValidationProblemDetails` y el controlador **ni se ejecuta**.
+
+Ejemplo real (`TipoRecursoCrearDto.cs`):
 
 ```csharp
-// Models/Unidad/ClaseGuardarUnidad.cs
-public class ClaseGuardarUnidad
+using System.ComponentModel.DataAnnotations;
+
+namespace ua.Models.Reservas
 {
-    [Required(ErrorMessage = "El nombre en español es obligatorio")]
-    [StringLength(200, MinimumLength = 2,
-        ErrorMessage = "El nombre debe tener entre 2 y 200 caracteres")]
-    public string NombreEs { get; set; } = "";
+    public class TipoRecursoCrearDto
+    {
+        [Required, MaxLength(100)]
+        public string Codigo   { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "El nombre en valenciano es obligatorio")]
-    [StringLength(200)]
-    public string NombreCa { get; set; } = "";
+        [Required, MaxLength(150)]
+        public string NombreEs { get; set; } = string.Empty;
 
-    [Range(5, 120, ErrorMessage = "La granularidad debe estar entre 5 y 120 minutos")]
-    public int Granularidad { get; set; }
+        [Required, MaxLength(150)]
+        public string NombreCa { get; set; } = string.Empty;
 
-    [Range(1, 50, ErrorMessage = "Las citas simultáneas deben estar entre 1 y 50")]
-    public int NumCitasSimultaneas { get; set; }
-
-    [EmailAddress(ErrorMessage = "El email de contacto no tiene el formato correcto")]
-    public string? EmailContacto { get; set; }
+        [Required, MaxLength(150)]
+        public string NombreEn { get; set; } = string.Empty;
+    }
 }
 ```
 
-| Atributo | Uso | Ejemplo |
-|----------|-----|---------|
-| `[Required]` | Campo obligatorio | NombreEs |
-| `[StringLength(max, MinimumLength)]` | Longitud de texto | Entre 2 y 200 caracteres |
-| `[Range(min, max)]` | Rango numérico | Granularidad entre 5 y 120 |
-| `[EmailAddress]` | Formato email | EmailContacto |
-| `[RegularExpression]` | Patrón regex | NIF, código postal |
-
-### Configurar el título y detalle en español
-
-Por defecto, cuando `[ApiController]` devuelve el `400`, el campo `title` viene en inglés: `"One or more validation errors occurred."`. Para que llegue en español al formulario Vue, registramos `AddValidacionUA()` en `Program.cs`:
+Y `ReservaCrearDto.cs` añade rangos numéricos:
 
 ```csharp
-// Program.cs
-using ua.Models.Plantilla.Errores;
-
-// Debe ir ANTES de AddControllersWithViews()
-builder.Services.AddValidacionUA();
-builder.Services.AddControllersWithViews();
-```
-
-Con esto, cualquier `400` automático de `[ApiController]` devuelve:
-
-```json
+public class ReservaCrearDto
 {
-  "title": "Error de validación",
-  "detail": "Revise los campos del formulario",
-  "status": 400,
-  "errors": { ... }
+    [Range(1, int.MaxValue)] public int IdRecurso     { get; set; }
+    [Range(0, 23)]           public int HoraInicio    { get; set; }
+    [Range(0, 59)]           public int MinutoInicio  { get; set; }
+    [Range(1, 24 * 60)]      public int MinutosReserva{ get; set; }
+    [Required]               public DateTime FechaReserva { get; set; }
+    [MaxLength(1000)]        public string? Observaciones { get; set; }
 }
 ```
 
-Ese `title` y ese `detail` son los que `useGestionFormularios` mostrará en el toast automático.
+### 12.3.1 Atributos más usados
 
----
+| Atributo | Cuándo usarlo |
+|----------|---------------|
+| `[Required]` | El campo no puede ser `null` ni cadena vacía. |
+| `[MaxLength(n)]` / `[StringLength(max, MinimumLength = min)]` | Longitud de texto. `MaxLength` coincide con la columna Oracle. |
+| `[Range(min, max)]` | Rangos numéricos cerrados (incluye los extremos). |
+| `[EmailAddress]` | Formato de correo (no comprueba existencia). |
+| `[RegularExpression(@"...")]` | Cualquier patrón (NIF, código postal, etc.). |
 
-## 12.3 FluentValidation: reglas cruzadas y dependientes {#fluent-validation}
+### 12.3.2 Lo que NO debe ir en DataAnnotations
 
-DataAnnotations valida cada campo por separado. Cuando necesitamos comparar campos entre sí, validar con una consulta a la base de datos, o expresar reglas de negocio complejas, usamos FluentValidation.
+- Reglas que comparan **dos** campos (`FechaFin > FechaInicio`).
+- Reglas que requieren **consultar la BD** (¿ya existe ese código?).
+- Reglas que cambian según otro campo (`if Tipo == 'X' entonces Campo Y obligatorio`).
 
-::: tip REGLA PRÁCTICA
-**DataAnnotations** para todo lo que sea de un campo solo: `required`, `length`, `email`, `range`.  
-**FluentValidation** cuando la regla involucre más de un campo, sea asíncrona, o sea demasiado compleja para un atributo.  
-Ambos pueden convivir en el mismo DTO sin problema.
+Para todo lo anterior, ver §12.4.
+
+::: tip MENSAJES EN ESPAÑOL POR DEFECTO
+Sin configuración extra, el `title` del `ValidationProblemDetails` viene en inglés (`"One or more validation errors occurred."`). La plantilla UA lo localiza automáticamente — los mensajes individuales los puedes poner en español dentro de `ErrorMessage = "..."` si los necesitas a medida.
 :::
 
-### Instalación
+## 12.4 FluentValidation: reglas cruzadas y asíncronas {#fluent-validation}
+
+Cuando una regla no cabe en un atributo, FluentValidation expresa la lógica en código C# pleno.
+
+### 12.4.1 Instalación y registro
 
 ```bash
 dotnet add package FluentValidation.AspNetCore
 ```
 
-### Registro en Program.cs
-
 ```csharp
-using FluentValidation;
-using FluentValidation.AspNetCore;
-
-// Registra automáticamente todos los validators del ensamblado
+// Program.cs — antes de AddControllersWithViews / AddControllers
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 ```
 
-Con `AddFluentValidationAutoValidation()`, el validator se ejecuta igual que DataAnnotations: antes de que el controlador llegue a ejecutarse. Si el DTO no valida, devuelve `400` automáticamente.
+Con `AddFluentValidationAutoValidation()`, el validador corre **antes** del controlador igual que las DataAnnotations. Si falla, también devuelve `400 ValidationProblemDetails` automáticamente.
 
-### Validator básico: reglas de campo
+### 12.4.2 Validator de campo
 
 ```csharp
-// Validators/ClaseGuardarUnidadValidator.cs
-public sealed class ClaseGuardarUnidadValidator : AbstractValidator<ClaseGuardarUnidad>
+public sealed class TipoRecursoCrearDtoValidator : AbstractValidator<TipoRecursoCrearDto>
 {
-    public ClaseGuardarUnidadValidator()
+    public TipoRecursoCrearDtoValidator()
     {
-        RuleFor(x => x.NombreEs)
-            .NotEmpty().WithMessage("El nombre en español es obligatorio")
-            .MaximumLength(200).WithMessage("El nombre no puede superar 200 caracteres");
+        RuleFor(x => x.Codigo)
+            .NotEmpty().WithMessage("El código es obligatorio.")
+            .MaximumLength(100);
 
-        RuleFor(x => x.Granularidad)
-            .InclusiveBetween(5, 120)
-            .WithMessage("La granularidad debe estar entre 5 y 120 minutos");
+        RuleFor(x => x.NombreEs)
+            .NotEmpty().WithMessage("El nombre en español es obligatorio.")
+            .MaximumLength(150);
     }
 }
 ```
 
-### Validator con regla cruzada: error asignado a un campo
+Esto coexiste con DataAnnotations: ambas se ejecutan; los mensajes pueden duplicarse si declaras la misma regla en los dos sitios.
 
-El error se muestra bajo el campo `DuracionMax` en el formulario:
+::: tip CRITERIO PRÁCTICO
+- **DataAnnotations** para reglas de un campo.
+- **FluentValidation** cuando aparece la primera regla cruzada o asíncrona.
+
+No mezcles los dos para el **mismo** campo: o todo en DA o todo en FV.
+:::
+
+### 12.4.3 Regla cruzada con error asignado a un campo
 
 ```csharp
-// La granularidad no puede superar la duración máxima
-// Error asignado al campo Granularidad → aparece bajo ese input en Vue
-RuleFor(x => x.Granularidad)
-    .Must((unidad, granularidad) =>
-        !unidad.DuracionMax.HasValue || granularidad <= unidad.DuracionMax.Value)
-    .WithMessage("La granularidad no puede superar la duración máxima");
+RuleFor(x => x.MinutoInicio)
+    .Must((dto, minuto) => (dto.HoraInicio * 60 + minuto + dto.MinutosReserva) <= 24 * 60)
+    .WithMessage("La reserva se sale del día.");
 ```
 
-### Validator con error global: sin campo asociado
+El error aparece en `errors["MinutoInicio"]`. Vue lo pinta bajo ese input.
 
-Cuando la regla afecta al objeto completo y no tiene un campo claro como responsable, el error va a la clave `""` y Vue lo muestra como error global (encima del formulario, no bajo ningún input):
+### 12.4.4 Regla cruzada sin campo claro (error global)
+
+Cuando la regla no es de "un campo" sino "del DTO entero", se usa `RuleFor(x => x).Custom` y se añade el error a la clave `""`:
 
 ```csharp
-// Error global: no pertenece a ningún campo concreto
-// Clave "" en errors → erroresGlobales en Vue
-RuleFor(x => x).Custom((unidad, ctx) =>
+RuleFor(x => x).Custom((dto, ctx) =>
 {
-    if (unidad.FechaFin.HasValue && unidad.FechaInicio.HasValue
-        && unidad.FechaFin <= unidad.FechaInicio)
+    if (dto.FechaConfirmacion.HasValue && dto.FechaConfirmacion < dto.FechaReserva)
     {
-        ctx.AddFailure("", "La fecha de fin debe ser posterior a la fecha de inicio");
+        ctx.AddFailure("",   // ← clave vacía = error global
+            "La fecha de confirmación no puede ser anterior a la fecha de la reserva.");
     }
 });
 ```
 
-### Validator con validación asíncrona (consulta a BD)
+En Vue, esto va al banner de errores globales encima del formulario (`erroresGlobales` en `useGestionFormularios`).
 
-Cuando necesitamos verificar algo contra la base de datos, como si un nombre ya existe:
-
-```csharp
-public sealed class ClaseGuardarUnidadValidator : AbstractValidator<ClaseGuardarUnidad>
-{
-    private readonly IUnidadesRepositorio _repo;
-
-    public ClaseGuardarUnidadValidator(IUnidadesRepositorio repo)
-    {
-        _repo = repo;
-
-        RuleFor(x => x.NombreEs)
-            .NotEmpty().WithMessage("El nombre en español es obligatorio")
-            .MustAsync(async (nombre, ct) =>
-                !await _repo.ExisteNombreAsync(nombre))
-            .WithMessage("Ya existe una unidad con ese nombre en español");
-    }
-}
-```
-
----
-
-## 12.4 ApiControllerUA: respuesta estándar y errores de Oracle {#api-controller-ua}
-
-Cuando la validación es automática (DataAnnotations + FluentValidation con `AddFluentValidationAutoValidation()`), el controlador no necesita hacer nada — el `400` sale solo.
-
-Pero hay dos casos en los que necesitamos devolver el error manualmente:
-
-1. **Validación adicional en el propio controlador** (rara, pero ocurre)
-2. **`BDException.Usuario`**: Oracle ha rechazado la operación con un mensaje para el usuario
-
-Para estos casos, el controlador hereda de `ApiControllerUA` en lugar de `ControllerBase`:
+### 12.4.5 Regla asíncrona contra la BD
 
 ```csharp
-using ua.Plantilla;       // ApiControllerUA
-using ua.Models;          // BDException, EnumBDException
-using ua.Models.Plantilla.Errores; // AppException
-
-[Route("api/unidades")]
-public class UnidadesController : ApiControllerUA   // ← hereda de ApiControllerUA
+public TipoRecursoCrearDtoValidator(ITiposRecursoServicio servicio)
 {
-    private readonly IUnidades _unidades;
-
-    public UnidadesController(IUnidades unidades) => _unidades = unidades;
-
-    [HttpPost]
-    public async Task<IActionResult> Guardar([FromBody] ClaseGuardarUnidad input)
-    {
-        // [ApiController] + AddValidacionUA() ya validaron DataAnnotations y FluentValidation.
-        // Si hubo errores de formato o reglas cruzadas, nunca llegamos aquí.
-
-        try
-        {
-            var id = await _unidades.GuardarAsync(input);
-            return CreatedAtAction(nameof(ObtenerPorId), new { id }, id);
-        }
-        catch (BDException bdex) when (bdex.TipoExcepcion == EnumBDException.Usuario)
-        {
-            // Oracle rechazó la operación con un mensaje para el usuario
-            // (RAISE_APPLICATION_ERROR con # en el PL/SQL)
-            // Lo convertimos en error global de validación → erroresGlobales en Vue
-            ModelState.AddModelError("", bdex.Message);
-            return ProblemaValidacion("El servidor ha rechazado la operación");
-        }
-        // BDException.Sistema, MantenimientoException y otras → ErrorHandlerMiddleware
-        // → correo al desarrollador + mensaje genérico al usuario
-    }
-
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Actualizar(int id, [FromBody] ClaseGuardarUnidad input)
-    {
-        try
-        {
-            await _unidades.ActualizarAsync(id, input);
-            return Ok();
-        }
-        catch (BDException bdex) when (bdex.TipoExcepcion == EnumBDException.Usuario)
-        {
-            ModelState.AddModelError("", bdex.Message);
-            return ProblemaValidacion();
-        }
-    }
+    RuleFor(x => x.Codigo)
+        .MustAsync(async (codigo, ct) => !await servicio.ExisteCodigoAsync(codigo))
+        .WithMessage("Ya existe un tipo de recurso con ese código.");
 }
 ```
 
-### Qué devuelve ProblemaValidacion()
+Útil para unicidad ligera. Si la regla es costosa o si la BD ya tiene una constraint UNIQUE, considera dejarla en Oracle y capturar el `ORA-00001` en el servicio.
 
-`ProblemaValidacion()` construye un `ValidationProblemDetails` con el `ModelState` actual:
+## 12.5 Errores de Oracle: el camino idiomático {#errores-oracle}
 
-```json
+`uaReservas` incluye **paquetes de prueba** de errores precisamente para que el alumno vea, sin tocar BD, cómo viaja un error desde el `RAISE_APPLICATION_ERROR` hasta el `errors` del JSON. Son los botones rojos / amarillos del probador (`Sesion1ProbadorApi.vue`).
+
+| Botón del probador | Llama a | Lanza `ORA-` | `ErrorType` | HTTP |
+|--------------------|---------|--------------|-------------|------|
+| `recurso-no-existe` | `PKG_RES_TIPO_RECURSO_ERR.PROBAR_RECURSO_NO_EXISTE` | `-20702` | `NotFound` | 404 |
+| `recurso-con-asociados` | `PKG_RES_TIPO_RECURSO_ERR.PROBAR_RECURSO_CON_ASOCIADOS` | `-20703` | `Validation` | 400 |
+| `error-tecnico` | `PKG_RES_TIPO_RECURSO_ERR.PROBAR_ERROR_TECNICO` | (excepción Oracle no esperada) | `Failure` | 500 |
+
+### 12.5.1 El formato del mensaje en el paquete
+
+Los paquetes UA escriben mensajes con un convenio: `RAISE_APPLICATION_ERROR(-20xxx, '#CLAVE|arg1|arg2#')`. El cliente Oracle (`ClaseOracleBD3`) los entrega al servicio, que llama al traductor:
+
+```csharp
+var failure = ErrorPaquetePlSql.AResultFailure<bool>(
+    ErrorPaquetePlSql.LeerInt(p,   "P_CODIGO_ERROR"),
+    ErrorPaquetePlSql.LeerString(p,"P_MENSAJE_ERROR"));
+if (failure is not null) return failure;
+```
+
+`ErrorPaquetePlSql.DesdeCodigo`:
+
+1. **Mapea el código** a `ErrorType` (rango → `NotFound` / `Validation` / `Failure`).
+2. **Extrae la clave** entre `#` y los argumentos separados por `|`.
+3. Devuelve un `Error` con `Code`, `MessageKey`, `MessageArgs` y un mensaje técnico para los logs.
+
+`HandleResult` traduce a HTTP y, antes de devolver, llama a `LocalizarMensaje(error)` con `IStringLocalizer<SharedResource>`: por eso el `detail` viaja en el idioma del usuario.
+
+::: tip POR QUÉ ES "IDIOMÁTICO"
+- El paquete PL/SQL nunca devuelve `'Error al borrar TipoRecurso'`. Devuelve **una clave** (`TIPO_RECURSO_TIENE_RECURSOS_ASOCIADOS`) y los argumentos para componerla.
+- El servidor decide el idioma del usuario en función del JWT y traduce.
+- El cliente recibe ya el texto correcto.
+
+Así, **cambiar el idioma del usuario no requiere tocar PL/SQL ni .NET**. Solo el `.resx` del `SharedResource`.
+:::
+
+### 12.5.2 Lo que ve Vue es lo mismo, venga de donde venga
+
+Tanto si el rechazo nace en DataAnnotations, en FluentValidation o en `PKG_RES_*_ERR`, el JSON tiene la **misma forma**. Eso es lo que permite que el código de Vue sea uno solo, sin un `if` por origen del error.
+
+## 12.6 `RegistrarErrorTecnico`: el correo y el log de los errores que pasan {#registrar-error-tecnico}
+
+Hay errores que el usuario solo necesita ver de forma **escueta** ("Ha ocurrido un problema. Inténtalo más tarde."), pero el equipo necesita en **detalle** para diagnosticar: stack trace, código `ORA-`, valor de los parámetros, etc.
+
+En el modelo nuevo, ese detalle **no se pierde**: viaja en `Error.TechnicalMessage`. Lo que llega al cliente es el `Detail` localizado y limpio (sin nombres de procedimientos ni `ORA-`). El detalle técnico se procesa en un único método central de `ApiControllerBase`:
+
+```csharp
+// ApiControllerBase.cs
+private void RegistrarErrorTecnico(Error error)
 {
-  "title": "Error de validación",
-  "detail": "El servidor ha rechazado la operación",
-  "status": 400,
-  "errors": {
-    "": ["La unidad ya está bloqueada y no puede modificarse"]
-  }
+    if (string.IsNullOrWhiteSpace(error.TechnicalMessage)) return;
+
+    var logger = HttpContext.RequestServices.GetService<ILogger<ApiControllerBase>>();
+    logger?.LogWarning(
+        "Error tecnico asociado a respuesta funcional {Code}: {TechnicalMessage}",
+        error.Code, error.TechnicalMessage);
 }
 ```
 
-Ese `errors[""]` viaja al frontend y `adaptarProblemDetails()` lo mete en `erroresGlobales`.
+### 12.6.1 Por qué este es el sitio del correo
 
----
+Cualquier `Result.Failure(Error)` que pase por `HandleResult` invoca a `RegistrarErrorTecnico`. Tenemos en ese punto:
 
-## 12.5 Vue: pintar errores con useGestionFormularios v2 {#gestion-formularios}
+- El `Code` (ej. `ORA-20703`) para clasificar.
+- El `TechnicalMessage` con el detalle completo.
+- El `HttpContext`, que permite leer cabeceras, ruta, usuario.
 
-`useGestionFormularios` v2 (de `@vueua/components`) gestiona en un solo composable la validación de cliente y los errores del servidor. No requiere TanStack Form ni Pinia.
+```mermaid
+flowchart LR
+    HR[HandleResult] -->|"error.Type != Success"| LOC[LocalizarMensaje]
+    HR --> RTE[RegistrarErrorTecnico]
+    RTE -->|ILogger Warning| LOG[Serilog · sesión 20]
+    RTE -.->|opcional| MAIL[Sink email · ClaseCorreo2]
+    LOC -->|Detail localizado| RESP[HTTP response]
+    style RTE fill:#fff3e0
+    style MAIL fill:#e3f2fd
+```
 
-### Importación y estado disponible
+<!-- diagram id="s12-registrar-error" caption: "Cada Failure pasa por RegistrarErrorTecnico antes de salir; aquí es donde enchufar log estructurado y correo" -->
 
-```typescript
-import { useGestionFormularios } from '@vueua/components/composables/use-gestion-formularios';
+::: warning DÓNDE NO METER EL CORREO
+- **No** dentro del servicio (acoplaríamos negocio con notificaciones).
+- **No** dentro del paquete PL/SQL (acoplaríamos BD con SMTP).
+- **No** dentro del controller individual (lo haríamos N veces).
 
+Centrado en `RegistrarErrorTecnico` aparece **una sola vez**, se aplica a **todos** los endpoints y no afecta al body que ve el usuario.
+:::
+
+### 12.6.2 ¿Y las excepciones que no son `Result`?
+
+Las excepciones que **escapan** del controlador (caída de BD, error de configuración) siguen yendo al `ErrorHandlerMiddleware` de la plantilla UA. Su política de notificación se mantiene: log + correo + 500 genérico. La diferencia es que ahora ahí **solo** llegan errores **realmente** inesperados, no validaciones disfrazadas.
+
+::: tip QUÉ SE PROFUNDIZA Y CUÁNDO
+- **Sesión 13 — Errores**: ampliación de `ErrorHandlerMiddleware`, `ClaseErrores` (la utilidad UA para componer el mensaje del correo) y políticas de retry.
+- **Sesión 20 — Serilog**: sinks Console / Oracle / File / Email. `RegistrarErrorTecnico` deja de loguear como `Warning` y emite eventos estructurados con propiedades (`Code`, `UserCodPer`, `RequestPath`).
+:::
+
+## 12.7 Vue: pintar errores con `useGestionFormularios` {#vue-gestion-formularios}
+
+Del lado cliente, `useGestionFormularios` (en `@vueua/components/composables/use-gestion-formularios`) hace de **bisagra** entre el `ValidationProblemDetails` del servidor y los inputs del formulario.
+
+### 12.7.1 Qué expone
+
+```ts
 const {
-  modelState,          // errores por campo (array de mensajes)
-  erroresGlobales,     // errores sin campo (key "" del servidor, refine() de Zod sin path)
-  hayErrores,          // resultado de la última validación de cliente
-  hayErroresServidor,  // true si hay algo en modelState o erroresGlobales
+  modelState,            // refs: { campo -> string[] } con los errores del servidor
+  erroresGlobales,       // ref<string[]>: errores con clave "" (validaciones cruzadas, Oracle)
+  hayErrores,            // boolean — validación cliente
+  hayErroresServidor,    // boolean — algo activo en modelState o erroresGlobales
 
-  errorDeCampo,        // (campo) => string | undefined — primer error del campo
-  erroresDeCampo,      // (campo) => string[] — todos los errores del campo
+  errorDeCampo,          // (campo) => string | undefined — primer error de ese campo
+  erroresDeCampo,        // (campo) => string[] — todos los errores de ese campo
 
-  validarFormulario,   // (ref) => boolean — HTML5 + Bootstrap
-  validarConEsquema,   // (ZodSchema, datos) => boolean — Zod (opt-in)
-
-  adaptarProblemDetails, // (pd, ref, prefijo?) — carga errores del servidor
-  inicializarMensajeError, // () — limpia todo antes del submit
-} = useGestionFormularios({ aislado: true }); // siempre aislado: true
+  validarFormulario,     // (formRef) => boolean — HTML5 + Bootstrap (was-validated)
+  adaptarProblemDetails, // (pd, formRef, prefijo?) — vuelca el ValidationProblemDetails al modelState
+  inicializarMensajeError,  // limpia todo (llamar antes de cada submit)
+} = useGestionFormularios({ aislado: true });
 ```
 
 ::: warning SIEMPRE `{ aislado: true }`
-Sin esta opción, el estado es compartido entre todos los componentes de la pantalla. Si hay dos formularios activos (un modal sobre una lista, dos tabs), se interfieren. Con `{ aislado: true }`, cada instancia tiene su propio estado.
+Sin esa opción el estado del composable es compartido entre instancias. Si en la misma pantalla hay dos formularios (alta y edición, o modal sobre lista), se pisan los errores. Con `{ aislado: true }`, cada `useGestionFormularios()` tiene su estado propio.
 :::
 
-### Flujo de submit
+### 12.7.2 Patrón de submit canónico
 
-```typescript
-const formRef = ref<HTMLFormElement | null>(null);
-const cargando = ref(false);
-const datos = ref({ nombreEs: '', nombreCa: '', granularidad: 15, numCitasSimultaneas: 1 });
-
+```ts
 async function guardar() {
-  // 1. Limpiar errores del envío anterior
-  inicializarMensajeError();
+  inicializarMensajeError();                          // 1. limpia errores previos
+  if (!validarFormulario(formRef)) return;            // 2. valida HTML5 (cliente)
 
-  // 2. Validación de cliente (HTML5 + Bootstrap)
-  if (!validarFormulario(formRef)) return;
-
-  // 3. Petición al servidor
   cargando.value = true;
   try {
-    await peticion('/unidades', verbosAxios.POST, datos.value);
-    avisar('Guardado', 'La unidad se ha creado correctamente');
+    await peticion<void>('TipoRecursos', verbosAxios.POST, datos.value);  // 3. servidor
+    avisar('Guardado', 'Tipo de recurso creado.');
   } catch (error: any) {
     if (error.response?.status === 400) {
-      // 4. Errores de validación → distribuir a campos y erroresGlobales
-      //    Prefijo 'nuevo_' debe coincidir con los id del template
-      adaptarProblemDetails(error.response.data, formRef, 'nuevo_');
+      adaptarProblemDetails(error.response.data, formRef, 'nuevo_');      // 4. distribuye
     } else {
-      // 5. Error de sistema → toast genérico
-      gestionarError(error, 'Error', 'No se pudo crear la unidad');
+      gestionarError(error, 'Error', 'No se pudo crear.');                 // 5. otros: toast
     }
   } finally {
     cargando.value = false;
@@ -390,78 +510,26 @@ async function guardar() {
 }
 ```
 
-### Template: errores globales
+Lo que hace `adaptarProblemDetails`:
 
-Colocar **encima del formulario**, antes del `<form>`:
-
-```html
-<div
-  v-if="erroresGlobales.length"
-  class="alert alert-danger"
-  role="alert"
-  aria-live="assertive"
->
-  <strong>No se pudo guardar:</strong>
-  <ul class="mb-0 mt-1">
-    <li v-for="err in erroresGlobales" :key="err">{{ err }}</li>
-  </ul>
-</div>
+```mermaid
+flowchart LR
+    PD[ValidationProblemDetails<br/>errors NombreEs / Granularidad / quote quote] --> A[adaptarProblemDetails]
+    A -->|por cada campo| MS[modelState<br/>nuevo_NombreEs / nuevo_Granularidad]
+    A -->|clave quote quote| EG[erroresGlobales]
+    MS --> CAMPO[input con is-invalid<br/>+ feedback]
+    EG --> BANNER[alert alert-danger<br/>encima del form]
 ```
 
-Aquí aparecen:
-- Los errores de validaciones cruzadas de FluentValidation (clave `""`)
-- Los mensajes de Oracle con `#` capturados como `BDException.Usuario`
+<!-- diagram id="s12-adaptar-problem-details" caption: "adaptarProblemDetails reparte cada clave del JSON entre modelState y erroresGlobales" -->
 
-### Template: campo con errores de servidor
-
-El prefijo `nuevo_` del template debe coincidir con el que se pasa a `adaptarProblemDetails`:
-
-```html
-<div class="mb-3">
-  <label for="nuevo_NombreEs" class="form-label">
-    Nombre (español) <span class="text-danger" aria-hidden="true">*</span>
-  </label>
-  <input
-    id="nuevo_NombreEs"
-    v-model="datos.nombreEs"
-    type="text"
-    class="form-control"
-    :class="{ 'is-invalid': errorDeCampo('nuevo_NombreEs') }"
-    required
-    maxlength="200"
-  />
-  <!-- Mensaje HTML5 (sin error de servidor activo) -->
-  <div class="invalid-feedback">El nombre en español es obligatorio</div>
-  <!-- Mensajes del servidor sobre este campo (puede ser más de uno) -->
-  <div
-    v-if="erroresDeCampo('nuevo_NombreEs').length"
-    class="invalid-feedback d-block"
-    role="alert"
-  >
-    <span
-      v-for="err in erroresDeCampo('nuevo_NombreEs')"
-      :key="err"
-      class="d-block"
-    >{{ err }}</span>
-  </div>
-</div>
-```
-
-::: tip POR QUÉ `erroresDeCampo` Y NO `errorDeCampo`
-FluentValidation puede devolver **varios errores por campo** si no se configura `CascadeMode.Stop`. Por ejemplo, un campo `Password` puede fallar por longitud, por mayúsculas y por números a la vez. Usar `erroresDeCampo()` muestra todos; `errorDeCampo()` solo muestra el primero.
-:::
-
-### Ejemplo completo del componente
+### 12.7.3 Template: errores globales y por campo
 
 ```vue
 <template>
-  <!-- Errores globales: encima del formulario -->
-  <div
-    v-if="erroresGlobales.length"
-    class="alert alert-danger"
-    role="alert"
-    aria-live="assertive"
-  >
+  <!-- Banner de errores globales -->
+  <div v-if="erroresGlobales.length"
+       class="alert alert-danger" role="alert" aria-live="assertive">
     <strong>No se pudo guardar:</strong>
     <ul class="mb-0 mt-1">
       <li v-for="err in erroresGlobales" :key="err">{{ err }}</li>
@@ -469,152 +537,87 @@ FluentValidation puede devolver **varios errores por campo** si no se configura 
   </div>
 
   <form ref="formRef" novalidate @submit.prevent="guardar">
-    <!-- Nombre en español -->
     <div class="mb-3">
       <label for="nuevo_NombreEs" class="form-label">
-        Nombre (español) <span class="text-danger" aria-hidden="true">*</span>
+        Nombre (español) <span class="text-danger">*</span>
       </label>
       <input
         id="nuevo_NombreEs"
-        v-model="datos.nombreEs"
+        v-model="datos.NombreEs"
         type="text"
         class="form-control"
         :class="{ 'is-invalid': errorDeCampo('nuevo_NombreEs') }"
-        required
-        maxlength="200"
+        required maxlength="150"
       />
-      <div class="invalid-feedback">El nombre en español es obligatorio</div>
-      <div v-if="erroresDeCampo('nuevo_NombreEs').length" class="invalid-feedback d-block">
-        <span v-for="err in erroresDeCampo('nuevo_NombreEs')" :key="err" class="d-block">
-          {{ err }}
-        </span>
-      </div>
-    </div>
+      <!-- HTML5 nativo: se ve cuando required falla sin haber tocado servidor -->
+      <div class="invalid-feedback">El nombre en español es obligatorio.</div>
 
-    <!-- Granularidad -->
-    <div class="mb-3">
-      <label for="nuevo_Granularidad" class="form-label">Granularidad (minutos)</label>
-      <input
-        id="nuevo_Granularidad"
-        v-model.number="datos.granularidad"
-        type="number"
-        class="form-control"
-        :class="{ 'is-invalid': errorDeCampo('nuevo_Granularidad') }"
-        min="5"
-        max="120"
-        required
-      />
-      <div class="invalid-feedback">Debe estar entre 5 y 120 minutos</div>
-      <div v-if="erroresDeCampo('nuevo_Granularidad').length" class="invalid-feedback d-block">
-        <span v-for="err in erroresDeCampo('nuevo_Granularidad')" :key="err" class="d-block">
-          {{ err }}
-        </span>
+      <!-- Servidor: uno o varios mensajes (FluentValidation puede dar más de uno) -->
+      <div v-if="erroresDeCampo('nuevo_NombreEs').length"
+           class="invalid-feedback d-block" role="alert">
+        <span v-for="err in erroresDeCampo('nuevo_NombreEs')" :key="err"
+              class="d-block">{{ err }}</span>
       </div>
     </div>
 
     <button type="submit" class="btn btn-primary" :disabled="cargando">
-      {{ cargando ? 'Guardando...' : 'Guardar' }}
+      {{ cargando ? 'Guardando…' : 'Guardar' }}
     </button>
   </form>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-import { useGestionFormularios } from '@vueua/components/composables/use-gestion-formularios';
-import { peticion, verbosAxios, gestionarError } from '@vueua/components/composables/use-axios';
-import { avisar } from '@vueua/components/composables/use-toast';
-
-const formRef = ref<HTMLFormElement | null>(null);
-const cargando = ref(false);
-const datos = ref({ nombreEs: '', nombreCa: '', granularidad: 15, numCitasSimultaneas: 1 });
-
-const {
-  erroresGlobales,
-  errorDeCampo,
-  erroresDeCampo,
-  inicializarMensajeError,
-  validarFormulario,
-  adaptarProblemDetails,
-} = useGestionFormularios({ aislado: true });
-
-async function guardar() {
-  inicializarMensajeError();
-  if (!validarFormulario(formRef)) return;
-
-  cargando.value = true;
-  try {
-    await peticion('/unidades', verbosAxios.POST, datos.value);
-    avisar('Guardado', 'La unidad se ha creado correctamente');
-  } catch (error: any) {
-    if (error.response?.status === 400) {
-      adaptarProblemDetails(error.response.data, formRef, 'nuevo_');
-    } else {
-      gestionarError(error, 'Error', 'No se pudo crear la unidad');
-    }
-  } finally {
-    cargando.value = false;
-  }
-}
-</script>
 ```
 
-### El prefijo y por qué existe
+### 12.7.4 Por qué el **prefijo**
 
-El servidor devuelve los errores con el nombre de la propiedad del DTO: `"NombreEs"`, `"Granularidad"`. En el template, los inputs tienen `id="nuevo_NombreEs"`, `id="nuevo_Granularidad"`. El prefijo `'nuevo_'` que pasamos a `adaptarProblemDetails` hace que el composable construya `modelState["nuevo_NombreEs"]` en lugar de `modelState["NombreEs"]`.
+El servidor devuelve `errors["NombreEs"]`. En el template, el `id` del input es `nuevo_NombreEs`. El prefijo `'nuevo_'` que pasamos a `adaptarProblemDetails` reescribe la clave: `errors["NombreEs"]` → `modelState["nuevo_NombreEs"]`.
 
-Esto es necesario cuando en la misma pantalla hay dos formularios (alta y edición), ya que así sus errores no colisionan aunque tengan los mismos campos:
+¿Por qué molestarse?
 
-```typescript
-// Formulario de alta
-adaptarProblemDetails(pd, formAltaRef, 'nuevo_');   // → modelState["nuevo_NombreEs"]
+Cuando en la **misma pantalla** hay dos formularios (alta + edición en modal), los dos tienen campos con el mismo nombre (`NombreEs`). Si no separamos las claves, los errores del POST del modal aparecerían debajo del input del alta. Con dos prefijos (`nuevo_` y `editar_`) cada formulario solo ve **sus** errores.
 
-// Formulario de edición en modal
-adaptarProblemDetails(pd, formEditRef, 'editar_');  // → modelState["editar_NombreEs"]
+```ts
+adaptarProblemDetails(pd, formAltaRef,  'nuevo_');    // POST  → modelState["nuevo_*"]
+adaptarProblemDetails(pd, formEditRef,  'editar_');   // PUT   → modelState["editar_*"]
 ```
 
----
+### 12.7.5 `errorDeCampo` vs `erroresDeCampo`
 
-## 12.6 Tabla resumen: de Oracle a Vue {#resumen}
+FluentValidation puede emitir **varios** mensajes para el mismo campo (si no usas `CascadeMode.Stop`). Si solo enseñas `errorDeCampo(campo)`, el usuario corrige el primero y, al volver a enviar, aparece el segundo. Con `erroresDeCampo(campo)` los ve todos a la vez y corrige una sola vez.
 
-| Origen del error | Formato servidor | Clave en `errors` | Dónde aparece en Vue |
-|-----------------|-----------------|-------------------|----------------------|
-| DataAnnotation `[Required]` en `NombreEs` | ValidationProblemDetails (automático) | `"NombreEs"` | `errorDeCampo('nuevo_NombreEs')` |
-| FluentValidation regla de campo | ValidationProblemDetails (automático) | `"Granularidad"` | `errorDeCampo('nuevo_Granularidad')` |
-| FluentValidation `AddFailure("")` (cruzada) | ValidationProblemDetails (automático) | `""` | `erroresGlobales` |
-| `BDException.Usuario` + `AddModelError("")` | `ProblemaValidacion()` | `""` | `erroresGlobales` |
-| `BDException.Sistema` | ErrorHandlerMiddleware → 500 | — | Mensaje genérico del middleware |
+Por defecto **usa `erroresDeCampo`** en el template para los mensajes. Reserva `errorDeCampo` solo para el `:class="{ 'is-invalid': ... }"` (donde solo necesitas un booleano).
 
----
+## 12.8 Tabla resumen: de Oracle a Vue {#resumen}
 
-## 12.7 Ejercicio guiado {#ejercicio}
+| Origen del error | Capa que lo emite | Clave en `errors` | Dónde aparece en Vue |
+|------------------|-------------------|-------------------|----------------------|
+| `[Required]` / `[Range]` en DTO | DataAnnotations + `[ApiController]` | Nombre de la propiedad | Bajo el input |
+| `RuleFor(x => x.Campo)` | FluentValidation | Nombre de la propiedad | Bajo el input |
+| `RuleFor(x => x).Custom(... AddFailure("", "..."))` | FluentValidation | `""` | Banner global |
+| `Result.Validation(code, msg, errors)` desde el servicio | Servicio → `HandleResult` | Lo que ponga `errors` | Mixto: campos y/o `""` |
+| `Result.NotFound(code, msg)` desde el servicio o paquete | Servicio → `HandleResult` | (404, sin `errors`) | Toast rojo (`gestionarError`) |
+| `PKG_RES_*_ERR` con `-20703` | Oracle → `ErrorPaquetePlSql.DesdeCodigo` → `Result.Failure` | `""` (lo trata como Validation global) | Banner global |
+| `PKG_RES_*_ERR` con `-20702` | Oracle → `ErrorPaquetePlSql.DesdeCodigo` → `Result.Failure` | (404) | Toast rojo |
+| Excepción inesperada del servicio | `ErrorHandlerMiddleware` | (500, sin `errors`) | Toast rojo + correo al equipo |
 
-Vamos a aplicar lo visto al formulario de Unidades de nuestra aplicación.
+## 12.9 Pruébalo en el proyecto {#sandbox}
 
-### Paso 1: DataAnnotations en el DTO
+| Caso | Cómo dispararlo en el sandbox | Qué verás |
+|------|-------------------------------|-----------|
+| DataAnnotation rota | En Scalar, POST `/api/TipoRecursos` con `Codigo: ""` | 400 con `errors["Codigo"]` y `errors["NombreEs"]…` |
+| FluentValidation regla cruzada | (Cuando añadas el validator de Reserva) — POST con `HoraInicio: 23, MinutosReserva: 200` | 400 con `errors["MinutoInicio"]` |
+| FluentValidation regla global | (Cuando añadas la regla) — POST con `FechaConfirmacion < FechaReserva` | 400 con `errors[""]` → banner |
+| Oracle `NotFound` (`-20702`) | Probador → botón `recurso-no-existe` | 404, toast rojo |
+| Oracle `Validation` (`-20703`) | Probador → botón `recurso-con-asociados` | 400 con `errors[""]` → banner |
+| Oracle técnico (`Failure`) | Probador → botón `error-tecnico` | 500, toast rojo; en backend se logueará el `TechnicalMessage` |
 
-Abre `Models/Unidad/ClaseGuardarUnidad.cs` y añade validaciones a todos los campos obligatorios.
+::: tip CICLO DE TRABAJO RECOMENDADO PARA UN FORMULARIO NUEVO
+1. Define el **DTO** con DataAnnotations y compruébalo en Scalar enviando datos rotos.
+2. Si aparecen reglas cruzadas, escribe el **Validator** de FluentValidation.
+3. Si la regla solo la conoce la BD, añade la comprobación en el **paquete PL/SQL** y devuelve `RAISE_APPLICATION_ERROR(-20xxx, '#CLAVE|args#')`.
+4. En Vue, llama a `useGestionFormularios({ aislado: true })`, monta `errorDeCampo` / `erroresDeCampo` por input y un banner para `erroresGlobales`.
+5. Confirma que el mismo formulario reacciona bien a los seis casos de la tabla anterior.
+:::
 
-### Paso 2: Configurar AddValidacionUA
+## 12.10 Próxima sesión {#siguiente}
 
-En `Program.cs`, añade `builder.Services.AddValidacionUA()` antes de `AddControllersWithViews()`.
-
-### Paso 3: Hereda de ApiControllerUA
-
-Cambia la herencia del controlador de `ControllerBase` a `ApiControllerUA`. Añade el `catch` para `BDException.Usuario`.
-
-### Paso 4: Validator para la regla cruzada
-
-Crea `Validators/ClaseGuardarUnidadValidator.cs` con la regla: granularidad no puede superar la duración máxima.
-
-Verifica que al enviar datos inválidos recibes un `400` con `errors` por campo. Verifica que al enviar granularidad > duración, el error aparece en el campo `Granularidad`.
-
-### Paso 5: Vue con useGestionFormularios
-
-En el componente Vue del formulario de alta:
-1. Importa `useGestionFormularios` con `{ aislado: true }`.
-2. Añade el bloque de errores globales encima del `<form>`.
-3. Añade `:class="{ 'is-invalid': errorDeCampo('nuevo_...') }"` a cada input.
-4. Añade `erroresDeCampo()` para mostrar los mensajes del servidor bajo cada input.
-5. En el `catch`, llama a `adaptarProblemDetails(error.response.data, formRef, 'nuevo_')`.
-
-Prueba enviando datos que el validador de FluentValidation rechace (granularidad > duración). Verifica que el error aparece bajo el campo `Granularidad` en el formulario.
+En la **sesión 13 — Errores** entramos en el `ErrorHandlerMiddleware` de la plantilla y en `ClaseErrores`: cómo se construye el correo al equipo, qué política de retry tiene la cola, y dónde se filtran los errores que no merecen notificación (cancelaciones de cliente, requests interrumpidas, etc.). En la **sesión 20 — Serilog** sustituimos el `ILogger` que aparece en `RegistrarErrorTecnico` por un pipeline estructurado con sinks Console, Oracle, File y Email.
