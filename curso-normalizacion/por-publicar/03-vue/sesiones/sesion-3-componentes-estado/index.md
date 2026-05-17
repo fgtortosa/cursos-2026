@@ -916,6 +916,27 @@ watch(totalGastado, (nuevoTotal) => {
 ```
 :::
 
+## Tarea progresiva del proyecto final {#tarea-pf}
+
+::: tip MÓDULOS 3 Y 4 · COMPONENTES REUTILIZABLES
+Esta sesión te da las piezas para dos módulos del proyecto final que aún no has empezado:
+
+**Módulo 3 · Horario** — Diseña en tu cabeza el componente `BloqueDia` que usarás más adelante:
+
+- Recibe el día (lunes-domingo) como prop y las franjas como `defineModel`.
+- Botones "añadir franja", "borrar franja", "bloquear día" usando los patrones de hoy.
+- En la sesión de Pinia (sesión 23) lo conectaremos a un store compartido del horario en edición.
+
+**Módulo 4 · Reserva** — Componentes `SelectorHora` y `SelectorDuracion`:
+
+- `SelectorHora` con `defineModel<number>()` para el minuto del día (0-1439) y formato `HH:mm` en pantalla.
+- `SelectorDuracion` con `defineModel<number>()` para minutos, presets en botones (15, 30, 60, 90).
+
+Hoy basta con que dejes esbozada la API (`<script setup>` con `defineProps` y `defineModel`) en tu rama. La integradora vendrá en módulos posteriores.
+
+Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+:::
+
 ## Test Sesión 3 {#test}
 
 ### Preguntas (desplegables)

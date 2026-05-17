@@ -1246,6 +1246,25 @@ flowchart LR
 
 ---
 
+## Tarea progresiva del proyecto final {#tarea-pf}
+
+::: tip MÓDULO 1 · TIPO DE RECURSO — PASO 4 (SERVICIO ORACLE)
+En tu rama `tiporecurso-<nombre>`, sustituye el CRUD en memoria por un servicio real:
+
+- Crea `ITiposRecursoServicio` + `TiposRecursoServicio` con `ClaseOracleBD3`.
+- Lectura contra `VRES_TIPO_RECURSO` con `ObtenerTodosMapAsync<TipoRecursoLectura>`.
+- Escritura contra `PKG_RES_TIPO_RECURSO.CREAR / ACTUALIZAR / ELIMINAR` con `DynamicParameters` y `P_CODIGO_ERROR / P_MENSAJE_ERROR`.
+- Convierte los errores Oracle con `ErrorPaquetePlSql.AResultFailure(...)` antes de devolver el `Result<T>`.
+
+El controlador **no cambia**: sigue siendo el de la sesión 1, solo pasa a usar el nuevo servicio vía DI.
+
+**Adelanto del módulo 2 (Recurso)**: empieza a pensar en los campos de auditoría (`FECHA_CREACION`, `CODPER_CREADOR`). En la sesión 11 leeremos `CodPer` del JWT; aquí basta con dejarlos como columnas en la tabla.
+
+Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+:::
+
+---
+
 ## Tests y práctica IA
 
 - [Ver tests y práctica de la sesión](../../test/sesion-2/)

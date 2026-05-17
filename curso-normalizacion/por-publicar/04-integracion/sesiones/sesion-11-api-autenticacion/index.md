@@ -484,7 +484,27 @@ flowchart LR
 4. Engancha al composable y a la vista.
 :::
 
-## 11.7 Pruébalo en el proyecto {#sandbox}
+## 11.7 Tarea progresiva del proyecto final {#tarea-pf}
+
+::: tip MÓDULO 1 · INTEGRACIÓN REAL + MÓDULO 2 · ARRANQUE
+Ya tienes lo necesario para sustituir mocks por la API real.
+
+**Módulo 1 (`tiporecurso-<nombre>`):**
+
+- Crea `services/tipoRecursoServicio.ts` con `peticion<T>` reemplazando el mock.
+- Mantén la firma del servicio: el composable y la vista no se tocan.
+- Comprueba en DevTools → Network que cada llamada lleva la cookie `X-Access-Token`.
+
+**Módulo 2 (`recurso-<nombre>`):**
+
+- Lee `CodPer` e `Idioma` del JWT en `RecursosController` (vía `ControladorBase`).
+- En tus consultas a la vista `VRES_RECURSO`, devuelve solo la columna idiomática que corresponde al usuario.
+- Bloquea por defecto los recursos cuyo `CODPER_CREADOR` no coincida con el del usuario (`Result.Validation` con `errors[""]`). La fórmula final con roles llega en la sesión 22.
+
+Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+:::
+
+## 11.8 Pruébalo en el proyecto {#sandbox}
 
 En la **sesión 1 (.NET)** ya tienes el probador con los botones que provocan errores 404/400/500. Esta sesión lo cierra con la idea contraria: **el botón hace lo mismo, lo que cambia es el sitio donde lo manejas**.
 

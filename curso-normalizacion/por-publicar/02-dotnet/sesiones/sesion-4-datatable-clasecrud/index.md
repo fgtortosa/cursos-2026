@@ -1289,6 +1289,26 @@ Cuando implementes un nuevo DataTable:
 
 ---
 
+## Tarea progresiva del proyecto final {#tarea-pf}
+
+::: tip MÓDULO 1 · CIERRE SERVIDOR + MÓDULO 2 · DATATABLE
+En tu rama `tiporecurso-<nombre>` añade el listado paginado:
+
+- `POST /api/TipoRecursos/DataTable` con `ClaseCrud` para paginación, ordenación y filtros server-side.
+- Filtro de búsqueda libre por `Codigo` o `Nombre`.
+- Tests del endpoint (al menos: paginación, orden y filtro vacío).
+
+En tu rama `recurso-<nombre>` (módulo 2), reproduce el patrón sobre `Recurso` con las **acciones extra**:
+
+- Filtro **desplegable por tipo de recurso** (usando `vueua-autocomplete` o un `<select>` simple por ahora).
+- Acciones por fila: activar / desactivar / marcar mantenimiento.
+- Solo el creador o el rol `RECURSOS_ADMIN` pueden editar o eliminar (lo terminamos en la sesión de seguridad).
+
+Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+:::
+
+---
+
 ## Tests y práctica IA
 
 - [Ver tests y práctica de la sesión](../../test/sesion-4/)

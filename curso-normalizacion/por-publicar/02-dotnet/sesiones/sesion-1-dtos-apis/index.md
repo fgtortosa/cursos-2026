@@ -2321,6 +2321,23 @@ Incluye los tres ficheros completos, explicación de cada decisión de diseño y
 
 ---
 
+## Tarea progresiva del proyecto final {#tarea-pf}
+
+::: tip MÓDULO 1 · TIPO DE RECURSO — PASO 3 (API EN MEMORIA)
+En tu rama `tiporecurso-<nombre>` reproduce el patrón que has visto en clase:
+
+- Crea los DTOs `TipoRecursoLectura`, `TipoRecursoCrearDto`, `TipoRecursoActualizarDto` con DataAnnotations donde proceda.
+- Implementa el `TipoRecursosController` con CRUD en memoria (lista estática como en la sesión).
+- Documenta cada endpoint con XML doc para que Scalar lo recoja.
+- Comprueba con el botón **`GET /api/Observaciones (ejercicio)`** del probador y en Scalar.
+
+En la sesión 2 conectarás el controlador al paquete Oracle real. **No reescribas**: solo cambiarás el servicio.
+
+Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+:::
+
+---
+
 ## Tests y práctica IA
 
 - [Ver tests y práctica de la sesión](../../test/sesion-1/)

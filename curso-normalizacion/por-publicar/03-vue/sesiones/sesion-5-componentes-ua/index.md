@@ -398,6 +398,22 @@ La integradora `Sesion10CrudRecursos.vue` es el **estado final del bloque Vue**:
 
 En la sesión 11 (parte de Integración) sustituiremos el servicio mock por llamadas reales a la API con `useAxios` y veremos la autenticación CAS/JWT. El código de las demos de esta sesión **no necesitará cambios** en las capas de vista ni de composable.
 
+## Tarea progresiva del proyecto final {#tarea-pf}
+
+::: tip MÓDULO 1 · CIERRE CLIENTE
+En tu rama `tiporecurso-<nombre>`, construye la pantalla completa de gestión de **tipos de recurso** copiando la receta de `Sesion10CrudRecursos.vue`:
+
+- Listado en tabla con búsqueda libre y filtro `Activo` con `Checkbox3estados`.
+- Botón **Nuevo** que abre un `DialogModal` con el formulario (multiidioma `NombreEs / NombreCa / NombreEn`).
+- **Editar** desde una fila reutilizando el mismo `DialogModal` con `borrador` editable.
+- **Eliminar** desde una fila pidiendo confirmación con `PopUpModal` y mostrando toast.
+- Carga inicial bloqueada por `SpinnerModal`.
+
+A día de hoy sigue trabajando con un **servicio mock**: `tipoRecursoServicioMock.ts` que simule latencia. En la sesión 17 sustituirás el mock por `useAxios` y la pantalla **no se tocará**.
+
+Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+:::
+
 ## Test Sesión 10 {#test}
 
 ::: details 1. ¿Cuándo usar `PopUpModal` en lugar de `DialogModal`?

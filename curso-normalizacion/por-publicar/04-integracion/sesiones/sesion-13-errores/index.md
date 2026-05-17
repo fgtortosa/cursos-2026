@@ -915,7 +915,25 @@ Si dudas, empieza por la **imperativa**. La declarativa solo gana si más de un 
 - [ ] `appsettings.{Production,Preproduccion}.json` define `EnvioA`, `Titulo` y `ThrottlingMinutos`.
 - [ ] Los `.resx` (`SharedResource.{es,ca,en}.resx`) contienen las claves referenciadas desde PL/SQL.
 
-## 13.10 Próxima sesión {#siguiente}
+## 13.10 Tarea progresiva del proyecto final {#tarea-pf}
+
+::: tip MÓDULO 1 · CIERRE ROBUSTO + MÓDULO 2 · ERRORES POR FILA
+**Módulo 1 (`tiporecurso-<nombre>`):**
+
+- Añade `PopUpModal` de confirmación antes de eliminar.
+- Reemplaza los `alert(...)` que puedas tener por `avisar / avisarError`.
+- Dispara los tres errores PL/SQL desde Scalar para verificar que llegan a tu UI con el formato correcto (`ORA-20702` → toast rojo, `ORA-20703` → banner global con mensaje localizado, `error-tecnico` → toast genérico + el detalle queda en logs).
+- Crea las claves en `Resources/SharedResource.{es,ca,en}.resx` (al menos `TIPO_RECURSO_NO_EXISTE` y `TIPO_RECURSO_CON_ASOCIADOS`).
+
+**Módulo 2 (`recurso-<nombre>`):**
+
+- En el DataTable, captura errores por acción (activar / desactivar / mantener) y reflejalos con toasts.
+- Si la acción falla porque el usuario no es el propietario, muestra un banner global con el mensaje localizado.
+
+Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+:::
+
+## 13.11 Próxima sesión {#siguiente}
 
 En la **sesión 14 — DataTable + ClaseCrud** aplicamos todo lo visto a un listado con paginación servidor, filtros, ordenación y acciones por fila (incluyendo eliminación con confirmación). Los errores que ahora dominas vuelven a aparecer en cada acción: añadir, editar, borrar, exportar. Ya tienes los reflejos: `Result<T>` en servidor, `useGestionFormularios` y `useToast` en cliente, `PopUpModal` para lo irreversible.
 

@@ -618,6 +618,23 @@ Por defecto **usa `erroresDeCampo`** en el template para los mensajes. Reserva `
 5. Confirma que el mismo formulario reacciona bien a los seis casos de la tabla anterior.
 :::
 
-## 12.10 Próxima sesión {#siguiente}
+## 12.10 Tarea progresiva del proyecto final {#tarea-pf}
+
+::: tip MÓDULO 1 · FORMULARIO COMPLETO + MÓDULO 3 · CONFLICTOS
+**Módulo 1 (`tiporecurso-<nombre>`):**
+
+- Aplica `useGestionFormularios({ aislado: true })` al formulario de alta y edición.
+- Pinta `errorDeCampo('nuevo_Codigo' / 'editar_Codigo')` bajo cada input.
+- Banner global para `erroresGlobales` (caso típico: el `ORA-20703` cuando hay recursos asociados).
+- Valida con DataAnnotations en los DTOs y, si quieres, añade un `TipoRecursoCrearDtoValidator` con FluentValidation para reforzar que `Codigo` cumple un patrón.
+
+**Módulo 3 (`horario-<nombre>`):**
+
+- Esboza el validator `HorarioSemanalDtoValidator` con la regla cruzada de **solapamiento de franjas** (clave `""`). En la sesión 23 (Pinia) le añadirás el estado compartido.
+
+Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+:::
+
+## 12.11 Próxima sesión {#siguiente}
 
 En la **sesión 13 — Errores** entramos en el `ErrorHandlerMiddleware` de la plantilla y en `ClaseErrores`: cómo se construye el correo al equipo, qué política de retry tiene la cola, y dónde se filtran los errores que no merecen notificación (cancelaciones de cliente, requests interrumpidas, etc.). En la **sesión 20 — Serilog** sustituimos el `ILogger` que aparece en `RegistrarErrorTecnico` por un pipeline estructurado con sinks Console, Oracle, File y Email.

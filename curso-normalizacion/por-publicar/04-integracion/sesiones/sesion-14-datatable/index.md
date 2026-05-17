@@ -42,3 +42,21 @@ Pendiente de publicación.
 ## 14.4 Conectando las dos partes {#conexion}
 
 Pendiente de publicación.
+
+## 14.5 Tarea progresiva del proyecto final {#tarea-pf}
+
+::: tip MÓDULO 2 · CIERRE DEL DATATABLE DE RECURSO + MÓDULO 4 · DISPONIBILIDAD
+**Módulo 2 (`recurso-<nombre>`) — cierre:**
+
+- DataTable server-side de `Recurso` con paginación, ordenación y filtros.
+- **Filtro desplegable** por `TipoRecurso` (usando `vueua-autocomplete` o un `<select>` con los tipos cargados al `onMounted`).
+- Acciones por fila: editar, activar/desactivar, marcar mantenimiento, eliminar (con confirmación).
+- Botón "Calendario" en cada fila que aún no enlaza a nada — déjalo preparado para el módulo 4.
+
+**Módulo 4 (`reserva-<nombre>`) — arranque:**
+
+- Endpoint `GET /api/Reservas/disponibilidad?recursoId=…&fecha=…` que devuelve las franjas libres del día (consultando horario, festivos y reservas existentes).
+- Vista de lista de reservas del usuario actual con DataTable server-side filtrado por `CodPer = User.CodPer`.
+
+Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+:::
