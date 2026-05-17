@@ -4,5 +4,6 @@
   { "path": "02-dotnet/" },
   { "path": "03-vue/" },
   { "path": "04-integracion/" },
-  { "path": "05-avanzadas/" }
+  { "path": "05-avanzadas/" },
+  { "path": "06-proyecto-final/" }
 ]

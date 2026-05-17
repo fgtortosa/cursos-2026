@@ -54,3 +54,12 @@ Consulta también la [organización del curso](./organizacion-del-curso.md) para
   <span class="landing-card__description">Frontend con Vue 3 y TypeScript: componentes, reactividad, composición, ejercicios y encaje con las APIs del curso.</span>
   <span class="landing-card__link">Ir al índice Vue →</span>
 </a>
+
+## Proyecto final
+
+<a class="landing-card landing-card--highlight" href="./06-proyecto-final/">
+  <span class="landing-pill">Hilo conductor</span>
+  <strong class="landing-card__title">Aplicación de reservas en cuatro módulos progresivos</strong>
+  <span class="landing-card__description">Tipo de recurso, Recurso, Horario y Reserva: cada sesión del curso añade una pieza a tu rama. Aquí está el mapa maestro de hitos por sesión, los criterios de aceptación y la lista de control final.</span>
+  <span class="landing-card__link">Abrir el proyecto final →</span>
+</a>
