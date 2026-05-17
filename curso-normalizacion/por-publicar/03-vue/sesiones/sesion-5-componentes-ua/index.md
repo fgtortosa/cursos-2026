@@ -377,7 +377,24 @@ El componente `vueua-autocomplete` (búsqueda remota con selección) figura en e
 
 Combina en un único flujo los componentes vistos: listar recursos, filtro triestado, crear con `DialogModal`, eliminar con `PopUpModal`, spinner global al cargar, toasts de éxito/error y `BotonLoading` en el botón guardar. Sigue funcionando con datos mock (el composable real con `useAxios` llega en la sesión 11).
 
-## 10.10 Siguiente sesión {#siguiente}
+## 10.10 Pruébalo en el proyecto {#sandbox}
+
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-10/` hay siete demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-10`:
+
+| Demo | Concepto que ilustra | Fichero |
+|------|----------------------|---------|
+| `Sesion10PopUpModal.vue` | Las dos APIs (`v-model:visible` + `@confirmar` y `await ref.show()`) en paralelo | `sesion-10/Sesion10PopUpModal.vue` |
+| `Sesion10DialogModal.vue` | Formulario en modal con `borrador` editable, `:cerrado-automatico="false"` y guardado async | `sesion-10/Sesion10DialogModal.vue` |
+| `Sesion10SpinnerModal.vue` | `cargando` como **única variable** que controla spinner + `:disabled` del botón + mensaje | `sesion-10/Sesion10SpinnerModal.vue` |
+| `Sesion10Checkbox3estados.vue` | Filtro tri-estado con contrato `boolean \| null` | `sesion-10/Sesion10Checkbox3estados.vue` |
+| `Sesion10Teleport.vue` | Modal casero dentro de `.card` con `overflow:hidden` y `<Teleport to="body">` | `sesion-10/Sesion10Teleport.vue` |
+| `Sesion10CrudRecursos.vue` | Integradora: listar, filtrar, crear, editar y eliminar con todos los componentes UA | `sesion-10/Sesion10CrudRecursos.vue` |
+
+::: tip CIERRE DEL BLOQUE VUE
+La integradora `Sesion10CrudRecursos.vue` es el **estado final del bloque Vue**: combina `DialogModal` (crear/editar), `PopUpModal` (confirmar eliminación), `SpinnerModal` (carga inicial), `BotonLoading` (guardar), `Checkbox3estados` (filtro) y `useToast` (avisos). Cuando arranque el bloque de **Integración** (sesión 11), sustituiremos el servicio mock por uno con `useAxios` y esta vista no se tocará.
+:::
+
+## 10.11 Siguiente sesión {#siguiente}
 
 En la sesión 11 (parte de Integración) sustituiremos el servicio mock por llamadas reales a la API con `useAxios` y veremos la autenticación CAS/JWT. El código de las demos de esta sesión **no necesitará cambios** en las capas de vista ni de composable.
 
