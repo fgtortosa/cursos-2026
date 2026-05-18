@@ -191,7 +191,7 @@ export const generatedSidebar = {
           "link": "/curso-normalizacion/00-preparacion/"
         },
         {
-          "text": "Parte Oracle — Sesiones 1 y 2",
+          "text": "Parte Oracle — Sesiones 1 a 2",
           "link": "/curso-normalizacion/01-oracle/"
         },
         {
@@ -199,15 +199,15 @@ export const generatedSidebar = {
           "link": "/curso-normalizacion/02-dotnet/"
         },
         {
-          "text": "Parte Vue 3 con TypeScript — Sesiones 6 a 10",
+          "text": "Parte Vue 3 con TypeScript — Sesiones 9 a 13",
           "link": "/curso-normalizacion/03-vue/"
         },
         {
-          "text": "Integración full-stack — Sesiones 11 a 14",
+          "text": "Integración full-stack — Sesiones 14 a 17",
           "link": "/curso-normalizacion/04-integracion/"
         },
         {
-          "text": "Sesiones avanzadas — Sesiones 15 a 22",
+          "text": "Sesiones avanzadas — Sesiones 18 a 25",
           "link": "/curso-normalizacion/05-avanzadas/"
         },
         {
@@ -215,82 +215,8 @@ export const generatedSidebar = {
           "link": "/curso-normalizacion/06-proyecto-final/"
         },
         {
-          "text": "Curso Normalización — Guía para Claude",
-          "link": "/curso-normalizacion/CLAUDE"
-        },
-        {
           "text": "Organización del curso",
           "link": "/curso-normalizacion/organizacion-del-curso"
-        },
-        {
-          "text": "Plan de alineación — Sesiones Vue del curso ↔ `uaReservas` ↔ `vueua-lib`",
-          "link": "/curso-normalizacion/PLAN-ALINEACION-TEMARIO-CURSO-NORMALIZACION"
-        },
-        {
-          "text": "Revisión didáctica · Sesiones Vue (S6–S10)",
-          "link": "/curso-normalizacion/REVISION-DIDACTICA-S6-S10"
-        }
-      ]
-    }
-  ],
-  "/curso-normalizacion/profesor/": [
-    {
-      "text": "Material Docente Vue",
-      "items": [
-        {
-          "text": "Indice",
-          "link": "/curso-normalizacion/03-vue/guia-profesor/"
-        },
-        {
-          "text": "Guia del profesor — Sesion 6: Vue 3, TypeScript y primer componente",
-          "link": "/curso-normalizacion/03-vue/guia-profesor/sesion-1"
-        },
-        {
-          "text": "Guia del profesor — Sesion 7: Directivas, eventos y datos",
-          "link": "/curso-normalizacion/03-vue/guia-profesor/sesion-2"
-        },
-        {
-          "text": "Guia del profesor — Sesion 8: Componentes y comunicacion",
-          "link": "/curso-normalizacion/03-vue/guia-profesor/sesion-3"
-        },
-        {
-          "text": "Guia del profesor — Sesion 9: Arquitectura de componentes y servicios",
-          "link": "/curso-normalizacion/03-vue/guia-profesor/sesion-4"
-        }
-      ]
-    },
-    {
-      "text": "Profesor",
-      "items": [
-        {
-          "text": "Indice",
-          "link": "/curso-normalizacion/profesor/"
-        },
-        {
-          "text": "Guías de profesor — Parte Oracle",
-          "collapsed": true,
-          "items": [
-            {
-              "text": "Indice",
-              "link": "/curso-normalizacion/profesor/01-oracle/"
-            },
-            {
-              "text": "Guía de profesor — Sesión 1: Fundamentos Oracle",
-              "link": "/curso-normalizacion/profesor/01-oracle/sesion-1"
-            },
-            {
-              "text": "Guia profesor - Sesion 2 Oracle",
-              "link": "/curso-normalizacion/profesor/01-oracle/sesion-2"
-            },
-            {
-              "text": "Diccionario del schema CURSONORMADM",
-              "link": "/curso-normalizacion/profesor/01-oracle/schema-cursonormadm"
-            }
-          ]
-        },
-        {
-          "text": "Guía de organización del repositorio",
-          "link": "/curso-normalizacion/profesor/guia-organizacion-repositorio"
         }
       ]
     }

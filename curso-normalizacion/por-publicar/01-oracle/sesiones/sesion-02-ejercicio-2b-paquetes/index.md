@@ -254,15 +254,15 @@ PROCEDURE CREAR_RESERVA(
 
 ### Validaciones requeridas
 
-| Validación | Cómo |
-|------------|------|
-| `ID_RECURSO` positivo | `VALIDAR_ID_POSITIVO` |
-| `CODPER` positivo | `VALIDAR_ID_POSITIVO` |
-| `HORA_INICIO` 0–23, `MINUTO_INICIO` 0–59 | Inline o crea `VALIDAR_RANGO` |
-| `MINUTOS_RESERVA > 0` | Inline |
-| El recurso existe | `SELECT COUNT(*) FROM TRES_RECURSO WHERE ID_RECURSO = P_ID_RECURSO` |
-| `FECHA_ALTA` por defecto | `COALESCE(P_FECHA_ALTA, SYSDATE)` |
-| Sin solapamiento con otra reserva | Ver siguiente apartado |
+| Validación                               | Cómo                                                                |
+| ---------------------------------------- | ------------------------------------------------------------------- |
+| `ID_RECURSO` positivo                    | `VALIDAR_ID_POSITIVO`                                               |
+| `CODPER` positivo                        | `VALIDAR_ID_POSITIVO`                                               |
+| `HORA_INICIO` 0–23, `MINUTO_INICIO` 0–59 | Inline o crea `VALIDAR_RANGO`                                       |
+| `MINUTOS_RESERVA > 0`                    | Inline                                                              |
+| El recurso existe                        | `SELECT COUNT(*) FROM TRES_RECURSO WHERE ID_RECURSO = P_ID_RECURSO` |
+| `FECHA_ALTA` por defecto                 | `COALESCE(P_FECHA_ALTA, SYSDATE)`                                   |
+| Sin solapamiento con otra reserva        | Ver siguiente apartado                                              |
 
 ### Detección de solapamiento (lo importante)
 
@@ -385,7 +385,9 @@ Con esto cierras la parte Oracle. La siguiente sesión (parte .NET) toma estos p
 ---
 
 <!-- NAV:START -->
-| Anterior | Inicio | Siguiente |
-|---|---|---|
-| [← Sesión 4: Ejercicio: diseño de vistas](../../../01-oracle/sesiones/sesion-04-ejercicio-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 6: Introducción a .NET →](../../../02-dotnet/sesiones/sesion-06-introduccion-dotnet/) |
+
+| Anterior                                                                                                      | Inicio                        | Siguiente                                                                                     |
+| ------------------------------------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------- |
+| [← Sesión 4: Ejercicio: diseño de vistas](../../../01-oracle/sesiones/sesion-01-docencia-fundamentos-oracle/) | [Índice del curso](../../../) | [Sesión 6: Introducción a .NET →](../../../02-dotnet/sesiones/sesion-03-introduccion-dotnet/) |
+
 <!-- NAV:END -->

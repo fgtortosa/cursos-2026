@@ -5,12 +5,11 @@ outline: deep
 ---
 
 # Sesión 4: Modelos y primer API
-[[toc]]
 
 ::: info ¿Para quién es este material?
 Esta sesión está pensada para gente con perfiles muy distintos: desde quien lleva años con Oracle PL/SQL pero nunca ha tocado HTTP, hasta quien viene de ASP clásico, WebForms o MVC y nunca ha trabajado con SPAs. Por eso empezamos despacio con la arquitectura conceptual y vamos descendiendo al detalle.
 
-**En esta sesión no vamos a tocar Oracle ni a escribir Vue:** la API se prueba desde Chrome DevTools y desde la página `Home.vue` (que ya está hecha). El acceso a base de datos y la arquitectura por capas se ven en la [**sesión 5**](../sesion-08-servicios-oracle/).
+**En esta sesión no vamos a tocar Oracle ni a escribir Vue:** la API se prueba desde Chrome DevTools y desde la página `Home.vue` (que ya está hecha). El acceso a base de datos y la arquitectura por capas se ven en la [**sesión 5**](../sesion-05-servicios-oracle/).
 :::
 
 ## 0. Pre-requisitos del curso
@@ -118,9 +117,16 @@ En otras arquitecturas Vue es un proyecto independiente que se compila a estáti
 
 ```csharp
 // Controllers/HomeController.cs
-[Authorize]                          // ← obliga a estar autenticado
+/// <summary>
+/// Controlador MVC que entrega la primera pagina de la aplicacion.
+/// Primero pasa por CAS/JWT y despues devuelve Index.cshtml, que monta Vue.
+/// </summary>
+[Authorize]                          // obliga a estar autenticado
 public class HomeController : Controller
 {
+    /// <summary>
+    /// Si no hay sesion, el middleware redirige a CAS antes de entrar aqui.
+    /// </summary>
     public IActionResult Index() => View();
 }
 ```
@@ -181,25 +187,23 @@ Como casi todos los controladores necesitan los mismos claims (codper, idioma, r
 // Controllers/Apis/ControladorBase.cs
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
-using ua;
 
 namespace uaReservas.Controllers.Apis
 {
     /// <summary>
-    /// Clase base de todos los controladores API.
-    /// Lee los claims de User (rellenado por el middleware) y los expone
-    /// como propiedades cómodas: CodPer, Idioma, NombrePersona, Roles, etc.
+    /// Base de los controladores que necesitan datos del usuario / peticion.
+    /// Hereda de ApiControllerBase, asi que tambien dispone de HandleResult.
+    ///
+    /// Centraliza idioma, codper y roles para que ningun controlador repita
+    /// User.FindFirstValue("...") ni normalice "va" -> "ca" por su cuenta.
     /// </summary>
-    public class ControladorBase : ControllerBase
+    public abstract class ControladorBase : ApiControllerBase
     {
-        private const string ClaimPathFoto    = "PATHFOTO";
-        private const string ClaimRoles       = "ROLES";
-        private const string ClaimDniConLetra = "DNICONLETRA";
-        private const string ClaimDniSinLetra = "DNISINLETRA";
-
-        // Helper genérico para leer cualquier claim con valor por defecto.
-        private string ObtenerClaim(string tipo, string valorPorDefecto) =>
-            User.FindFirst(tipo)?.Value ?? valorPorDefecto;
+        /// <summary>
+        /// Idioma efectivo de la peticion. Lo resuelve primero el middleware UA
+        /// en HttpContext.Items["idioma"]; el claim LENGUA queda como respaldo.
+        /// </summary>
+        protected string Idioma => ObtenerIdiomaPeticion();
 
         /// <summary>
         /// Código de persona (CODPER) del usuario autenticado.
@@ -209,29 +213,14 @@ namespace uaReservas.Controllers.Apis
         {
             get
             {
-                string codperStr = User.CodPer();   // extensión que lee CODPER_UAAPPS
+                var codperStr = User?.FindFirstValue("CODPER_UAAPPS");
                 return int.TryParse(codperStr, out var codper) ? codper : -1;
             }
         }
 
-        /// <summary>
-        /// Idioma del usuario desde el claim LENGUA. Normaliza "va" → "ca".
-        /// Devuelve "es" por defecto.
-        /// </summary>
-        protected string Idioma
-        {
-            get
-            {
-                string idioma = User.Idioma();
-                return idioma == "va" ? "ca" : idioma;
-            }
-        }
-
-        protected string PathFoto       => ObtenerClaim(ClaimPathFoto, string.Empty);
-        protected string NombrePersona  => User.Nombre();
-        protected string DniConLetra    => User.LeerClaim(ClaimDniConLetra) ?? string.Empty;
-        protected string DniSinLetra    => User.LeerClaim(ClaimDniSinLetra) ?? string.Empty;
-        protected string Correo         => User.Correo() ?? string.Empty;
+        protected string NombrePersona => User?.FindFirstValue("NOMPER") ?? string.Empty;
+        protected string Correo        => User?.FindFirstValue("CORREO") ?? string.Empty;
+        protected string PathFoto      => User?.FindFirstValue("PATHFOTO") ?? string.Empty;
 
         /// <summary>
         /// Roles del usuario. El claim ROLES viene como string "rol1,rol2;rol3".
@@ -240,7 +229,7 @@ namespace uaReservas.Controllers.Apis
         {
             get
             {
-                string rolesRaw = User.LeerClaim(ClaimRoles) ?? string.Empty;
+                var rolesRaw = User?.FindFirstValue("ROLES") ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(rolesRaw)) return new List<string>();
 
                 return rolesRaw
@@ -249,12 +238,38 @@ namespace uaReservas.Controllers.Apis
                     .ToList();
             }
         }
+
+        protected string ObtenerIdiomaPeticion()
+        {
+            var idiomaMiddleware = HttpContext?.Items.TryGetValue("idioma", out var idiomaContexto) == true
+                ? idiomaContexto?.ToString()
+                : null;
+
+            if (!string.IsNullOrWhiteSpace(idiomaMiddleware))
+            {
+                return NormalizarIdioma(idiomaMiddleware);
+            }
+
+            return NormalizarIdioma(User?.FindFirstValue("LENGUA"));
+        }
+
+        protected static string NormalizarIdioma(string? idioma)
+        {
+            var limpio = (idioma ?? "es").Trim().ToLowerInvariant();
+            if (limpio == "va") limpio = "ca";
+
+            if (limpio.StartsWith("ca")) return "ca";
+            if (limpio.StartsWith("en")) return "en";
+            if (limpio.StartsWith("es")) return "es";
+
+            return "es";
+        }
     }
 }
 ```
 
-::: info CONTEXTO — los métodos `User.CodPer()`, `User.Idioma()`, `User.Nombre()`...
-Son **métodos de extensión** que vienen con la plantilla UA (`using ua;`). Por debajo no hacen nada exótico: son envoltorios sobre `User.FindFirst("CODPER_UAAPPS")`, `User.FindFirst("LENGUA")`, etc. Existen para que el nombre del claim no aparezca como string mágico repartido por toda la app.
+::: info CONTEXTO — por qué centralizamos los claims
+El middleware de autenticación rellena `HttpContext.User`; `ControladorBase` solo lee esos claims y los normaliza. Si una acción necesita `CodPer` o `Idioma`, lo toma de la clase base. Así evitamos strings mágicos (`"CODPER_UAAPPS"`, `"LENGUA"`) repartidos por cada controlador y mantenemos en un único sitio la regla `va -> ca`.
 :::
 
 ##### Añadir tus propios claims al token
@@ -1776,7 +1791,11 @@ public async Task<Result<TipoRecursoLectura>> ObtenerPorIdAsync(int id, string i
 public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
 {
     var resultado = await _tiposRecurso.CrearAsync(dto);
-    if (!resultado.IsSuccess) return HandleResult(resultado);   // 400 ó 500
+    // En POST el caso de error sigue siendo comun: lo resuelve HandleResult.
+    if (!resultado.IsSuccess) return HandleResult(resultado);   // 400, 404 o 500
+
+    // El caso de exito no es Ok(): REST pide 201 Created + Location.
+    // nameof evita strings fragiles si renombramos ObtenerPorId.
     return CreatedAtAction(nameof(ObtenerPorId),
                            new { id = resultado.Value },
                            resultado.Value);                    // 201 + Location
@@ -1791,11 +1810,15 @@ public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
 // En el servicio, tras llamar al paquete:
 await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_TIPO_RECURSO.CREAR", p);
 
+// Los paquetes del curso no devuelven excepciones esperables al controlador:
+// devuelven P_CODIGO_ERROR/P_MENSAJE_ERROR y .NET los traduce a Result<T>.
 var failure = ErrorPaquetePlSql.AResultFailure<int>(
     ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR"),
     ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"));
 
 if (failure is not null) return failure;                    // → Result<int>.Validation(...)
+
+// Si no hay error, leemos el OUT con el id asignado por Oracle.
 return Result<int>.Success(ErrorPaquetePlSql.LeerInt(p, "P_ID_TIPO_RECURSO"));
 ```
 
@@ -2102,6 +2125,7 @@ if (failure is not null) return failure;
 ```
 
 ::: tip DOS CAMINOS, EL MISMO DESTINO
+
 - Si el paquete **gestiona** el error y devuelve `P_CODIGO_ERROR` ≠ 0 → `AResultFailure` lo convierte.
 - Si el paquete **deja escapar** la `ORA-xxxxx` → `ClaseOracleBD3` lanza `BDException` y la sobrecarga `AResultFailure(BDException)` la traduce igualmente.
 
@@ -2110,11 +2134,11 @@ En los dos casos acabamos con un `Result<T>.Failure(Error)` con la misma forma.
 
 `ErrorPaquetePlSql.DesdeCodigo` mapea el código numérico a uno de los tres `ErrorType` del proyecto:
 
-| Rango Oracle | `ErrorType` | HTTP que devuelve `HandleResult` |
-|--------------|-------------|----------------------------------|
-| `-20003`, `-20307`, `-20702` | `NotFound` | **404** `ProblemDetails` |
+| Rango Oracle                                                   | `ErrorType`  | HTTP que devuelve `HandleResult`   |
+| -------------------------------------------------------------- | ------------ | ---------------------------------- |
+| `-20003`, `-20307`, `-20702`                                   | `NotFound`   | **404** `ProblemDetails`           |
 | `-20001..-20002`, `-20301..-20308`, `-20700..-20701`, `-20703` | `Validation` | **400** `ValidationProblemDetails` |
-| Cualquier otro `SQLCODE ≠ 0` | `Failure` | **500** `ProblemDetails` genérico |
+| Cualquier otro `SQLCODE ≠ 0`                                   | `Failure`    | **500** `ProblemDetails` genérico  |
 
 El mensaje del paquete viene como `...#CLAVE|arg1|arg2#`. El parser extrae la **clave** (p. ej. `TIPO_RECURSO_NO_EXISTE`) y los **argumentos**. Luego `ApiControllerBase.HandleResult` los localiza con `IStringLocalizer<SharedResource>` y los mete en el campo `Detail` del `ProblemDetails`:
 
@@ -2136,11 +2160,14 @@ En `Sesion1ProbadorApi.vue`, cada botón llama a `llamar<T>(url, etiqueta, metod
 
 ```ts
 try {
-  const datos = await peticion<T>(url, metodo, parametros)
-  salida.value = JSON.stringify(datos, null, 2)
+  const datos = await peticion<T>(url, metodo, parametros);
+  salida.value = JSON.stringify(datos, null, 2);
 } catch (error: any) {
-  gestionarError(error, t("Home.api.errores.titulo", { etiqueta }),
-                        t("Home.api.errores.detalle", { etiqueta }))
+  gestionarError(
+    error,
+    t("Home.api.errores.titulo", { etiqueta }),
+    t("Home.api.errores.detalle", { etiqueta }),
+  );
   // … además se vuelca el cuerpo del error en el <pre> para que se vea
 }
 ```
@@ -2170,17 +2197,18 @@ Cuando la API responde **400 con `ValidationProblemDetails`** y el cuerpo trae `
 
 ### 1.8.5.4 Cómo se enlaza con sesiones futuras
 
-| Sesión | Qué se profundiza |
-|--------|-------------------|
-| **3 (.NET)** | El mismo `HandleResult` aplicado al CRUD real (no solo a errores de prueba): `ValidationProblemDetails` con `errors` por campo. |
+| Sesión               | Qué se profundiza                                                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **3 (.NET)**         | El mismo `HandleResult` aplicado al CRUD real (no solo a errores de prueba): `ValidationProblemDetails` con `errors` por campo.            |
 | **13 (Integración)** | `ErrorHandlerMiddleware` y `ClaseErrores`: cómo se gestiona el error **antes** de devolverlo (notificación al equipo, logs estructurados). |
-| **20 (Avanzadas)** | Serilog con sinks Console / Oracle / File / Email: dónde acaba `Error.TechnicalMessage` que aquí dejamos al margen. |
-| **12 (Integración)** | `useGestionFormularios` consume los `errors` del `ValidationProblemDetails` (caso 400 con campos) y los pinta al lado del input. |
+| **20 (Avanzadas)**   | Serilog con sinks Console / Oracle / File / Email: dónde acaba `Error.TechnicalMessage` que aquí dejamos al margen.                        |
+| **12 (Integración)** | `useGestionFormularios` consume los `errors` del `ValidationProblemDetails` (caso 400 con campos) y los pinta al lado del input.           |
 
 ::: info LECTURA RECOMENDADA EN EL CÓDIGO
+
 - Servidor: `Models/Errors/ErrorPaquetePlSql.cs` (parser), `Models/Errors/Error.cs`, `Models/Errors/Result.cs`, `Controllers/Apis/ApiControllerBase.cs::HandleResult`.
 - Cliente: `@vueua/components/composables/use-axios::gestionarError` y `@vueua/components/composables/use-toast::avisarError`.
-:::
+  :::
 
 ## 1.9 Ejercicio: API de `Observaciones` de reservas
 
@@ -2350,7 +2378,9 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 ---
 
 <!-- NAV:START -->
-| Anterior | Inicio | Siguiente |
-|---|---|---|
-| [← Sesión 6: Introducción a .NET](../../../02-dotnet/sesiones/sesion-06-introduccion-dotnet/) | [Índice del curso](../../../) | [Sesión 8: Servicios y acceso a Oracle →](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/) |
+
+| Anterior                                                                                      | Inicio                        | Siguiente                                                                                          |
+| --------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| [← Sesión 3: Introducción a .NET](../../../02-dotnet/sesiones/sesion-03-introduccion-dotnet/) | [Índice del curso](../../../) | [Sesión 8: Servicios y acceso a Oracle →](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/) |
+
 <!-- NAV:END -->

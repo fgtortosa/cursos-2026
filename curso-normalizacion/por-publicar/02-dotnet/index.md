@@ -1,6 +1,6 @@
 ---
-title: Parte .NET Core 10 — Sesiones 6 a 8
-description: Fundamentos de .NET Core 10 para el curso de normalización (sesiones 6 a 8 del temario global).
+title: Parte .NET Core 10 — Sesiones 3 a 5
+description: Fundamentos de .NET Core 10 para el curso de normalización (sesiones 3 a 5 del temario global).
 outline: deep
 ---
 
@@ -20,37 +20,39 @@ Al finalizar este bloque, el alumno será capaz de:
 - Separar la lógica en capas (controlador delgado, servicio con `Result<T>`, acceso a Oracle).
 - Conectar con Oracle usando **ClaseOracleBD3** tanto para lectura (vistas) como para escritura (paquetes PL/SQL con OUT params).
 - Escribir su primer test xUnit "simulado" del controlador y un test "real" del servicio contra Oracle.
-:::
+  :::
 
 ## Sesiones de este bloque
 
-| Sesión | Título | Duración |
-|--------|--------|----------|
-| [Sesión 6: Introducción a .NET](./sesiones/sesion-06-introduccion-dotnet/) | Estructura del proyecto, `Program.cs`, inyección de dependencias, C# útil | 1 h 30 min |
-| [Sesión 7: Modelos y primer API](./sesiones/sesion-07-dtos-apis/) | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | 1 h 30 min |
-| [Sesión 8: Servicios y acceso a Oracle](./sesiones/sesion-08-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit | 1 h 30 min |
+| Sesión                                                                          | Título                                                                                      | Duración   |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------- |
+| [Sesión 3: Introducción a .NET](./sesiones/sesion-03-introduccion-dotnet/)      | Estructura del proyecto, `Program.cs`, inyección de dependencias, C# útil                   | 1 h 30 min |
+| [Sesión 4: Modelos y primer API](./sesiones/sesion-04-dtos-apis/)               | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | 1 h 30 min |
+| [Sesión 5: Servicios y acceso a Oracle](./sesiones/sesion-05-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit         | 1 h 30 min |
 
 ::: tip CONTINUACIÓN EN INTEGRACIÓN
 Los temas de validación avanzada, gestión de errores global, DataTable y consumo desde Vue se cubren en las sesiones de **Integración full-stack** (sesiones 14-17), donde se ven de extremo a extremo:
 
-| Sesión integración | Contenido .NET relacionado |
-|--------------------|-----------------------------|
-| [Sesión 14: API y autenticación](../04-integracion/sesiones/sesion-14-api-autenticacion/) | OpenAPI, Scalar, claims, CAS+JWT cookies |
-| [Sesión 15: Validación](../04-integracion/sesiones/sesion-15-validacion/) | DataAnnotations, FluentValidation, localización de mensajes |
-| [Sesión 16: Errores](../04-integracion/sesiones/sesion-16-errores/) | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts |
-| [Sesión 17: DataTable](../04-integracion/sesiones/sesion-17-datatable/) | Paginación, filtros y ordenación en servidor |
+| Sesión integración                                                                        | Contenido .NET relacionado                                  |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| [Sesión 14: API y autenticación](../04-integracion/sesiones/sesion-14-api-autenticacion/) | OpenAPI, Scalar, claims, CAS+JWT cookies                    |
+| [Sesión 15: Validación](../04-integracion/sesiones/sesion-15-validacion/)                 | DataAnnotations, FluentValidation, localización de mensajes |
+| [Sesión 16: Errores](../04-integracion/sesiones/sesion-16-errores/)                       | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts  |
+| [Sesión 17: DataTable](../04-integracion/sesiones/sesion-17-datatable/)                   | Paginación, filtros y ordenación en servidor                |
+
 :::
 
 ## Requisitos previos
 
 ::: warning IMPORTANTE
+
 - Visual Studio 2022 con **.NET 10 SDK** instalado.
 - Acceso al esquema Oracle **`CURSONORMADM`** (entorno `ORACTEST`) con el usuario de aplicación **`CURSONORMWEB`**.
 - Proyecto base ya creado desde la plantilla UA (`PlantillaMVCCore.*`).
 - `NuGet.Config` global apuntando al feed UA (ver `00-preparacion`).
 - `dotnet user-secrets` configurado con `ConnectionStrings:oradb` en cada proyecto que vaya a abrir Oracle.
 - Node.js y `pnpm` para que la parte Vue compile (aunque las sesiones 7 y 8 **no piden escribir Vue**: la página `Home.vue` ya trae botones que llaman a la API para que se pueda probar todo desde Chrome).
-:::
+  :::
 
 ::: info CONTEXTO — ejercicio transversal de sesiones 7 y 8
 Durante estas dos sesiones el alumno trabajará sobre una entidad nueva, **`TRES_OBSERVACION_RESERVA`** (observaciones asociadas a una reserva, con texto multiidioma + `CODPER_AUTOR`). El SQL completo (tabla, vista `VRES_OBSERVACION_RESERVA` y paquete `PKG_RES_OBSERVACION_RESERVA` con `CREAR` y `ELIMINAR` por `ACTIVO='N'`) **se entrega ya hecho**. La sesión 7 pide que el alumno cree DTOs y la API que devuelva 200 OK con datos hardcodeados; la sesión 8 pide que conecte el servicio al paquete y escriba un test simulado.

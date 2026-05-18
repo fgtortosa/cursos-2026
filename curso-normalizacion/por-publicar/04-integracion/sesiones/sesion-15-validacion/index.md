@@ -87,10 +87,14 @@ Ahora el servicio devuelve un `Result<T>` **siempre**. No lanza excepción para 
 public Task<Result<bool>> EliminarAsync(int id)
 {
     // ...llamada al paquete PL/SQL...
+
+    // P_CODIGO_ERROR = 0 significa exito; cualquier otro codigo se convierte
+    // en un Result<bool>.Failure con ErrorType Validation, NotFound o Failure.
     var failure = ErrorPaquetePlSql.AResultFailure<bool>(
         codigoError, mensajeError);
     if (failure is not null) return failure;     // Result<bool>.Failure(Error{Type=Validation|NotFound|Failure})
 
+    // El servicio no decide HTTP. Solo devuelve un resultado de dominio.
     return Result<bool>.Success(true);
 }
 ```

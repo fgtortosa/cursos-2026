@@ -5,7 +5,6 @@ outline: deep
 ---
 
 # Sesión 3: Introducción a .NET y conceptos previos
-[[toc]]
 
 ::: info CONTEXTO
 Esta sesión sienta las bases para el resto del curso. Si ya conoces .NET Core, sirve como repaso rápido y actualización a .NET 10. Si vienes de otros lenguajes, aquí encontrarás todo lo que necesitas para seguir las sesiones siguientes.
@@ -691,7 +690,9 @@ app.Run();
 ---
 
 <!-- NAV:START -->
-| Anterior | Inicio | Siguiente |
-|---|---|---|
-| [← Sesión 5: Ejercicio: procedimientos en paquetes](../../../01-oracle/sesiones/sesion-05-paquetes/) | [Índice del curso](../../../) | [Sesión 7: Modelos y primer API →](../../../02-dotnet/sesiones/sesion-07-dtos-apis/) |
+
+| Anterior                                                                                     | Inicio                        | Siguiente                                                                            |
+| -------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
+| [← Sesión 2: tablas y vistas](../../../01-oracle/sesiones/sesion-02-docencia-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 4: Modelos y primer API →](../../../02-dotnet/sesiones/sesion-04-dtos-apis/) |
+
 <!-- NAV:END -->

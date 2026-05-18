@@ -45,14 +45,18 @@ import { ref, computed } from 'vue'
 const precioBase = ref<number>(100)
 const tipoIva = ref<number>(21)
 
-// Valores derivados: reactivos y cacheados.
+// computed: nuevo valor derivado, reactivo y cacheado.
 const ivaImporte  = computed(() => (precioBase.value * tipoIva.value) / 100)
 const precioTotal = computed(() => precioBase.value + ivaImporte.value)
 
-// Computed con setter: bidireccional. Útil cuando hay operación inversa.
+// Computed con setter: util cuando queremos un v-model bidireccional
+// que escriba en otra variable.
 const precioRedondeado = computed({
   get: () => Math.round(precioTotal.value * 100) / 100,
-  set: nuevo => { precioBase.value = nuevo / (1 + tipoIva.value / 100) },
+  set: nuevo => {
+    // Quitar IVA al fijar el redondeado para recuperar la base.
+    precioBase.value = nuevo / (1 + tipoIva.value / 100)
+  },
 })
 </script>
 

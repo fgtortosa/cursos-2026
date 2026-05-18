@@ -1,19 +1,18 @@
 ---
-title: "Sesión 2: Servicios y acceso a Oracle"
+title: "Sesión 5: Servicios y acceso a Oracle"
 description: Arquitectura de capas, Result<T>, ClaseOracleBD3, llamada a paquetes PL/SQL desde .NET y primer test xUnit
 outline: deep
 ---
 
-# Sesión 2: Servicios y acceso a Oracle
-[[toc]]
+# Sesión 5: Servicios y acceso a Oracle
 
 ::: info DE DÓNDE VENIMOS
 En la [**sesión 1**](../sesion-07-dtos-apis/) construiste un controlador `ObservacionesController` que devolvía datos hardcodeados. En esta sesión lo conectaremos a Oracle a través de un **servicio**, usando el paquete `PKG_RES_OBSERVACION_RESERVA` que ya tienes en SQL. Al terminar, los mismos botones del `Home.vue` que probabas en clase pasada **traerán datos reales de la base de datos** sin que cambies nada en Vue.
 :::
 
-## 2.1 Por qué separamos la lógica en capas
+## 5.1 Por qué separamos la lógica en capas
 
-### 2.1.1 Tres capas, tres responsabilidades
+### 5.1.1 Tres capas, tres responsabilidades
 
 Hasta ahora, el controlador hacía dos cosas: **decidir el HTTP** (qué status devolver) y **construir los datos** (el array hardcodeado). Cuando los datos vengan de Oracle, esa segunda parte se hace muy grande. La solución del curso es:
 
@@ -51,7 +50,7 @@ public async Task<ActionResult> Listar() =>
 Si una acción ocupa más de 3-4 líneas, casi seguro que está haciendo trabajo del servicio.
 :::
 
-### 2.1.2 Inyección de dependencias: la pieza que une todo
+### 5.1.2 Inyección de dependencias: la pieza que une todo
 
 La plantilla UA registra `ClaseOracleBd` (la implementación concreta) al llamar a `builder.AddServicesUA()`. **Pero NO registra la interfaz `IClaseOracleBd`**. Como nuestros servicios piden la interfaz por constructor (para poder mockearlos en tests), hay que añadir una línea de "alias" en `Program.cs`:
 
@@ -82,9 +81,9 @@ builder.Services.AddScoped<IObservacionesServicio, ObservacionesServicio>();   /
 `builder.Build()` valida en desarrollo todos los constructores. Si tu servicio pide `IClaseOracleBd` y nadie ha registrado esa interfaz, **la app no arranca**. Es el error nº1 al introducir DI sobre la plantilla UA. La solución es exactamente la línea (2).
 :::
 
-## 2.2 `Result<T>`: una sola forma de hablar entre capas
+## 5.2 `Result<T>`: una sola forma de hablar entre capas
 
-### 2.2.1 El problema que resuelve
+### 5.2.1 El problema que resuelve
 
 En la sesión 1 el controlador hacía:
 
@@ -107,7 +106,7 @@ Tres problemas cuando aparezca el servicio real:
 
 Solución: el servicio envuelve siempre su respuesta en `Result<T>`. **Lleva el dato si todo ha ido bien, o un `Error` tipado si no.**
 
-### 2.2.2 Las tres piezas (ya están en el código del curso)
+### 5.2.2 Las tres piezas (ya están en el código del curso)
 
 ```csharp
 // Models/Errors/ErrorType.cs
@@ -143,7 +142,7 @@ public class Result<T>
 }
 ```
 
-### 2.2.3 `ApiControllerBase.HandleResult`: una vez para todo el proyecto
+### 5.2.3 `ApiControllerBase.HandleResult`: una vez para todo el proyecto
 
 ```csharp
 // Controllers/Apis/ApiControllerBase.cs
@@ -233,9 +232,9 @@ classDiagram
 - Las **excepciones** se reservan para imprevistos reales (Oracle caído, red rota). Un `IExceptionHandler` global las convierte en 500 — pero eso es **sesión 13 (integración)**.
   :::
 
-## 2.3 Lectura: SELECT contra una vista + mapeo automático
+## 5.3 Lectura: SELECT contra una vista + mapeo automático
 
-### 2.3.1 La fachada: `IClaseOracleBd`
+### 5.3.1 La fachada: `IClaseOracleBd`
 
 Esta interfaz expone los pocos métodos que el curso necesita. Los más importantes para lectura:
 
@@ -247,7 +246,7 @@ Esta interfaz expone los pocos métodos que el curso necesita. Los más importan
 
 Las versiones síncronas (`ObtenerTodosMap<T>`, `EjecutarParams`) existen también; en el curso usamos siempre las **async**.
 
-### 2.3.2 Patrón de un servicio "solo lectura"
+### 5.3.2 Patrón de un servicio "solo lectura"
 
 Lo vemos sobre **`TiposRecursoServicio`** del proyecto del curso, que es la entidad más sencilla (sin joins, sin filtros): un catálogo `TRES_TIPO_RECURSO` con código + nombre multiidioma.
 
@@ -362,7 +361,7 @@ Cuando el filtro es **opcional** (varios campos que pueden venir o no), construy
 OJO: el parámetro debe ser `DynamicParameters` (o un objeto anónimo). Un `Dictionary<string, object?>` rompe en `LiberarParametros` con `OracleParameterCollection.RemoveAt "Value does not fall within the expected range"`.
 :::
 
-### 2.3.3 El mapeo: PascalCase ⇄ SNAKE_CASE + multiidioma
+### 5.3.3 El mapeo: PascalCase ⇄ SNAKE_CASE + multiidioma
 
 ClaseOracleBD3 rellena las propiedades del DTO leyendo las columnas que devuelva el cursor. Su orden de resolución:
 
@@ -408,7 +407,7 @@ public class Foto
 Si tu DTO tiene una propiedad calculada (`get => ...`), **debes marcarla `[IgnorarMapeo]`**. Si no, ClaseOracleBD3 intentará buscar una columna con ese nombre, no la encontrará y lanzará error en la primera lectura.
 :::
 
-## 2.4 Escritura: paquetes PL/SQL con OUT params
+## 5.4 Escritura: paquetes PL/SQL con OUT params
 
 Las inserciones/actualizaciones/borrados **NO se hacen con SQL inline** en este curso. Se hacen llamando a un paquete PL/SQL que ya hace las validaciones, el `COMMIT` y devuelve el error como dato (no como excepción).
 
@@ -416,7 +415,7 @@ Las inserciones/actualizaciones/borrados **NO se hacen con SQL inline** en este 
 Los checks repetitivos (`VALIDAR_TEXTO`, `VALIDAR_ID_POSITIVO`, `VALIDAR_FLAG`) viven en `PKG_RES_VALIDACIONES`. Cada paquete CRUD los llama vía `CURSONORMADM.PKG_RES_VALIDACIONES.VALIDAR_X(...)`. Lo que NO entra ahí son los chequeos de **dominio** específicos (rangos de hora, solape de franjas en reservas...): esos se quedan privados dentro del paquete que los necesita.
 :::
 
-### 2.4.1 El contrato de los paquetes UA
+### 5.4.1 El contrato de los paquetes UA
 
 Todos los procedimientos de escritura del curso (`PKG_RES_*`) siguen el mismo contrato:
 
@@ -451,7 +450,7 @@ END;
 Esto significa que **el cliente .NET NUNCA tiene que poner `try { ... } catch (OracleException) { ... }`**. El paquete absorbe la excepción y la devuelve como datos OUT. La capa .NET lee `P_CODIGO_ERROR` y lo traduce a `Result<T>`.
 :::
 
-### 2.4.2 Llamada desde .NET: `EjecutarParamsAsync` + `DynamicParameters`
+### 5.4.2 Llamada desde .NET: `EjecutarParamsAsync` + `DynamicParameters`
 
 `ua.DynamicParameters` es el tipo "bolsa de parámetros" que reexporta ClaseOracleBD3. La firma real del método `Add` es:
 
@@ -551,7 +550,7 @@ public async Task<Result<int>> CrearAsync(int codper, ReservaCrearDto dto)
 
 :::
 
-### 2.4.3 Traducción ORA-\* → `Result<T>`
+### 5.4.3 Traducción ORA-\* → `Result<T>`
 
 `ErrorPaquetePlSql.DesdeCodigo(codigo, mensaje)` mira el `SQLCODE` y devuelve un `Error` ya clasificado:
 
@@ -564,7 +563,7 @@ public async Task<Result<int>> CrearAsync(int codper, ReservaCrearDto dto)
 
 Cuando añadas un código nuevo en un paquete (`RAISE_APPLICATION_ERROR(-20XYZ, '...')`), recuerda **añadirlo también al `switch` de `ErrorPaquetePlSql.DesdeCodigo`** para que tenga el `ErrorType` correcto.
 
-### 2.4.4 El controlador después de la cirugía: una línea
+### 5.4.4 El controlador después de la cirugía: una línea
 
 Así queda `TipoRecursosController` — completo, con los cinco verbos:
 
@@ -724,9 +723,9 @@ La cabecera `Location` es útil para clientes genéricos que siguen el estándar
 En `ReservasController.Crear` verás que el controlador llama a `_reservas.CrearAsync(CodPer, dto)` pasando `CodPer` (propiedad de `ControladorBase` leída del JWT) **como argumento aparte del DTO**. Aunque el cliente envíe un campo `codper` en el body, el controlador **no lo usa** — usa el del token. Esto evita que un usuario malicioso cree recursos a nombre de otra persona.
 :::
 
-## 2.5 xUnit: el primer test del CRUD
+## 5.5 xUnit: el primer test del CRUD
 
-### 2.5.1 Dos tipos de test que nos importan
+### 5.5.1 Dos tipos de test que nos importan
 
 ```mermaid
 flowchart LR
@@ -747,7 +746,7 @@ flowchart LR
 | **Simulado** | El controlador delega bien al servicio y traduce a HTTP correcto. | Rápido, siempre verde, no necesita BD. Va en CI.                                                        |
 | **Real**     | El SQL existe, mapea bien, las restricciones de Oracle funcionan. | Detecta drift entre el código y la BD. Se marca `[SkippableFact]` para no romper CI si no hay conexión. |
 
-### 2.5.2 Tres piezas de infraestructura compartidas entre tests
+### 5.5.2 Tres piezas de infraestructura compartidas entre tests
 
 Antes de mirar los tests propiamente, hay tres clases auxiliares en `uaReservas.Tests/Infraestructura/` que todos comparten. Son **el andamiaje**, no la lógica del test:
 
@@ -851,7 +850,7 @@ En el curso **no usamos Moq, NSubstitute ni FakeItEasy**: los fakes son clases C
 4. Cero NuGets adicionales en `uaReservas.Tests.csproj`.
    :::
 
-### 2.5.3 Test simulado: `TipoRecursosControllerSimuladoTests` real
+### 5.5.3 Test simulado: `TipoRecursosControllerSimuladoTests` real
 
 Este es el test que **existe** en el proyecto (`uaReservas.Tests/Controllers/TipoRecursosControllerSimuladoTests.cs`). Tres tests que cubren el patrón completo: que delega al servicio, que devuelve 404 con `ProblemDetails`, y que lee el idioma del claim.
 
@@ -935,7 +934,7 @@ Todos los tests del curso siguen **Arrange / Act / Assert**:
 Si tu test no se puede partir en estos tres bloques, casi seguro que está probando demasiadas cosas.
 :::
 
-### 2.5.4 `OracleTestFixture`: una conexión REAL a Oracle, compartida
+### 5.5.4 `OracleTestFixture`: una conexión REAL a Oracle, compartida
 
 Para los tests reales no queremos abrir una conexión nueva por cada test (es lento). El `IClassFixture<T>` de xUnit permite que **una sola instancia del fixture** se comparta entre todos los tests de una clase:
 
@@ -1002,7 +1001,7 @@ dotnet user-secrets set "ConnectionStrings:oradb" "User Id=CURSONORMWEB;Password
 La contraseña es la misma que ya tienes en los secrets de la app (`Oracle:Password`). Si no configuras esto, los tests `[SkippableFact]` se marcan como `Skipped` y la suite sigue verde.
 :::
 
-### 2.5.5 Test real: `TiposRecursoServicioRealTests`
+### 5.5.5 Test real: `TiposRecursoServicioRealTests`
 
 Y este es el test real que existe (`uaReservas.Tests/Servicios/TiposRecursoServicioRealTests.cs`). Dos casos: que la vista devuelve algo y que un id inexistente devuelve `NotFound`.
 
@@ -1066,11 +1065,11 @@ Los tests reales son **lentos**. Cada uno abre una conexión a Oracle y ejecuta 
 3. **No escribas en la BD**. Si un test `Crear...` se ejecuta dos veces, deja basura. Para tests de escritura: o haces `Eliminar` al final, o trabajas dentro de una transacción que haces rollback. En la sesión 3 lo veremos.
    :::
 
-## 2.6 Ejercicio: cerrar `Observaciones` con servicio + tests
+## 5.6 Ejercicio: cerrar `Observaciones` con servicio + tests
 
 Cierre del ejercicio que arrancaste en [§1.9](../sesion-07-dtos-apis/#_1-9-ejercicio-api-de-observaciones-de-reservas). El controlador `ObservacionesController` con `_datos` hardcodeados se queda obsoleto: lo conectamos a Oracle vía un servicio nuevo, registramos el servicio en DI y añadimos los dos tests del patrón (simulado + real).
 
-### 2.6.1 Punto de partida
+### 5.6.1 Punto de partida
 
 Después de la sesión 1 tienes:
 
@@ -1078,7 +1077,7 @@ Después de la sesión 1 tienes:
 - `Controllers/Apis/ObservacionesController.cs` con la lista estática `_datos`.
 - En Oracle (CURSONORMADM): `TRES_OBSERVACION_RESERVA`, `VRES_OBSERVACION_RESERVA`, `PKG_RES_OBSERVACION_RESERVA`.
 
-### 2.6.2 Lo que tienes que entregar hoy
+### 5.6.2 Lo que tienes que entregar hoy
 
 ```mermaid
 flowchart LR
@@ -1182,7 +1181,7 @@ Una sola línea, debajo de los `AddScoped` de `TiposRecursoServicio` / `Recursos
 - En `Home.vue`: el botón **`GET /api/Observaciones (ejercicio)`** ahora trae datos reales de Oracle. **Sin tocar Vue**.
 - DevTools → Network: cookie `X-Access-Token` viaja sola, `200 OK` con el JSON real.
 
-### 2.6.3 Lista de verificación
+### 5.6.3 Lista de verificación
 
 | ✅  | Comprobación                                                                                                         |
 | --- | -------------------------------------------------------------------------------------------------------------------- |
@@ -1207,12 +1206,12 @@ Si al hacer POST en Scalar te llega un 500 sin explicación, **inspecciona el SQ
 ::: details Solución completa (revísala DESPUÉS de intentarlo)
 Cuando hayas terminado tu propia versión, compárala con la de referencia:
 
-→ [Solución del ejercicio §2.6](./solucion-ejercicio-observaciones.md)
+→ [Solución del ejercicio §5.6](./solucion-ejercicio-observaciones.md)
 
 Incluye los siete ficheros (interfaz, servicio, controlador, registro en `Program.cs`, fake, test simulado, test real), explicación de cada decisión de diseño y el contrato de errores del paquete con la tabla `-20XXX` → `Result<T>`.
 :::
 
-## 2.7 Resumen de la sesión
+## 5.7 Resumen de la sesión
 
 ```mermaid
 flowchart LR
@@ -1276,7 +1275,9 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 ---
 
 <!-- NAV:START -->
-| Anterior | Inicio | Siguiente |
-|---|---|---|
-| [← Sesión 7: Modelos y primer API](../../../02-dotnet/sesiones/sesion-07-dtos-apis/) | [Índice del curso](../../../) | [Sesión 9: Vue 3, TypeScript y primer componente →](../../../03-vue/sesiones/sesion-09-vue-typescript-fundamentos/) |
+
+| Anterior                                                                             | Inicio                        | Siguiente                                                                                                           |
+| ------------------------------------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| [← Sesión 4: Modelos y primer API](../../../02-dotnet/sesiones/sesion-04-dtos-apis/) | [Índice del curso](../../../) | [Sesión 5: Vue 3, TypeScript y primer componente →](../../../03-vue/sesiones/sesion-06-vue-typescript-fundamentos/) |
+
 <!-- NAV:END -->

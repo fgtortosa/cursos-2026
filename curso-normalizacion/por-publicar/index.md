@@ -19,16 +19,16 @@ Material del curso para trabajar Oracle, .NET y Vue dentro del flujo habitual de
   <span class="landing-card__link">Ir a la preparación →</span>
 </a>
 
-## Oracle — Sesiones 1 a 5
+## Oracle — Sesiones 1 a 2
 
 <a class="landing-card" href="./01-oracle/">
-  <span class="landing-card__eyebrow">Bloque 1 · 5 sesiones</span>
+  <span class="landing-card__eyebrow">Bloque 1 · 2 sesiones</span>
   <strong class="landing-card__title">Oracle</strong>
   <span class="landing-card__description">Fundamentos ADM/WEB, tablas y vistas, paquetes CRUD y tres ejercicios entregables: catálogo simple, diseño de vistas y procedimientos en paquetes con detección de solapamiento.</span>
   <span class="landing-card__link">Ir al índice Oracle →</span>
 </a>
 
-## .NET — Sesiones 6 a 8
+## .NET — Sesiones 3 a 5
 
 <a class="landing-card" href="./02-dotnet/">
   <span class="landing-card__eyebrow">Bloque 2 · 3 sesiones</span>
@@ -37,7 +37,7 @@ Material del curso para trabajar Oracle, .NET y Vue dentro del flujo habitual de
   <span class="landing-card__link">Ir al índice .NET →</span>
 </a>
 
-## Vue — Sesiones 9 a 13
+## Vue — Sesiones 6 a 10
 
 <a class="landing-card" href="./03-vue/">
   <span class="landing-card__eyebrow">Bloque 3 · 5 sesiones</span>
@@ -46,7 +46,7 @@ Material del curso para trabajar Oracle, .NET y Vue dentro del flujo habitual de
   <span class="landing-card__link">Ir al índice Vue →</span>
 </a>
 
-## Integración full-stack — Sesiones 14 a 17
+## Integración full-stack — Sesiones 11 a 14
 
 <a class="landing-card" href="./04-integracion/">
   <span class="landing-card__eyebrow">Bloque 4 · 4 sesiones</span>
@@ -55,7 +55,7 @@ Material del curso para trabajar Oracle, .NET y Vue dentro del flujo habitual de
   <span class="landing-card__link">Ir al índice Integración →</span>
 </a>
 
-## Sesiones avanzadas — Sesiones 18 a 25
+## Sesiones avanzadas — Sesiones 15 a 22
 
 <a class="landing-card" href="./05-avanzadas/">
   <span class="landing-card__eyebrow">Bloque 5 · 8 sesiones</span>
