@@ -25,6 +25,52 @@ Al finalizar esta sesión, el alumno será capaz de:
 - Configurar `AddClaseErrores` con sus enriquecedores y enganchar la notificación por correo desde dos puntos complementarios: middleware y `RegistrarErrorTecnico`.
 - Notificar al usuario con la familia `useToast` y proteger operaciones destructivas con `PopUpModal`.
 
+## 13.0 Las dos formas JSON del error: `ProblemDetails` y `ValidationProblemDetails` {#formas-json}
+
+Antes de entrar en el viaje del error y en quién genera qué, conviene **ver con los ojos** el JSON que llega al cliente. .NET 10 estandariza los errores siguiendo la RFC 9457, y solo hay **dos formas**:
+
+**`ProblemDetails`** — errores de negocio o estado (`404`, `409`, `500`):
+
+```http
+HTTP/1.1 404 Not Found
+Content-Type: application/problem+json
+
+{
+  "type":   "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+  "title":  "TIPO_RECURSO_NO_ENCONTRADO",
+  "status": 404,
+  "detail": "No existe un tipo de recurso con id 999."
+}
+```
+
+**`ValidationProblemDetails`** — errores de validación del modelo (`400`). Lleva el campo extra **`errors`** con los fallos agrupados por propiedad:
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/problem+json
+
+{
+  "type":   "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title":  "Uno o más errores de validación.",
+  "status": 400,
+  "errors": {
+    "NombreEs": [ "El campo NombreEs es obligatorio." ],
+    "Codigo":   [ "La longitud máxima de Código es 100.", "El código no puede contener espacios." ]
+  }
+}
+```
+
+::: tip BUENA PRÁCTICA — Scalar como banco de pruebas de errores
+Los dos formatos se reproducen desde Scalar sin tocar Vue:
+
+- **`ValidationProblemDetails` 400** — `POST /api/TipoRecursos` con `{ "codigo": "  con espacios  ", "nombreEs": "", "nombreCa": "Sala", "nombreEn": "Room" }`. Verás `errors.NombreEs` y `errors.Codigo` rellenados. El idioma de los mensajes lo decide la cabecera `X-Idioma`.
+- **`ProblemDetails` 404** — `GET /api/TipoRecursos/999999`. Verás `title: "TIPO_RECURSO_NO_ENCONTRADO"` y `detail` ya localizado.
+
+Si tu cliente Vue espera `error.response.data.errors.NombreEs`, ese contrato lo fija `ValidationProblemDetails`, no tu código. Verifícalo en Scalar antes de tocar Vue.
+:::
+
+El resto de la sesión cubre **cómo** se construyen estas dos formas (§13.1 a §13.6) y **cómo** las recoge el cliente (§13.7 a §13.8).
+
 ## 13.1 El viaje de un error de extremo a extremo {#viaje-error}
 
 Antes del detalle de cada pieza, conviene tener el **mapa entero** delante. Un error que arranca en Oracle puede acabar en tres sitios distintos según de qué tipo sea:
@@ -161,25 +207,201 @@ Mantener `Message` (lo que ve el usuario) separado de `TechnicalMessage` (lo que
 
 ### 13.2.3 Cómo construir un `Error` desde un servicio
 
-Los factories del propio `Result<T>` evitan instanciar `Error` a mano:
+Los factories del propio `Result<T>` evitan instanciar `Error` a mano. Tres llamadas — `Validation`, `NotFound`, `Success` — cubren el 95 % de los casos:
 
 ```csharp
-// Servicio
-if (idRecurso <= 0)
-    return Result<RecursoLectura>.Validation(
-        "RECURSO_ID_INVALIDO",
-        "El identificador del recurso no es válido.");
+// Servicio: nunca lanza excepciones para flujos esperables; devuelve Result<T>.
+public async Task<Result<RecursoLectura>> ObtenerPorIdAsync(int idRecurso)
+{
+    // ── ErrorType.Validation → HTTP 400 ───────────────────────────────────────
+    //   "code"    → identificador estable (el cliente puede reaccionar a él)
+    //   "message" → texto legible; si existe en SharedResource.resx se traduce
+    if (idRecurso <= 0)
+        return Result<RecursoLectura>.Validation(
+            "RECURSO_ID_INVALIDO",
+            "El identificador del recurso no es válido.");
 
-if (recurso is null)
-    return Result<RecursoLectura>.NotFound(
-        "RECURSO_NO_ENCONTRADO",
-        "El recurso {0} no existe.",
-        idRecurso);
+    var recurso = await _bd.ObtenerPrimeroMapAsync<RecursoLectura>(/* ... */);
 
-return Result<RecursoLectura>.Success(recurso);
+    // ── ErrorType.NotFound → HTTP 404 ─────────────────────────────────────────
+    //   Los argumentos extra ("idRecurso") rellenan los {0}, {1}... del message
+    //   vía string.Format al localizar.
+    if (recurso is null)
+        return Result<RecursoLectura>.NotFound(
+            "RECURSO_NO_ENCONTRADO",
+            "El recurso {0} no existe.",
+            idRecurso);
+
+    // ── Camino feliz → HTTP 200 ───────────────────────────────────────────────
+    //   El valor viaja DENTRO del Result. HandleResult lo desempaquetará como Ok.
+    return Result<RecursoLectura>.Success(recurso);
+}
 ```
 
-Los `params object?[] messageArgs` se quedan en `MessageArgs` y se aplican como `string.Format` cuando se localice el mensaje. Lo verás en §13.3 con los formatos Oracle.
+::: tip BUENA PRÁCTICA — nunca `throw` en flujos esperables
+Si la regla de negocio prevé que "el recurso puede no existir" o "el id puede llegar inválido", **no son excepciones**: son resultados posibles. Devuélvelos con `Result<T>.NotFound` / `Result<T>.Validation`. Las excepciones se reservan para lo imprevisto (BD caída, NRE, timeout) y las atrapa el middleware (§13.5).
+:::
+
+Los `params object?[] messageArgs` se guardan en `MessageArgs` y se aplican como `string.Format` cuando se localice el mensaje. Lo verás en §13.3 con los formatos Oracle.
+
+::: info LA `T` DE `Result<T>` — genéricos en 1 minuto
+La `T` es un **tipo que se decide al usar la clase**, no al escribirla. Así, una sola clase `Result<T>` vale para cualquier valor de retorno:
+
+| Método del servicio             | Tipo de retorno                    | Qué hay en el `Value` si es `Success` |
+| ------------------------------- | ---------------------------------- | ------------------------------------- |
+| `ObtenerTodosAsync(idioma)`     | `Result<List<TipoRecursoLectura>>` | La lista (puede estar vacía).         |
+| `ObtenerPorIdAsync(id, idioma)` | `Result<TipoRecursoLectura>`       | El DTO encontrado.                    |
+| `CrearAsync(dto)`               | `Result<int>`                      | El id del registro recién creado.     |
+| `ActualizarAsync(id, dto)`      | `Result<bool>`                     | `true` si se actualizó.               |
+
+Si no es `Success`, `Value` es `null` y hay un `Error`. `HandleResult` (§13.2.4) se encarga del resto — tú no tienes que mirar el `Error` a mano.
+:::
+
+### 13.2.4 `HandleResult`: el traductor único `Result<T>` → HTTP {#handleresult}
+
+El controlador **no decide** el código HTTP ni el formato del cuerpo de error: lo decide **`HandleResult`**, una única función en `ApiControllerBase`. **Si quieres cambiar el formato de los errores, este es el único sitio donde tocar**.
+
+```csharp
+// Controllers/Apis/ApiControllerBase.cs (esbozo)
+protected ActionResult HandleResult<T>(Result<T> result)
+{
+    // ── 1) Camino feliz ───────────────────────────────────────────────────────
+    //    El valor viene dentro del Result. Lo desempaquetamos como 200 Ok.
+    if (result.IsSuccess)
+        return Ok(result.Value);                              // 200
+
+    // ── 2) Hay Error: lo localizamos al idioma del usuario ────────────────────
+    //    LocalizarMensaje busca error.Code en SharedResource.{es,ca,en}.resx
+    //    y aplica string.Format con MessageArgs (los argumentos {0}, {1}...).
+    var error   = result.Error!;
+    var mensaje = LocalizarMensaje(error);                    // §13.3
+
+    // ── 3) Si el Error tiene TechnicalMessage → log (y, opcional, correo) ─────
+    RegistrarErrorTecnico(error);                             // §13.6 ruta B
+
+    // ── 4) Traduce el ErrorType a uno de los tres ProblemDetails estándar ────
+    return error.Type switch
+    {
+        // 400 Bad Request — incluye el diccionario errors por campo
+        // que useGestionFormularios.adaptarProblemDetails pinta bajo cada input.
+        ErrorType.Validation => ValidationProblem(
+            new ValidationProblemDetails(
+                error.ValidationErrors ?? new Dictionary<string, string[]>())
+            {
+                Title  = error.Code,        // código estable: "RECURSO_ID_INVALIDO"
+                Detail = mensaje,           // texto ya localizado (es/ca/en)
+                Status = StatusCodes.Status400BadRequest
+            }),
+
+        // 404 Not Found — recurso pedido no existe.
+        ErrorType.NotFound => NotFound(new ProblemDetails
+        {
+            Title  = error.Code,
+            Detail = mensaje,
+            Status = StatusCodes.Status404NotFound
+        }),
+
+        // 500 Internal Server Error — cualquier Failure: bugs, BD caída, paquete roto.
+        _ => Problem(detail: mensaje,
+                     title:  error.Code,
+                     statusCode: StatusCodes.Status500InternalServerError)
+    };
+}
+```
+
+Mapeo en una tabla:
+
+| `Result<T>`                     | `ErrorType` | HTTP                          | Cuerpo JSON                                                                    |
+| ------------------------------- | ----------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| `Success(v)`                    | —           | **200 OK**                    | El valor `v` serializado.                                                      |
+| `Validation(code, msg, errors)` | Validation  | **400 Bad Request**           | `ValidationProblemDetails { title=code, detail=msg-localizado, errors={...} }` |
+| `NotFound(code, msg, args)`     | NotFound    | **404 Not Found**             | `ProblemDetails { title=code, detail=msg-localizado }`                         |
+| `Fail(code, msg, args)`         | Failure     | **500 Internal Server Error** | `ProblemDetails { title=code, detail=msg-localizado }` + log/correo            |
+
+### 13.2.5 Cómo se escribe un endpoint del curso {#endpoint-canonico}
+
+::: info QUÉ QUEREMOS ENSEÑAR
+El **patrón único** para escribir controladores: el servicio devuelve `Result<T>`, el controlador se reduce a **una sola línea** que llama a `HandleResult`. Solo el `POST` que crea recursos rompe esa regla, porque REST exige `201 Created` con cabecera `Location`.
+:::
+
+::: tip POR QUÉ ES IMPORTANTE
+Sin este patrón, cada acción acabaría con su propio `if (recurso is null) return NotFound(...); if (...) return BadRequest(...); else return Ok(...);`. Tres consecuencias malas:
+
+1. **La forma del JSON de error se desvía** entre acciones — el cliente Vue no puede confiar en `useGestionFormularios`.
+2. **La localización** (`SharedResource.resx`) se duplica en cada `return BadRequest(...)`.
+3. **Cambiar el formato** de errores obliga a tocar decenas de controladores.
+
+Centralizando en `HandleResult`, todos los endpoints hablan el mismo idioma HTTP y el mantenimiento se reduce a una sola función.
+:::
+
+#### Qué implica a nivel de código
+
+Hay solo **dos formas** de acción en el curso: lectura/actualización/borrado (que delegan todo en `HandleResult`) y creación (que añade el header `Location`).
+
+##### Caso 1 — Lectura, actualización y borrado: una sola línea
+
+```csharp
+[HttpGet("{id:int}")]
+[ProducesResponseType<TipoRecursoLectura>(StatusCodes.Status200OK)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+public async Task<ActionResult> ObtenerPorId([FromRoute] int id) =>
+    // El servicio devuelve Result<T>. HandleResult decide 200/404/500 y el cuerpo.
+    HandleResult(await _tiposRecurso.ObtenerPorIdAsync(id, Idioma));
+```
+
+El servicio que respalda esa acción:
+
+```csharp
+public async Task<Result<TipoRecursoLectura>> ObtenerPorIdAsync(int id, string idioma)
+{
+    // Consulta a Oracle (vía ClaseOracleBd, sesión 5).
+    var fila = await _bd.ObtenerPrimeroMapAsync<TipoRecursoLectura>(/* ... */);
+
+    return fila is null
+        // No hay fila → 404 con código estable que el cliente reconoce.
+        ? Result<TipoRecursoLectura>.NotFound(
+              "TIPO_RECURSO_NO_ENCONTRADO",
+              "No existe un tipo de recurso con id {0}.",
+              id)
+        // Hay fila → 200 con el DTO dentro del Result.
+        : Result<TipoRecursoLectura>.Success(fila);
+}
+```
+
+##### Caso 2 — Creación: `HandleResult` solo para el error, `CreatedAtAction` para el éxito
+
+```csharp
+[HttpPost]
+[ProducesResponseType<int>(StatusCodes.Status201Created)]
+[ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
+{
+    var resultado = await _tiposRecurso.CrearAsync(dto);
+
+    // Rama de error (400/404/500): la traduce HandleResult, igual que en el Caso 1.
+    if (!resultado.IsSuccess) return HandleResult(resultado);
+
+    // Rama de éxito: REST exige 201 Created + cabecera Location apuntando al nuevo recurso.
+    // nameof(ObtenerPorId) evita strings frágiles si renombramos la acción de lectura.
+    return CreatedAtAction(
+        nameof(ObtenerPorId),
+        new { id = resultado.Value },     // ← parámetros para construir la URL
+        resultado.Value);                  // ← cuerpo de la respuesta (el id creado)
+}
+```
+
+::: warning POR QUÉ EL POST ES DISTINTO
+`HandleResult` siempre responde con `Ok(...)` en el caso bueno, y `Ok` es 200 — pero crear un recurso debe devolver **201 Created + cabecera `Location`** con la URL del recurso recién creado. Es la única excepción a la regla "una línea": el error sigue pasando por `HandleResult`, el éxito **no**.
+:::
+
+::: info ¿Y `Task<ActionResult>` en vez de `TypedResults`?
+.NET 10 ofrece varios estilos (`IActionResult`, `ActionResult<T>`, `Results<...>` con `TypedResults`). El curso usa **siempre `Task<ActionResult>` + `HandleResult`** por dos motivos prácticos:
+
+1. **Una sola línea por acción** y los códigos los declara `[ProducesResponseType<T>(...)]` — Scalar los lee igual.
+2. **Compatibilidad** con `Ok`, `NoContent`, `CreatedAtAction`, etc. Si necesitas algo "raro" (como `CreatedAtAction` del Caso 2), no hay que reescribir la firma del método.
+
+`TypedResults` es válido, pero al hacerlo conviven dos estilos en el mismo proyecto y el JSON de error deja de salir de un solo sitio.
+:::
 
 ## 13.3 Los cuatro formatos de mensaje desde Oracle {#formatos-oracle}
 
@@ -666,6 +888,72 @@ context.RequestServices.GetService<ClaseErrores>()?
 
 En el lado del cliente, los errores y avisos se presentan con la familia `useToast` de `@vueua/components`. Ya la viste en la sesión 9; aquí la repasamos como **vocabulario común** del bloque de integración.
 
+### 13.7.0 El interceptor de `useAxios`: quién decide `.then` vs `.catch` {#interceptor-useaxios}
+
+Tanto `peticion<T>` como `llamadaAxios` usan la **misma instancia de Axios** (`HttpApi`) con **el mismo interceptor de respuesta** (`vueua-lib/src/composables/use-axios/useAxios.ts`). Ese interceptor es quien decide qué llega al `.then()` y qué llega al `.catch()`:
+
+```mermaid
+flowchart TD
+    A[Vue llama a peticion/llamadaAxios] --> B[HttpApi envía la petición HTTP]
+    B --> C{Respuesta del servidor}
+    C -- "status 2xx" --> OK[interceptor cierra toast de loading<br/>devuelve response]
+    OK --> Then["resolve → .then() / await ✓<br/>recibo los datos"]
+
+    C -- "status 401<br/>(token caducado)" --> R[Interceptor intenta<br/>POST /account/RefrescarToken]
+    R -- "refresh OK" --> Replay[Reintenta la petición original]
+    Replay --> C
+    R -- "refresh falla" --> Redir[window.location → home<br/>la promesa nunca resuelve]
+
+    C -- "status 4xx / 5xx<br/>(distinto de 401 ya reintentado)" --> Rej[interceptor → Promise.reject error]
+    Rej --> Catch["reject → .catch() / catch(err) ✗<br/>err.response.data = ProblemDetails"]
+
+    C -- "Sin respuesta<br/>(red caída, CORS)" --> RejRed[Promise.reject sin response]
+    RejRed --> Catch
+```
+
+<!-- diagram id="s13-useaxios-interceptor" caption: "El interceptor reparte la promesa: 2xx → .then; 4xx/5xx → .catch con el ProblemDetails en err.response.data." -->
+
+::: warning LA REGLA EN UNA FRASE
+**`.then` (o `await`) se ejecuta SOLO si el status es 2xx. CUALQUIER otra cosa — 4xx, 5xx, "el servidor no respondió" — entra en el `.catch`.**
+
+En Vue **no se escribe** `if (status === 200) ... else if (status === 404) ...`. Ese reparto lo hace Axios por ti. Tu código tiene **dos ramas**: la buena (`.then`/`await`) y todo lo demás (`.catch`).
+:::
+
+Por lo tanto **tu código no necesita mirar el `status`**. El interceptor de la UA solo añade dos cosas al comportamiento por defecto de Axios:
+
+1. **Refresh automático del JWT** en `401` (un solo intento, con `_retry`).
+2. **Cierre del toast** de "cargando" que abre `llamadaAxios` cuando se le pasa `mensajes.loading`.
+
+Para ti, el flujo se reduce a:
+
+- **`await peticion(...)`** o `then(...)` → entra solo con **2xx**.
+- **`catch (err)`** → entra con **todo lo demás**. En `err.response?.data` vive el `ProblemDetails` que devolvió .NET (si lo había).
+
+Mapa de qué hace Vue con cada status (lo aplicará el código de §13.7.5):
+
+| Caso desde .NET                               | Status | Qué hace Vue                                                                |
+| --------------------------------------------- | ------ | --------------------------------------------------------------------------- |
+| `return Ok(datos)`                            | 200    | `.then`/`await` → pinta los datos.                                          |
+| `return CreatedAtAction(...)`                 | 201    | `.then`/`await` → confirma y navega.                                        |
+| `return NoContent()`                          | 204    | `.then`/`await` → confirma sin pintar nada.                                 |
+| `return BadRequest(ValidationProblemDetails)` | 400    | `.catch` → `adaptarProblemDetails(...)` pinta errores campo a campo.        |
+| `return Unauthorized()`                       | 401    | Lo gestiona el interceptor (refresh + reintento; si falla, vuelta a inicio).|
+| `return Forbid()`                             | 403    | `.catch` → `gestionarError` saca un toast de "no tienes permiso".           |
+| `return NotFound(ProblemDetails)`             | 404    | `.catch` → toast / banner con `detail`.                                     |
+| Excepción no controlada                       | 500    | `.catch` → toast genérico "vuelva a intentarlo".                            |
+
+#### `peticion<T>` vs `llamadaAxios`, ¿cuál usar?
+
+Las dos pasan por **el mismo interceptor**: la diferencia es solo de **estilo**.
+
+| Modo                | Devuelve                                     | Cuándo se usa                                                                                       |
+| ------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `peticion<T>(...)`  | `Promise<T>` (dato directo)                  | Caso general con `async/await + try/catch`. Acciones puntuales (guardar, eliminar, confirmar).      |
+| `llamadaAxios(...)` | `{ data, isLoading, error, execute }` reactivo | Cuando quieres bindear `isLoading` / `error` directamente al template sin escribir `ref(false)`.   |
+| `HttpApi`           | `Promise<AxiosResponse<T>>`                  | Solo cuando necesitas cabeceras, status exacto o config avanzada.                                   |
+
+Para formularios de creación/edición con un único spinner local, **`peticion` es más directo**. Usa `llamadaAxios` cuando ya estés bindeando varios de esos estados a la vista.
+
 ### 13.7.1 Las cuatro variantes
 
 ```ts
@@ -758,6 +1046,169 @@ cerrarToastsPorGrupo('reservas');
 ```
 
 Útil cuando una operación batch termina y queremos limpiar el "ruido" antes de mostrar el resumen final.
+
+### 13.7.5 Patrón canónico de formulario: `useGestionFormularios` + `peticion<T>` {#patron-formulario}
+
+Junta todo lo visto en esta sesión: un formulario `TipoRecurso` que envía `POST /api/TipoRecursos`, pinta cada error de campo bajo su `<input>` (desde `ValidationProblemDetails.errors`) y cae a un banner global / toast cuando la respuesta no tiene esa forma.
+
+#### Qué hace `adaptarProblemDetails` (firma real)
+
+```ts
+adaptarProblemDetails(problema: ProblemDetails, refForm, prefijo?)
+```
+
+**Recibe el `ProblemDetails` ya extraído** (no el `AxiosError` entero). Para extraerlo de forma segura usa `obtenerProblemDetails(err)` que exporta el módulo `use-axios`: devuelve el `ProblemDetails` si la respuesta tiene esa forma, o `undefined` si no la tiene (red caída, respuesta sin `errors`/`title`/`detail`).
+
+Estado que expone `useGestionFormularios()`:
+
+| Pieza                                                  | Para qué                                                                                            |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `modelState` (Ref&lt;{ [campo]: string[] }&gt;)        | Errores por campo (`{ NombreEs: ["..."], … }`) tal como llegan de `ValidationProblemDetails.errors`.|
+| `hayErrores` (Ref&lt;boolean&gt;)                      | `true` si la validación HTML5 del `<form>` ha fallado.                                              |
+| `hayErroresServidor` (Computed&lt;boolean&gt;)         | `true` si hay errores devueltos por la API.                                                         |
+| `erroresGlobales` (Ref&lt;string[]&gt;)                | Mensajes no asociados a un campo (clave vacía o `model`/`global`).                                  |
+| `errorDeCampo(c)` / `erroresDeCampo(c)`                | Primer error / todos los errores de un campo.                                                       |
+| `adaptarProblemDetails(problema, refForm, prefijo?)`   | Rellena `modelState` y `erroresGlobales` desde un `ProblemDetails`.                                 |
+| `validarFormulario(refForm)`                           | Lanza la validación HTML5 nativa del `<form>` (añade `was-validated`).                              |
+| `inicializarMensajeError()`                            | Limpia el estado antes de reintentar.                                                               |
+
+#### Ejemplo completo
+
+```vue
+<!-- ClientApp/src/views/CrearTipoRecurso.vue -->
+<script setup lang="ts">
+import { ref } from "vue";
+import {
+  peticion,
+  verbosAxios,
+  obtenerProblemDetails,
+  gestionarError,
+} from "@vueua/components/composables/use-axios";
+import { useGestionFormularios } from "@vueua/components/composables/use-gestion-formularios";
+
+// DTO espejo del TipoRecursoCrearDto del servidor (sin IdTipoRecurso: lo pone Oracle).
+interface TipoRecursoCrearDto {
+  codigo: string;
+  nombreEs: string;
+  nombreCa: string;
+  nombreEn: string;
+}
+
+const formulario = ref<TipoRecursoCrearDto>({
+  codigo: "",
+  nombreEs: "",
+  nombreCa: "",
+  nombreEn: "",
+});
+
+// Referencia al <form> para que el composable pueda añadir/quitar was-validated.
+const refForm = ref<HTMLFormElement | null>(null);
+
+const {
+  erroresGlobales,
+  errorDeCampo,
+  validarFormulario,
+  adaptarProblemDetails,
+  inicializarMensajeError,
+} = useGestionFormularios();
+
+const guardando = ref(false);
+
+async function guardar() {
+  // 1) Validación cliente (HTML5: required, maxlength...).
+  if (!validarFormulario(refForm)) return;
+
+  // 2) Limpia estado previo antes de reintentar.
+  inicializarMensajeError();
+  guardando.value = true;
+
+  try {
+    // 3) POST /api/TipoRecursos — devuelve el id creado (201 + Location).
+    const idNuevo = await peticion<number>(
+      "TipoRecursos",
+      verbosAxios.POST,
+      formulario.value,
+    );
+    // 4) Éxito → navegar, emitir evento, etc.
+    console.log("Creado con id", idNuevo);
+  } catch (err) {
+    // 5) El interceptor ha rechazado: 400 / 404 / 500 viven aquí.
+    const problema = obtenerProblemDetails(err);
+
+    if (problema) {
+      // 400 ValidationProblemDetails → rellena modelState["NombreEs"], ["Codigo"]...
+      // 404 / 500 ProblemDetails       → cae en erroresGlobales con title/detail.
+      adaptarProblemDetails(problema, refForm);
+    } else {
+      // Sin response (red caída) o respuesta sin forma ProblemDetails:
+      // helper genérico que ya saca un toast rojo.
+      gestionarError(err, "No se pudo guardar", "Inténtelo más tarde.");
+    }
+  } finally {
+    guardando.value = false;
+  }
+}
+</script>
+
+<template>
+  <form ref="refForm" novalidate @submit.prevent="guardar">
+    <!-- Errores globales: 404, 500, o errores sin campo asociado. -->
+    <div v-if="erroresGlobales.length" class="alert alert-danger">
+      <ul class="mb-0">
+        <li v-for="(m, i) in erroresGlobales" :key="i">{{ m }}</li>
+      </ul>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="codigo">Código</label>
+      <input
+        id="codigo"
+        v-model="formulario.codigo"
+        required
+        maxlength="100"
+        class="form-control"
+        :class="{ 'is-invalid': errorDeCampo('Codigo') }"
+      />
+      <!-- modelState['Codigo'] viene de ValidationProblemDetails.errors.Codigo -->
+      <div v-if="errorDeCampo('Codigo')" class="invalid-feedback">
+        {{ errorDeCampo('Codigo') }}
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="nombreEs">Nombre (es)</label>
+      <input
+        id="nombreEs"
+        v-model="formulario.nombreEs"
+        required
+        maxlength="150"
+        class="form-control"
+        :class="{ 'is-invalid': errorDeCampo('NombreEs') }"
+      />
+      <div v-if="errorDeCampo('NombreEs')" class="invalid-feedback">
+        {{ errorDeCampo('NombreEs') }}
+      </div>
+    </div>
+
+    <!-- Repite para nombreCa, nombreEn... -->
+
+    <button class="btn btn-primary" :disabled="guardando">Guardar</button>
+  </form>
+</template>
+```
+
+::: tip BUENA PRÁCTICA — la clave de campo es la del servidor
+El binding es `errorDeCampo('NombreEs')` (PascalCase, **como lo envía .NET en `ValidationProblemDetails.errors`**) y no `nombreEs`. El JSON de datos se serializa en camelCase, pero las **claves de errores** mantienen el nombre de la propiedad C#. Si necesitas otra convención, `useGestionFormularios({ normalizarClaveCampo })` te deja transformarlas.
+:::
+
+::: info COMBINACIÓN CANÓNICA
+En el ejemplo se ve el patrón completo:
+
+1. **Si el error tiene forma `ProblemDetails`** (lo normal cuando viene de .NET) → `adaptarProblemDetails(...)` pinta los errores por campo dentro del formulario.
+2. **Si no la tiene** (red caída, timeout, respuesta inesperada) → `gestionarError(...)` saca un toast rojo con `avisarError` por debajo.
+
+El usuario siempre tiene feedback: o junto al campo problemático, o en un toast.
+:::
 
 ## 13.8 Confirmar antes de operaciones destructivas {#confirmar}
 

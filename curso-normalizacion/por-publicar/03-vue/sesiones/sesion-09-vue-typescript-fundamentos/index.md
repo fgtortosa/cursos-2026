@@ -249,41 +249,62 @@ resultado = true     // ❌ error de compilación
 
 ### Tipos especiales: `null`, `undefined`, `any` y `unknown`
 
-```typescript
-// any → desactiva TypeScript (EVITAR)
-let valor: any = "texto"
-valor = 42          // No hay error, pero pierdes seguridad
-valor.noExiste()    // No hay error en compilación, pero falla en ejecución
+Los cuatro existen para casos muy concretos. La regla general: **elige siempre el tipo real** (o una unión con `null`) antes de caer en `any`.
 
-// unknown → más seguro que any (hay que comprobar tipo antes de usar)
-let dato: unknown = "texto"
-// dato.toUpperCase()  // ❌ Error: no se puede usar sin comprobar tipo
-if (typeof dato === 'string') {
-  dato.toUpperCase()   // ✅ Ahora sí, TypeScript sabe que es string
+```typescript
+// ── null y undefined ──────────────────────────────────────────────
+// Úsalos en uniones para indicar "puede no haber valor todavía".
+// Es lo habitual cuando una variable se rellena tras una llamada async.
+let usuarioCargado: string | null = null            // luego: "Ana Garcia"
+let idSeleccionado: number | undefined = undefined  // luego: 42
+
+// ── any → desactiva TypeScript (EVITAR) ───────────────────────────
+let valor: any = "texto"
+valor = 42          // No hay error... pero pierdes la red de seguridad
+valor.noExiste()    // No hay error en compilación; revienta en ejecución
+
+// ── unknown → la versión segura de any ────────────────────────────
+// Útil cuando recibes un dato del exterior y aún no sabes su forma
+// (respuesta de fetch, mensaje de postMessage, contenido de localStorage).
+let dato: unknown = JSON.parse(localStorage.getItem("config") ?? "{}")
+// dato.toUpperCase()  // ❌ Error: TS te obliga a comprobar primero
+if (typeof dato === "string") {
+  dato.toUpperCase()   // ✅ Dentro del if, TS sabe que es string
 }
 ```
 
+::: tip BUENA PRÁCTICA — qué tipo real poner en el ejemplo de arriba
+| En el ejemplo... | El tipo "de juguete"  | El tipo real que pondrías en código de producción |
+| ---------------- | --------------------- | ------------------------------------------------- |
+| `valor: any`     | `any` (no escribir)   | `string \| number` si admite los dos, o crear una *union type* concreta |
+| `dato: unknown`  | `unknown` (genérico)  | Una **interface** que describa la forma esperada (`interface Config { ... }`) y un *type guard* que la valide |
+| `usuarioCargado` | `string \| null`      | `Usuario \| null` con `interface Usuario { id: number; nombre: string }` |
+| `idSeleccionado` | `number \| undefined` | Mejor `number \| null` para distinguir "aún no elegido" (lo idiomático en formularios UA) |
+
+La idea: `any`/`unknown` son **comodines de paso**. En cuanto sepas la forma, define una `interface` o un `type` y úsalo.
+:::
+
 ::: danger ZONA PELIGROSA
-Nunca uses `any` salvo en casos muy justificados (librerías sin tipos, migración de JS). Pierdes toda la protección que ofrece TypeScript.
+Nunca uses `any` salvo en casos muy justificados (librerías sin tipos, migración de JS). Pierdes toda la protección que ofrece TypeScript y los `.d.ts` que vienen con Vue, Axios y los componentes UA.
 :::
 
 ## 1.4 Reactividad: ref y reactive {#reactividad}
 
-La reactividad es la capacidad de Vue de **actualizar automáticamente** el DOM cuando cambian los datos. Es la característica más poderosa de Vue.
+La reactividad es la capacidad de Vue de **actualizar automáticamente** el DOM cuando cambian los datos. La mecánica se entiende mejor leyendo el código que con un diagrama:
 
-```mermaid
-flowchart LR
-    A["<code>ref(0)</code><br/>Variable reactiva"] -->|usada en| T["Template<br/><code>{{ contador }}</code>"]
-    T -->|registra dependencia| V[("Sistema reactivo<br/>de Vue")]
-    A -->|<code>.value++</code><br/>cambia| V
-    V -->|dispara| R["Re-renderizado<br/>solo de los nodos<br/>que dependen"]
-    R --> D["DOM actualizado"]
-    style A fill:#e3f2fd,stroke:#1976d2
-    style V fill:#fff3e0,stroke:#f57c00
-    style D fill:#e8f5e9,stroke:#388e3c
+```typescript
+// 1) Declaras una variable reactiva con ref(...).
+const contador = ref<number>(0)
+
+// 2) La usas en el template: {{ contador }}.
+//    Vue "anota" que ese nodo del DOM depende de 'contador'.
+
+// 3) Cuando cambias el valor con contador.value++,
+//    Vue dispara automáticamente un re-renderizado
+//    pero SOLO de los nodos que dependen de esa variable.
 ```
 
-<!-- diagram id="s6-ciclo-reactividad" caption: "Ciclo de reactividad de Vue: dependencias, cambio y re-render selectivo" -->
+Lo importante: **tú no escribes ningún `document.getElementById` ni ningún `innerHTML = ...`**. Vue lo hace por ti porque sabe quién depende de quién.
 
 ### ¿Por qué usamos `const` con variables reactivas?
 
@@ -318,33 +339,51 @@ Con `const` no decimos "el dato no cambia". Decimos "esta referencia reactiva no
 
 ### `ref` — Referencia reactiva
 
-`ref` crea una referencia reactiva a cualquier valor. Este es el ejemplo de la demo `Sesion6HolaVue.vue` del sandbox:
+`ref` crea una referencia reactiva a cualquier valor. Este es el ejemplo de la demo `Sesion6HolaVue.vue` del sandbox: dos botones que cambian un mismo `ref<string>` y el saludo se actualiza solo. Además, una `computed` deriva la URL de la foto de la mascota que toca, y `v-if` la muestra solo cuando hay foto.
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 // 'nombre' es una "caja" que Vue vigila. Cuando cambia el valor
 // interno, el template se vuelve a pintar solo.
 const nombre = ref<string>('Mundo')
 
-function saludarADuke() {
-  nombre.value = 'Duke (la mascota de Java)'   // .value en el script
-}
+function saludarALola()  { nombre.value = 'Lola, mi perro' }       // .value en el script
+function saludarATiger() { nombre.value = 'Tiger, mi super gato' }
+
+// 'computed' recalcula automaticamente la URL cada vez que cambia 'nombre'.
+// Las fotos viven en ClientApp/public/ (lola.jpg, tiger.jpg). Vite las sirve
+// bajo import.meta.env.BASE_URL → en producción "/uareservas/lola.jpg".
+const fotoMascota = computed<string | null>(() => {
+  const base = import.meta.env.BASE_URL
+  if (nombre.value === 'Lola, mi perro')       return `${base}lola.jpg`
+  if (nombre.value === 'Tiger, mi super gato') return `${base}tiger.jpg`
+  return null
+})
 </script>
 
 <template>
   <!-- En template: sin .value (Vue lo desempaqueta solo) -->
   <div class="display-4 my-3">Hola, {{ nombre }} 👋</div>
 
+  <!-- v-if monta/desmonta el bloque segun la computed.
+       Sin foto cuando 'nombre' no coincide con ninguna mascota. -->
+  <img v-if="fotoMascota" :src="fotoMascota" :alt="nombre" style="max-height: 240px" />
+
   <!-- v-model: enlace bidireccional con el input -->
   <input v-model="nombre" type="text" class="form-control" />
 
-  <button class="btn btn-primary" @click="saludarADuke">Saludar a Duke</button>
+  <button class="btn btn-primary" @click="saludarALola">Saluda a Lola, mi perro</button>
+  <button class="btn btn-primary" @click="saludarATiger">Saluda a Tiger, mi super gato</button>
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6HolaVue.vue`.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6HolaVue.vue`. Las fotos están en `ClientApp/public/lola.jpg` y `ClientApp/public/tiger.jpg`.
+
+::: tip BUENA PRÁCTICA — assets desde `public/` y `import.meta.env.BASE_URL`
+Todo lo que metes en `ClientApp/public/` se sirve **tal cual** bajo la URL base de la app (`/uareservas/` en producción, `/` en dev). Si escribes `<img src="/lola.jpg">`, en producción falla porque la URL real es `/uareservas/lola.jpg`. Por eso usamos `import.meta.env.BASE_URL` como prefijo: Vite lo resuelve correctamente en ambos entornos sin tocar el código.
+:::
 
 ::: warning IMPORTANTE
 - En el `<script>`: usa `contador.value`
@@ -473,7 +512,7 @@ Si no aparece la pestaña Vue:
 - Recarga la página con DevTools abiertas.
 - Comprueba que la extensión está habilitada.
 
-### 1.6.2 Ejemplo rápido con `console.log`
+### 1.6.2 Ejemplo rápido con `console.log` y otras variantes
 
 ```html
 <script setup lang="ts">
@@ -503,35 +542,149 @@ Qué debes comprobar en este ejemplo:
 
 Si falla alguno de los tres puntos, ya tienes una pista de dónde está el problema (evento, estado o renderizado).
 
-### 1.6.3 Qué mirar en DevTools (nivel sesión 1)
+#### Más variantes de `console` que te ahorran tiempo
 
-| Pestaña | Qué revisar | Para qué sirve |
-|---------|-------------|----------------|
-| **Console** | Errores, warnings y `console.log` | Detectar fallos de ejecución y flujo de eventos |
-| **Elements** | Si el DOM refleja cambios esperados | Confirmar que la UI se está renderizando |
-| **Vue (Devtools)** | Estado del componente (`ref`, props) | Verificar valores reactivos sin tocar código |
+`console.log` no es la única. DevTools agrupa, colorea y formatea distinto según la variante que uses:
 
-### 1.6.4 Checklist mínimo de depuración
+| Variante                        | Cuándo usarla                                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `console.log(...)`              | Información general. Sale en negro.                                                              |
+| `console.info(...)`             | Información destacada (icono azul ℹ). Útil para hitos del flujo.                                |
+| `console.warn(...)`             | Aviso amarillo. Algo no está bien pero no rompe — perfecto para "estás usando una API obsoleta". |
+| `console.error(...)`            | Rojo + stack trace. Para errores que has detectado tú (en un `catch`, por ejemplo).              |
+| `console.table(arrayDeObjetos)` | Pinta un array de objetos como tabla con columnas ordenables. Ideal para arrays de DTOs.         |
+| `console.dir(obj)`              | Imprime el objeto como árbol explorable (mejor que `log` para objetos profundos / proxies Vue).  |
+| `console.group('etiqueta')` + `console.groupEnd()` | Agrupa logs entre las dos llamadas → árbol plegable en la consola.            |
+| `console.time('t')` + `console.timeEnd('t')`       | Mide milisegundos entre las dos llamadas. Útil para detectar bucles lentos.   |
+| `console.count('clave')`        | Cuenta cuántas veces se ha invocado. Útil para detectar renders duplicados o handlers que se disparan más veces de la cuenta. |
+| `console.assert(cond, 'msg')`   | Solo imprime si `cond` es falsa. Más limpio que un `if (!cond) console.error(...)`.              |
+| `console.trace('etiqueta')`     | Imprime la pila completa de llamadas hasta este punto. Brutal para "¿quién está llamando a esta función?". |
+
+Ejemplo aplicado a la demo:
+
+```typescript
+function incrementar() {
+  console.group('[click] incrementar')
+  console.count('renders del botón')      // 1, 2, 3...
+  console.table([{ estado: 'antes', valor: contador.value }])
+  console.time('tiempoIncremento')
+  contador.value++
+  console.timeEnd('tiempoIncremento')     // "tiempoIncremento: 0.12 ms"
+  console.groupEnd()
+}
+```
+
+### 1.6.3 Parar el código con el `debugger` y los breakpoints {#debugger}
+
+El `console.log` te dice **qué** valor hay; el **debugger** te deja inspeccionar **todo** el estado en ese instante (variables locales, refs, scope, pila de llamadas) y avanzar paso a paso.
+
+#### Opción A — La sentencia `debugger`
+
+Inserta la palabra `debugger` en tu código. Cuando el navegador llega a esa línea **con DevTools abierto**, la ejecución se pausa automáticamente:
+
+```typescript
+function incrementar() {
+  console.log('Antes:', contador.value)
+  debugger          // ← Vue para aquí; puedes inspeccionar contador.value, scope local...
+  contador.value++
+}
+```
+
+::: warning Acuérdate de quitar los `debugger`
+Si te queda un `debugger` en una rama del código y un compañero abre DevTools, la app le va a parar de repente. Quítalos antes de subir a `main` (los linters de la UA los detectan como `no-debugger`).
+:::
+
+#### Opción B — Breakpoints desde DevTools (sin tocar el código)
+
+1. Abre DevTools → pestaña **Sources** (Chrome/Edge) o **Debugger** (Firefox).
+2. En el árbol de archivos navega hasta tu `.vue` (verás el bloque `<script setup>`).
+3. Pulsa el **número de línea** donde quieras parar → aparece un punto azul.
+4. Interactúa con la app: cuando se ejecute esa línea, la pestaña se pondrá en pausa.
+
+Botones útiles una vez parado:
+
+| Botón                      | Atajo  | Qué hace                                                  |
+| -------------------------- | ------ | --------------------------------------------------------- |
+| **Resume** (▶)             | F8     | Continúa hasta el siguiente breakpoint.                   |
+| **Step over** (↷)          | F10    | Ejecuta la línea actual sin entrar en las funciones que llame. |
+| **Step into** (↓)          | F11    | Entra dentro de la función llamada en esta línea.         |
+| **Step out** (↑)           | Shift+F11 | Sale de la función actual y vuelve al llamador.        |
+| **Deactivate breakpoints** | Ctrl+F8 | Desactiva todos sin perderlos.                           |
+
+Mientras estás parado puedes:
+
+- Pasar el ratón sobre cualquier variable → ves su valor actual.
+- Usar la pestaña **Scope** → variables locales, `this`, closures.
+- En **Watch** → añadir expresiones tipo `contador.value`, `nombre.value === 'Lola, mi perro'` para que se evalúen en cada paso.
+- En la **Console** mientras está pausada → ejecutas cualquier expresión con el scope actual (`contador.value = 100`, por ejemplo).
+
+#### Breakpoints condicionales
+
+Click derecho sobre el número de línea → **Add conditional breakpoint** → escribe `contador.value > 5`. Solo para cuando se cumpla. Imprescindible cuando un fallo solo ocurre tras N clics.
+
+### 1.6.4 TypeScript en el navegador: las líneas que ves son las que escribiste {#sourcemaps}
+
+Pregunta natural en cuanto abres DevTools:
+
+> "Pero si yo escribí TypeScript… ¿por qué la consola pone la línea exacta de mi `.vue`? El navegador no entiende TS, ¿no?"
+
+Correcto. El navegador **solo ejecuta JavaScript**. Vite (el bundler que usa el proyecto) compila tu `.vue` + `.ts` a JavaScript antes de servirlo. Pero junto al JS genera un fichero `.map` (un **source map**) que asocia cada línea del JS compilado con la línea original de tu fichero. DevTools usa ese mapa para mostrarte **tu código fuente** en lugar del JavaScript compilado.
+
+Esto importa para entender lo siguiente:
+
+| Lo que ves en DevTools                             | Lo que ocurre por debajo                                                                       |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Tu `Sesion6HolaVue.vue` línea 24 en **Sources**    | Es una "vista" del source map. El fichero que ejecuta el navegador es un `.js` compilado.      |
+| El breakpoint funciona en una línea TypeScript     | Vite añade source maps en `dev` por defecto → el breakpoint se traduce a la línea JS correcta. |
+| A veces el breakpoint salta a una línea "cercana"  | El compilador puede haber fusionado líneas. Si te pasa, pon `debugger` en la línea exacta.     |
+| Una variable se llama distinto en *Scope*          | TypeScript usa anotaciones de tipo (`: string`) que el JS no tiene; pero la lógica es la misma.|
+
+::: tip BUENA PRÁCTICA — qué explicar antes de un debugger en TypeScript
+Cuando enseñes el debugger a otro programador junior, deja claro tres cosas:
+
+1. **El navegador ejecuta JavaScript**, no TypeScript.
+2. **Los source maps** son los que permiten parar en tu `.ts`/`.vue` "como si fuera el código real".
+3. Si DevTools de pronto te muestra **JavaScript ofuscado** en vez de tu fuente, es que falta o se ha perdido el source map (compilación en producción sin maps, recurso cacheado antiguo, etc.).
+:::
+
+### 1.6.5 Qué mirar en DevTools (resumen de pestañas)
+
+| Pestaña            | Qué revisar                                       | Para qué sirve                                                |
+| ------------------ | ------------------------------------------------- | ------------------------------------------------------------- |
+| **Console**        | Errores, warnings y `console.*`                   | Detectar fallos de ejecución y trazar el flujo.               |
+| **Elements**       | Si el DOM refleja los cambios esperados           | Confirmar que la UI se está renderizando.                     |
+| **Sources**        | Tu código `.vue`/`.ts`, breakpoints, scope, watch | Pausar el código y leer el estado real en ese instante.       |
+| **Network**        | Llamadas HTTP (`/api/...`), status, payload       | Ver qué pide la app y qué responde el backend. Imprescindible. |
+| **Vue (Devtools)** | Árbol de componentes, props, `ref`, eventos       | Verificar valores reactivos y eventos sin tocar el código.    |
+
+::: tip Truco rápido — `$0` en la consola
+Selecciona un elemento en la pestaña **Elements**; en la **Console**, `$0` te lo devuelve como variable. Combinado con `console.dir($0)` ves todas sus propiedades. `$_` es el resultado de la última expresión evaluada.
+:::
+
+### 1.6.6 Checklist mínimo de depuración
 
 1. Reproducir el fallo con un caso simple.
-2. Revisar la consola del navegador tras cada cambio importante.
+2. Revisar la **Console** tras cada cambio importante.
 3. Comprobar que no hay errores de TypeScript en el editor.
-4. Verificar en Vue Devtools que las variables reactivas cambian cuando esperas.
-5. Confirmar que la UI refleja el estado sin recargar manualmente.
+4. Verificar en **Vue Devtools** que las variables reactivas cambian cuando esperas.
+5. Si el log no basta, poner un `debugger` (o un breakpoint) y leer el scope.
+6. Confirmar que la UI refleja el estado sin recargar manualmente.
 
-### 1.6.5 Qué revisar cuando algo "no aparece"
+### 1.6.7 Qué revisar cuando algo "no aparece"
 
-| Síntoma | Comprobación rápida |
-|---------|---------------------|
-| El valor no se actualiza | ¿La variable es reactiva (`ref` o `reactive`)? |
-| El valor no cambia en script | ¿Estás usando `.value` en `ref` dentro de `<script setup>`? |
-| Error de tipo en editor | ¿Coincide el tipo declarado con el valor asignado? |
-| En template sale vacío | ¿La variable existe en `<script setup>` y tiene valor inicial? |
-| El botón no hace nada | ¿El `@click` apunta a una función existente? |
-| Vue Devtools no muestra estado | ¿Extensión instalada, habilitada y app recargada? |
+| Síntoma                         | Comprobación rápida                                                                |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| El valor no se actualiza        | ¿La variable es reactiva (`ref` o `reactive`)?                                     |
+| El valor no cambia en script    | ¿Estás usando `.value` en `ref` dentro de `<script setup>`?                        |
+| Error de tipo en editor         | ¿Coincide el tipo declarado con el valor asignado?                                 |
+| En template sale vacío          | ¿La variable existe en `<script setup>` y tiene valor inicial?                     |
+| El botón no hace nada           | ¿El `@click` apunta a una función existente? ¿Hay un `console.log` que confirme que entra? |
+| Vue Devtools no muestra estado  | ¿Extensión instalada, habilitada y app recargada?                                  |
+| El breakpoint no se dispara     | ¿DevTools está abierto antes de hacer la acción? ¿La pestaña Sources tiene puntos azules activos? |
+| DevTools muestra JS ofuscado    | Falta el source map. Recarga sin caché (`Ctrl+Shift+R`) o vuelve a `dotnet watch`. |
 
-::: tip BUENA PRÁCTICA
-En esta sesión no necesitas una depuración avanzada: primero revisa **Console**, luego **Vue Devtools** y por último el código.
+::: tip BUENA PRÁCTICA — orden de búsqueda
+En esta sesión no necesitas una depuración avanzada. Sigue siempre el mismo orden: **Console → Vue Devtools → breakpoint en Sources**. El 80 % de los fallos se diagnostican antes de llegar al breakpoint.
 :::
 
 ## 1.7 Pruébalo en el proyecto {#sandbox}

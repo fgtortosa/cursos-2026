@@ -484,6 +484,102 @@ flowchart LR
 4. Engancha al composable y a la vista.
 :::
 
+### 11.6.3 Tres formas equivalentes de invocar la API en local {#tres-formas}
+
+Mientras desarrollas, la **misma API** se puede invocar desde tres sitios y los tres reciben **exactamente el mismo JSON**. Tenerlas claras te ahorra tiempo cuando algo falla.
+
+```mermaid
+flowchart LR
+    subgraph Navegador
+        Chrome[Chrome DevTools<br/>pestaña Network]
+        Scalar[/uareservas/scalar<br/>botón Try it out]
+        Home["Home.vue<br/>botón GET /api/Recursos"]
+    end
+    subgraph Servidor
+        API[ASP.NET Core<br/>RecursosController]
+    end
+    Chrome -.cookie X-Access-Token.-> API
+    Scalar -- click Send --> API
+    Home   -- "peticion<T>" --> API
+    API -- 200 + JSON --> Chrome
+    API -- 200 + JSON --> Scalar
+    API -- 200 + JSON --> Home
+
+    style Chrome fill:#d1ecf1,stroke:#0c5460
+    style Scalar fill:#d4edda,stroke:#155724
+    style Home   fill:#fff3cd,stroke:#856404
+```
+
+<!-- diagram id="s11-tres-formas-probar" caption: "DevTools, Scalar y el probador Home.vue reciben el mismo JSON." -->
+
+| Forma                       | Cuándo te conviene                                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Chrome DevTools (Network)** | Para inspeccionar la cabecera (`Cookie: X-Access-Token`, `X-Idioma`), el status y el JSON real **mientras Vue ya llama**.   |
+| **Scalar**                  | Para probar un endpoint **sin Vue**: cambiar idioma, provocar errores, copiar el JSON de ejemplo (cubierto en §11.6.1/2).   |
+| **`Home.vue` (probador)**   | Para verificar que el flujo completo Vue → axios → interceptor → API → axios → Vue funciona, con `peticion<T>` + toasts.    |
+
+### 11.6.4 El probador `Home.vue` por dentro {#probador-home}
+
+`ClientApp/src/views/Home.vue` viene con un probador completo: varios botones que llaman a la API real con `peticion<T>` y vuelcan la respuesta a un `<pre>`. El patrón es el canónico del curso — **no hace nada distinto** de lo que harás tú al construir servicios:
+
+```ts
+// ClientApp/src/views/Home.vue (extracto reducido)
+import {
+  gestionarError,
+  peticion,
+  verbosAxios,
+} from "@vueua/components/composables/use-axios";
+
+// DTO espejo de lo que devuelve la API (solo los campos que el probador usa).
+interface TipoRecursoLectura {
+  idTipoRecurso: number;
+  codigo: string;
+  nombre: string;
+}
+
+const salida = ref("");
+
+// Helper genérico: GET, vuelca el JSON o gestiona el error.
+async function llamar<T>(url: string, etiqueta: string) {
+  try {
+    // peticion<T> → si status 2xx devuelve T; si no, lanza y cae al catch.
+    const datos = await peticion<T>(url, verbosAxios.GET);
+    salida.value = JSON.stringify(datos, null, 2);                // respuesta cruda
+  } catch (error: any) {
+    // gestionarError lee err.response.data (ProblemDetails si lo hay)
+    // y dispara avisarError con título + detalle localizado.
+    gestionarError(error, `No se pudo cargar ${etiqueta}`, "Inténtelo más tarde.");
+  }
+}
+
+// Acciones de los botones — una llamada por endpoint:
+const listarTiposRecurso  = () => llamar<TipoRecursoLectura[]>("TipoRecursos", "tipos de recurso");
+const obtenerUsuarioActual = () => llamar<unknown>("Info/UsuarioActual",        "usuario actual");
+const provocarError400     = () => llamar<unknown>("Info/MessageError",         "error de demo");
+```
+
+Tres piezas que merece la pena fijarse:
+
+| Pieza                                      | Para qué                                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| **`peticion<T>(url, verbosAxios.GET)`**    | Hace `GET /api/{url}`, espera 2xx, devuelve directamente el `T`. Si no es 2xx, lanza excepción → cae al `catch`.    |
+| **`gestionarError(err, título, detalle)`** | Mira `err.response.data` (un `ProblemDetails` / `ValidationProblemDetails` si lo hay) y dispara el toast adecuado.  |
+| **`<pre>{{ salida }}</pre>`**              | Vuelca el JSON **crudo** para que se vea exactamente lo que devuelve .NET, sin envolturas.                          |
+
+::: tip BUENA PRÁCTICA — recorrido guiado en 5 pasos
+Cuando arranques en clase (o ante un bug), el recorrido es siempre el mismo:
+
+1. **Arrancar `dotnet watch`** (levanta también Vite).
+2. **Abrir `https://localhost:44306/uareservas/`** → si no hay sesión, te manda a CAS.
+3. **Abrir DevTools → Network** y dejar la pestaña visible.
+4. **Pulsar un botón de `Home.vue`**: ves la entrada en Network (cookie + status + JSON) y el `<pre>` se rellena.
+5. **Pulsar el botón de error de demo** (`GET /api/Info/MessageError`): status 400, `ValidationProblemDetails` en el cuerpo, toast rojo en pantalla. Si cambias el idioma, el `detail` cambia.
+:::
+
+::: info → Los botones de "Errores Oracle" del probador
+`Home.vue` incluye también botones que provocan a propósito errores en paquetes PL/SQL (`-20702 → 404`, `-20703 → 400`, `error-técnico → 500`) para ver el ciclo completo Oracle → `Result<T>` → `HandleResult` → JSON → toast. El recorrido detallado se cubre en la **[sesión 16 — Gestión de errores](../../../04-integracion/sesiones/sesion-16-errores/#formatos-oracle)**.
+:::
+
 ## 11.7 Tarea progresiva del proyecto final {#tarea-pf}
 
 ::: tip MÓDULO 1 · INTEGRACIÓN REAL + MÓDULO 2 · ARRANQUE

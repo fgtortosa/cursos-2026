@@ -41,12 +41,18 @@ Antes de renderizar listas o construir formularios, necesitamos **describir la f
 <script setup lang="ts">
 import { ref } from 'vue'
 
+// Una interface describe la FORMA de un objeto: qué propiedades tiene
+// y de qué tipo es cada una. No genera código en runtime, sólo le sirve
+// a TypeScript para avisarte si te equivocas (autocompletado + errores
+// en tiempo de compilación).
 interface IClaseTarea {
-  id: number
-  texto: string
-  completada: boolean
+  id: number          // identificador único — usado luego en :key
+  texto: string       // descripción visible de la tarea
+  completada: boolean // bandera para tachar / contar pendientes
 }
 
+// ref<IClaseTarea[]> declara una caja reactiva que SÓLO admite arrays
+// de IClaseTarea. Si intentas { id: '1' } o falta una propiedad, TS falla.
 const tareas = ref<IClaseTarea[]>([
   { id: 1, texto: 'Preparar demo', completada: false },
   { id: 2, texto: 'Revisar documentación', completada: true }
@@ -72,12 +78,19 @@ En Vue declaramos funciones dentro de `<script setup>` para responder a eventos,
 ### Funciones tipadas
 
 ```typescript
+// Cada parámetro lleva su tipo (a: number) y la función su tipo de retorno
+// (: number). Si llamas sumar('1', 2) o asignas el resultado a un string,
+// TypeScript se queja en el editor — antes de que el código llegue a correr.
 const sumar = (a: number, b: number): number => a + b
 
+// void = "esta función no devuelve nada útil". Sirve para handlers, side effects
+// (alert, console.log, mutar un ref) y para que el llamador no espere un valor.
 const mostrarAlerta = (mensaje: string): void => {
   alert(mensaje)
 }
 
+// El retorno declarado (: string) y el operador ternario garantizan que SIEMPRE
+// salga un string, nunca undefined.
 const obtenerEtiqueta = (completada: boolean): string => {
   return completada ? 'Hecha' : 'Pendiente'
 }
@@ -86,10 +99,14 @@ const obtenerEtiqueta = (completada: boolean): string => {
 ### Parámetros opcionales y valores por defecto
 
 ```typescript
+// El '?' marca apellido como OPCIONAL: puede no pasarse al llamar.
+// Dentro de la función, su tipo real es 'string | undefined'.
 const saludar = (nombre: string, apellido?: string): string => {
   return apellido ? `Hola ${nombre} ${apellido}` : `Hola ${nombre}`
 }
 
+// 'prefijo: string = "INFO"' = parámetro con valor por defecto. Si no se pasa,
+// vale 'INFO'. A diferencia de '?', NUNCA es undefined dentro de la función.
 const crearMensaje = (texto: string, prefijo: string = 'INFO'): string => {
   return `[${prefijo}] ${texto}`
 }
@@ -101,13 +118,17 @@ const crearMensaje = (texto: string, prefijo: string = 'INFO'): string => {
 <script setup lang="ts">
 import { ref } from 'vue'
 
+// Estado reactivo para lo que teclea el usuario.
 const nuevaTarea = ref<string>('')
 
+// Helper puro: una entrada, una salida, sin tocar ningún ref.
+// Mejor que repetir .trim() en cinco sitios.
 const limpiarTexto = (texto: string): string => texto.trim()
 
+// Handler que vamos a enganchar a un botón. Devuelve void = side effect.
 const agregarTarea = (): void => {
   const textoLimpio = limpiarTexto(nuevaTarea.value)
-  if (!textoLimpio) return
+  if (!textoLimpio) return                       // early return: nada que añadir
   console.log('Tarea válida:', textoLimpio)
 }
 </script>
@@ -145,6 +166,8 @@ const edad = ref<number>(20)
 </script>
 
 <template>
+  <!-- Vue evalúa las condiciones en orden. Sólo SE CREA EN EL DOM el <p>
+       cuya condición es true; los demás ni siquiera existen como nodo. -->
   <p v-if="edad < 13">Eres un niño</p>
   <p v-else-if="edad < 18">Eres adolescente</p>
   <p v-else-if="edad < 65">Eres adulto</p>
@@ -164,10 +187,13 @@ const mostrarModal = ref<boolean>(false)
 </script>
 
 <template>
+  <!-- Toggle: invierte el booleano. El texto del botón cambia con el ternario. -->
   <button @click="mostrarModal = !mostrarModal">
     {{ mostrarModal ? 'Ocultar' : 'Mostrar' }} Modal
   </button>
 
+  <!-- v-show: el <div> SIEMPRE está en el DOM. Vue sólo cambia su
+       atributo style="display: none". Inspecciónalo con F12 para verlo. -->
   <div v-show="mostrarModal" class="modal">
     <h2>Contenido del Modal</h2>
   </div>
@@ -222,8 +248,8 @@ interface IClaseUsuario {
 }
 
 const usuarios = ref<IClaseUsuario[]>([
-  { id: 1, nombre: 'Ana', edad: 25 },
-  { id: 2, nombre: 'Juan', edad: 30 },
+  { id: 1, nombre: 'Ana',   edad: 25 },
+  { id: 2, nombre: 'Juan',  edad: 30 },
   { id: 3, nombre: 'María', edad: 28 }
 ])
 </script>
@@ -231,7 +257,10 @@ const usuarios = ref<IClaseUsuario[]>([
 <template>
   <table>
     <tbody>
-      <!-- ✅ SIEMPRE usa el ID único como :key -->
+      <!-- v-for="usuario in usuarios" → genera un <tr> por cada elemento.
+           :key="usuario.id" → identificador ÚNICO y ESTABLE de cada fila.
+           Vue lo usa para saber qué fila actualizar, mover o eliminar
+           cuando el array cambia, en lugar de redibujar todo. -->
       <tr v-for="usuario in usuarios" :key="usuario.id">
         <td>{{ usuario.id }}</td>
         <td>{{ usuario.nombre }}</td>
@@ -246,14 +275,16 @@ const usuarios = ref<IClaseUsuario[]>([
 
 ```html
 <template>
-  <!-- Recorrer propiedades de un objeto -->
+  <!-- Sobre un objeto, v-for entrega (valor, clave). El orden de los pares
+       es el de inserción en el objeto. -->
   <ul>
     <li v-for="(valor, clave) in persona" :key="clave">
       {{ clave }}: {{ valor }}
     </li>
   </ul>
 
-  <!-- Rango numérico (empieza en 1) -->
+  <!-- Pasar un número a v-for itera de 1 hasta N (INCLUSIVE), no de 0 a N-1.
+       Útil para listas de páginas, estrellas de valoración, etc. -->
   <span v-for="n in 5" :key="n">{{ n }} </span>
   <!-- Renderiza: 1 2 3 4 5 -->
 </template>
@@ -312,10 +343,13 @@ Con `:key="item.id"` no pasa: Vue ve que la id de B ya no esta y monta un nodo n
 ### No mezcles `v-if` y `v-for`
 
 ```html
-<!-- ❌ INCORRECTO: v-if y v-for en el mismo elemento -->
+<!-- ❌ INCORRECTO: en Vue 3, v-if tiene PRIORIDAD sobre v-for en el mismo
+     elemento. La condición se evalúa antes de que exista 'u', así que
+     u.activo es undefined y aparece warning en consola. -->
 <li v-for="u in usuarios" v-if="u.activo" :key="u.id">{{ u.nombre }}</li>
 
-<!-- ✅ CORRECTO: Usa <template> wrapper o computed -->
+<!-- ✅ CORRECTO: <template> envuelve el v-for sin generar nodo extra en el DOM.
+     El v-if se evalúa POR CADA u, ya con la variable disponible. -->
 <template v-for="u in usuarios" :key="u.id">
   <li v-if="u.activo">{{ u.nombre }}</li>
 </template>
@@ -334,14 +368,17 @@ Vincula dinámicamente atributos HTML a valores reactivos:
 import { ref } from 'vue'
 
 const imagenUrl = ref<string>('https://example.com/logo.png')
-const esActivo = ref<boolean>(true)
+const esActivo  = ref<boolean>(true)
 </script>
 
 <template>
-  <!-- Vincular src -->
+  <!-- src="imagenUrl" → pinta literalmente la cadena "imagenUrl".
+       :src="imagenUrl" → evalúa la expresión y usa el valor del ref. -->
   <img :src="imagenUrl" alt="Logo">
 
-  <!-- Vincular múltiples atributos -->
+  <!-- Cualquier atributo HTML acepta el ':'. Las expresiones pueden ser
+       ternarios, llamadas a función, concatenaciones... siempre que devuelvan
+       el tipo esperado (boolean para :disabled, string para :title). -->
   <button :disabled="!esActivo" :title="esActivo ? 'Activo' : 'Inactivo'">
     Botón
   </button>
@@ -356,11 +393,17 @@ Las llaves `{ }` representan un objeto donde la **clave** es el nombre de la cla
 <script setup lang="ts">
 import { ref } from 'vue'
 
+// Union type: 'estado' SÓLO puede ser uno de estos tres literales.
+// Cualquier otra cadena ('azul', 'rojo ' con espacio...) es error de TS.
 type EstadoSemaforo = 'rojo' | 'ambar' | 'verde'
 const estado = ref<EstadoSemaforo>('rojo')
 </script>
 
 <template>
+  <!-- class="semaforo" → clase FIJA, siempre presente.
+       :class="{ ... }" → clases DINÁMICAS: cada par 'clase: condición'
+       añade la clase si la condición es true. Vue combina ambas en el DOM.
+       Resultado: <div class="semaforo semaforo--rojo"> cuando estado es 'rojo'. -->
   <div
     class="semaforo"
     :class="{
@@ -372,6 +415,9 @@ const estado = ref<EstadoSemaforo>('rojo')
     Estado actual: <strong>{{ estado }}</strong>
   </div>
 
+  <!-- Asignación inline al ref: como 'estado' es ref<EstadoSemaforo>,
+       sólo se aceptan los tres literales. Probar @click="estado = 'azul'"
+       y verás el error rojo en el editor. -->
   <button class="btn btn-danger"  @click="estado = 'rojo'">Rojo</button>
   <button class="btn btn-warning" @click="estado = 'ambar'">Ambar</button>
   <button class="btn btn-success" @click="estado = 'verde'">Verde</button>
@@ -392,6 +438,9 @@ Si el nombre de clase tiene guion (ej: `btn-activo`), debe ir entre comillas: `'
 <script setup lang="ts">
 import { ref } from 'vue'
 
+// Un ref por cada campo. Vue elige automáticamente la propiedad correcta
+// del input según el type: .value para text, .checked para checkbox,
+// .value (cadena) para select. Por eso 'acepto' es boolean, no string.
 const nombre = ref<string>('')
 const acepto = ref<boolean>(false)
 const opcion = ref<string>('a')
@@ -399,13 +448,20 @@ const opcion = ref<string>('a')
 
 <template>
   <form>
+    <!-- v-model es azúcar sintáctico para :value="x" + @input="x = $event.target.value".
+         La diferencia con :value: aquí Vue ESCRIBE en el ref cuando el usuario teclea. -->
     <input v-model="nombre" placeholder="Nombre" />
+
+    <!-- En checkbox, v-model usa el atributo 'checked' (boolean), no 'value'. -->
     <input type="checkbox" v-model="acepto" /> Acepto condiciones
+
+    <!-- En select, v-model toma el 'value' del <option> elegido. -->
     <select v-model="opcion">
       <option value="a">Opción A</option>
       <option value="b">Opción B</option>
     </select>
 
+    <!-- Los tres <p> se actualizan automáticamente con cada pulsación / click. -->
     <p>Nombre: {{ nombre }}</p>
     <p>Aceptado: {{ acepto }}</p>
     <p>Opción: {{ opcion }}</p>
@@ -425,7 +481,11 @@ import { ref } from 'vue'
 
 const contador = ref<number>(0)
 
+// El parámetro 'event' lo recibe automáticamente cuando enganchas la función
+// SIN paréntesis (@input="handleInput"). Es el Event nativo del DOM.
 function handleInput(event: Event) {
+  // event.target es de tipo EventTarget | null. Lo "casteamos" a HTMLInputElement
+  // con 'as' para acceder a .value. Si el casting es incorrecto, falla en runtime.
   const valor = (event.target as HTMLInputElement).value
   console.log('Escribiste:', valor)
 }
@@ -436,16 +496,19 @@ function enviarFormulario() {
 </script>
 
 <template>
-  <!-- Evento simple -->
+  <!-- Expresión inline: incrementa el ref directamente. Para acciones de 1 línea. -->
   <button @click="contador++">Sumar</button>
 
-  <!-- Evento con parámetro -->
+  <!-- Cualquier expresión JS válida vale: llamadas a funciones globales, etc. -->
   <button @click="alert('¡Hola!')">Saludar</button>
 
-  <!-- Acceso al evento nativo -->
+  <!-- SIN paréntesis → Vue pasa el Event automáticamente al handler.
+       CON paréntesis (handleInput($event)) tendrías que escribir $event a mano. -->
   <input @input="handleInput" placeholder="Escribe algo">
 
-  <!-- .prevent evita el comportamiento por defecto (recargar página) -->
+  <!-- .prevent = event.preventDefault(). Aquí evita que el submit recargue
+       la página, que es el comportamiento por defecto de los formularios HTML.
+       Imprescindible en SPAs. -->
   <form @submit.prevent="enviarFormulario">
     <button type="submit">Enviar</button>
   </form>
@@ -475,10 +538,13 @@ function enviarFormulario() {
 ### Modificadores de teclado
 
 ```html
-<!-- Solo al presionar Enter -->
+<!-- @keyup escucha TODAS las teclas; con .enter Vue filtra y sólo dispara
+     'buscar' cuando la tecla soltada es Enter. Es lo que esperan los usuarios
+     en un campo de búsqueda. -->
 <input @keyup.enter="buscar">
 
-<!-- Ctrl + Enter -->
+<!-- Se pueden encadenar modificadores: aquí exige Ctrl + Enter a la vez.
+     Útil para enviar formularios complejos sin tener que pulsar el botón. -->
 <input @keyup.ctrl.enter="enviar">
 
 <!-- Otros: .tab, .delete, .esc, .space, .up, .down, .left, .right -->
@@ -533,16 +599,21 @@ const horasConfirmadas = computed(() =>
 ### `.some()` y `.every()` — Verificar condiciones
 
 ```typescript
-const hayCaros = productos.some(p => p.precio > 500)     // true (al menos uno)
-const todosBaratos = productos.every(p => p.precio < 100) // false (no todos)
+// .some  → true en cuanto encuentra UN elemento que cumple. Corta búsqueda.
+// .every → true sólo si TODOS cumplen. Corta al primer false.
+const hayCaros     = productos.some (p => p.precio > 500)   // ¿alguno > 500?
+const todosBaratos = productos.every(p => p.precio < 100)   // ¿todos < 100?
 ```
 
 ### `.sort()` — Ordenar
 
 ```typescript
-// ⚠️ .sort() MUTA el array original → clonar antes
+// ⚠️ .sort() es la EXCEPCIÓN: muta el array original. Si pasaras 'productos'
+// directo, cambiarías la fuente y, si es reactiva, dispararías renders no deseados.
+// El truco: clonar con spread ([...productos]) y ordenar la copia.
 const ordenados = [...productos].sort((a, b) => a.precio - b.precio)
-// Orden ascendente por precio
+// Comparator: número negativo → a antes que b. Por eso (a-b) = ascendente,
+// (b-a) = descendente.
 ```
 
 ### Encadenamiento de métodos
@@ -554,18 +625,19 @@ interface IClaseEstudiante {
 }
 
 const estudiantes: IClaseEstudiante[] = [
-  { nombre: 'Ana', nota: 8 },
-  { nombre: 'Juan', nota: 4 },
+  { nombre: 'Ana',   nota: 8 },
+  { nombre: 'Juan',  nota: 4 },
   { nombre: 'María', nota: 9 },
   { nombre: 'Pedro', nota: 6 }
 ]
 
-// Aprobados (≥5), ordenados de mayor a menor nota, solo nombres
+// Pipeline en 3 pasos. Cada método devuelve un array NUEVO, por eso se pueden
+// encadenar con el punto. Se lee de arriba a abajo como una receta:
 const mejoresAprobados = estudiantes
-  .filter(e => e.nota >= 5)
-  .sort((a, b) => b.nota - a.nota)
-  .map(e => e.nombre)
-// ['María', 'Ana', 'Pedro']
+  .filter(e => e.nota >= 5)         // 1) quita los suspensos
+  .sort((a, b) => b.nota - a.nota)  // 2) ordena de mayor a menor nota
+  .map(e => e.nombre)               // 3) quédate sólo con los nombres
+// → ['María', 'Ana', 'Pedro']
 ```
 
 ### Tabla resumen
@@ -723,36 +795,51 @@ Crea un componente `ListaTareas.vue` con:
 <script setup lang="ts">
 import { ref } from 'vue'
 
+// Contrato de cada tarea. La interface vive dentro del componente porque
+// no se reutiliza fuera. Si la usaras en dos vistas, la moverías a
+// src/interfaces/IClaseTarea.ts (ver §2.1).
 interface IClaseTarea {
   id: number
   texto: string
   completada: boolean
 }
 
+// Estado principal: array reactivo de tareas, con datos iniciales.
 const tareas = ref<IClaseTarea[]>([
-  { id: 1, texto: 'Aprender Vue 3', completada: false },
-  { id: 2, texto: 'Practicar TypeScript', completada: true },
+  { id: 1, texto: 'Aprender Vue 3',             completada: false },
+  { id: 2, texto: 'Practicar TypeScript',       completada: true  },
   { id: 3, texto: 'Crear mi primer componente', completada: false }
 ])
 
+// Estado secundario: lo que teclea el usuario en el input.
 const nuevaTarea = ref<string>('')
 
+// ── Añadir tarea ─────────────────────────────────────────────────────────
 const agregarTarea = (): void => {
   const textoLimpio = nuevaTarea.value.trim()
-  if (!textoLimpio) return
+  if (!textoLimpio) return                     // descarta espacios en blanco
 
+  // push muta el array, y Vue lo detecta porque ref<T[]> envuelve el array
+  // en un Proxy reactivo. Date.now() devuelve un timestamp único como id.
   tareas.value.push({
     id: Date.now(),
     texto: textoLimpio,
     completada: false
   })
-  nuevaTarea.value = ''
+  nuevaTarea.value = ''                        // limpia el input para la siguiente
 }
 
+// ── Eliminar tarea ───────────────────────────────────────────────────────
+// .filter devuelve un ARRAY NUEVO sin el id indicado. Reasignamos a .value
+// para que el reactivity system de Vue lo detecte y redibuje la lista.
 const eliminarTarea = (id: number): void => {
   tareas.value = tareas.value.filter(t => t.id !== id)
 }
 
+// ── Pendientes (función, no computed) ────────────────────────────────────
+// En esta sesión todavía no hemos visto 'computed'. Por eso lo resolvemos
+// como función. En la sesión 11 lo refactorizaremos a computed para que
+// el resultado se cachee entre renders.
 const pendientes = (): number => {
   return tareas.value.filter(t => !t.completada).length
 }
@@ -763,6 +850,8 @@ const pendientes = (): number => {
     <h2>Lista de Tareas</h2>
 
     <div class="d-flex gap-2 mb-3">
+      <!-- v-model: input ↔ ref bidireccional.
+           @keyup.enter: enviar con la tecla Enter, sin tocar el ratón. -->
       <input
         v-model="nuevaTarea"
         @keyup.enter="agregarTarea"
@@ -772,18 +861,28 @@ const pendientes = (): number => {
       <button @click="agregarTarea" class="btn btn-primary">Añadir</button>
     </div>
 
+    <!-- v-if/v-else: o se ve el mensaje vacío o la lista, nunca los dos. -->
     <p v-if="tareas.length === 0">¡No hay tareas! 🎉</p>
 
     <ul class="list-group" v-else>
+      <!-- :key="tarea.id" es CRÍTICO: si usáramos :key="index", al eliminar
+           una tarea los checkboxes se mezclarían (ver §2.5 - zona peligrosa). -->
       <li
         v-for="tarea in tareas"
         :key="tarea.id"
         class="list-group-item d-flex align-items-center gap-2"
       >
+        <!-- v-model directo sobre la propiedad del objeto: cambia la tarea
+             dentro del array y dispara el re-render correspondiente. -->
         <input type="checkbox" v-model="tarea.completada" />
+
+        <!-- :style con objeto: aplica line-through sólo cuando completada=true. -->
         <span :style="{ textDecoration: tarea.completada ? 'line-through' : 'none' }">
           {{ tarea.texto }}
         </span>
+
+        <!-- Pasar argumento al handler: usar paréntesis. ms-auto empuja
+             el botón al borde derecho con flexbox. -->
         <button
           @click="eliminarTarea(tarea.id)"
           class="btn btn-sm btn-danger ms-auto"
@@ -793,6 +892,8 @@ const pendientes = (): number => {
       </li>
     </ul>
 
+    <!-- pendientes() se llama en CADA render del template (todavía no usamos
+         computed). Como la lista es corta, no importa. -->
     <p class="mt-2" v-if="tareas.length > 0">
       {{ pendientes() }} tareas pendientes
     </p>
