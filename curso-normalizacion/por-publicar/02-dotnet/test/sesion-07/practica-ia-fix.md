@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Pide a Copilot que corrija el siguiente controlador. Antes de aceptar la solución, comprueba que la IA haya aplicado los cuatro patrones vistos en la sesión: **`ControladorBase`**, **`Result<T>`**, **`HandleResult`** y **`CreatedAtAction`**.
+Pide a Copilot que corrija el siguiente controlador. Antes de aceptar la solución, comprueba que la IA haya aplicado los cuatro patrones vistos en la sesión: **`ControladorBase`**, **`Result<T>`**, **`HandleResult`** y **`HandleCreated`** (one-liner para `POST`).
 
 ## Código con errores
 
@@ -43,8 +43,8 @@ public class TipoRecursosController : ControllerBase       // ERROR 1
 | --- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | 1   | Hereda de `ControllerBase`, no de `ControladorBase`              | Cambiar a `ControladorBase`                                                                   |
 | 2   | Comprobación manual de `null` redundante                         | `[ApiController]` ya gestiona el `ModelState`; eliminar el bloque                             |
-| 3   | Devuelve `StatusCode(500, ...)` a mano, ignorando el `Result<T>` | `return HandleResult(resultado)`                                                              |
-| 4   | Una creación devuelve `200 Ok`, no `201 Created`                 | `return CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, resultado.Value)` |
+| 3   | Devuelve `StatusCode(500, ...)` a mano, ignorando el `Result<T>` | Delegar en uno de los tres helpers de `ApiControllerBase` (`HandleResult` para GET, `HandleCreated` para POST, `HandleNoContent` para PUT/DELETE). |
+| 4   | Una creación devuelve `200 Ok`, no `201 Created`                 | `HandleCreated(resultado, nameof(ObtenerPorId), id => new { id })` — un solo método cubre éxito (201 + `Location`) y error.            |
 
 ## Solución de referencia
 
@@ -52,13 +52,10 @@ public class TipoRecursosController : ControllerBase       // ERROR 1
 [HttpPost]
 [ProducesResponseType<int>(StatusCodes.Status201Created)]
 [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
-{
-    var resultado = await _servicio.CrearAsync(dto);
-    if (!resultado.IsSuccess) return HandleResult(resultado);
-
-    return CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, resultado.Value);
-}
+public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto) =>
+    HandleCreated(
+        await _servicio.CrearAsync(dto),
+        nameof(ObtenerPorId), id => new { id });
 ```
 
-> `HandleResult` está disponible en `ControladorBase` (vía `ApiControllerBase`) y traduce el `Result<T>` al código HTTP correcto: `400` para errores de validación, `404` para no encontrado y `500` para errores técnicos.
+> `HandleResult` / `HandleCreated` / `HandleNoContent` están disponibles en `ControladorBase` (vía `ApiControllerBase`). Si el `Result` es `Failure` los tres delegan en la misma traducción (`400` para validación, `404` para no encontrado, `500` para errores técnicos). Si es `Success`, cada uno devuelve lo que pide el verbo HTTP correspondiente.

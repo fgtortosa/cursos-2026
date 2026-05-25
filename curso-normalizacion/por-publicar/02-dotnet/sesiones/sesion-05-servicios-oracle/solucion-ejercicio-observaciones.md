@@ -68,6 +68,7 @@ Es **calco** de `TiposRecursoServicio` con dos diferencias: el campo `Texto` via
 
 ```csharp
 using System.Data;
+using Oracle.ManagedDataAccess.Client;
 using ua;
 using ua.Models.Errors;
 using ua.Models.Reservas;
@@ -136,42 +137,29 @@ namespace uaReservas.Services.Reservas
         //  ESCRITURAS (via PKG_RES_OBSERVACION_RESERVA)
         // ============================================================
 
-        public async Task<Result<int>> CrearAsync(int codperAutor, ObservacionReservaCrearDto dto)
+        public Task<Result<int>> CrearAsync(int codperAutor, ObservacionReservaCrearDto dto)
         {
             var p = new DynamicParameters();
-            p.Add("P_ID_RESERVA",     dto.IdReserva);
-            p.Add("P_CODPER_AUTOR",   codperAutor);              // ← del token, NUNCA del body
-            p.Add("P_TEXTO_ES",       dto.TextoEs);
-            p.Add("P_TEXTO_CA",       dto.TextoCa);
-            p.Add("P_TEXTO_EN",       dto.TextoEn);
-            p.Add("P_ID_OBSERVACION_RESERVA", null, direccion: ParameterDirection.Output);
-            p.Add("P_CODIGO_ERROR",           null, direccion: ParameterDirection.Output);
-            p.Add("P_MENSAJE_ERROR",          null, direccion: ParameterDirection.Output);
+            p.Add("P_ID_RESERVA",             dto.IdReserva);
+            p.Add("P_CODPER_AUTOR",           codperAutor);          // del token, NUNCA del body
+            p.Add("P_TEXTO_ES",               dto.TextoEs);
+            p.Add("P_TEXTO_CA",               dto.TextoCa);
+            p.Add("P_TEXTO_EN",               dto.TextoEn);
+            p.Add("P_ID_OBSERVACION_RESERVA", null,
+                  tipoBd: OracleDbType.Decimal, direccion: ParameterDirection.Output);
 
-            await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_OBSERVACION_RESERVA.CREAR", p);
-
-            // Traduce el OUT a Result.{NotFound|Validation|Fail} si toca.
-            var failure = ErrorPaquetePlSql.AResultFailure<int>(
-                ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR"),
-                ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"));
-            if (failure is not null) return failure;
-
-            return Result<int>.Success(ErrorPaquetePlSql.LeerInt(p, "P_ID_OBSERVACION_RESERVA"));
+            return _bd.EjecutarPaqueteAsync(
+                "CURSONORMADM.PKG_RES_OBSERVACION_RESERVA.CREAR",
+                p,
+                leer: parms => ErrorPaquetePlSql.LeerInt(parms, "P_ID_OBSERVACION_RESERVA"));
         }
 
-        public async Task<Result<bool>> EliminarAsync(int idObs)
+        public Task<Result<bool>> EliminarAsync(int idObs)
         {
             var p = new DynamicParameters();
             p.Add("P_ID_OBSERVACION_RESERVA", idObs);
-            p.Add("P_CODIGO_ERROR",  null, direccion: ParameterDirection.Output);
-            p.Add("P_MENSAJE_ERROR", null, direccion: ParameterDirection.Output);
 
-            await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_OBSERVACION_RESERVA.ELIMINAR", p);
-
-            var failure = ErrorPaquetePlSql.AResultFailure<bool>(
-                ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR"),
-                ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"));
-            return failure ?? Result<bool>.Success(true);
+            return _bd.EjecutarPaqueteAsync("CURSONORMADM.PKG_RES_OBSERVACION_RESERVA.ELIMINAR", p);
         }
 
         // ============================================================
@@ -205,7 +193,7 @@ Si tu paquete `PKG_RES_OBSERVACION_RESERVA` añade un `RAISE_APPLICATION_ERROR` 
 
 ## 3. `Controllers/Apis/ObservacionesController.cs` (reescrito)
 
-Borra el `_datos` estático. El controlador queda en **una línea por acción** salvo `Crear` (necesita `CreatedAtAction`).
+Borra el `_datos` estático. El controlador queda **una línea por acción** gracias a `HandleResult` (GET), `HandleCreated` (POST) y `HandleNoContent` (DELETE).
 
 ```csharp
 using Microsoft.AspNetCore.Authorization;
@@ -256,28 +244,18 @@ namespace uaReservas.Controllers.Apis
         [ProducesResponseType<int>(StatusCodes.Status201Created)]
         [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult> Crear([FromBody] ObservacionReservaCrearDto dto)
-        {
+        public async Task<ActionResult> Crear([FromBody] ObservacionReservaCrearDto dto) =>
             // CodperAutor SIEMPRE de CodPer (ControladorBase, del JWT), NUNCA del body.
-            var resultado = await _observaciones.CrearAsync(CodPer, dto);
-            if (!resultado.IsSuccess) return HandleResult(resultado);
-
-            return CreatedAtAction(nameof(ObtenerPorId),
-                                   new { id = resultado.Value },
-                                   resultado.Value);
-        }
+            HandleCreated(
+                await _observaciones.CrearAsync(CodPer, dto),
+                nameof(ObtenerPorId), id => new { id });
 
         /// <summary>Borra una observación (soft: ACTIVO='N').</summary>
         [HttpDelete("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> Eliminar([FromRoute] int id)
-        {
-            var resultado = await _observaciones.EliminarAsync(id);
-            if (!resultado.IsSuccess) return HandleResult(resultado);
-
-            return NoContent();
-        }
+        public async Task<ActionResult> Eliminar([FromRoute] int id) =>
+            HandleNoContent(await _observaciones.EliminarAsync(id));
     }
 }
 ```
@@ -526,7 +504,7 @@ namespace uaReservas.Tests.Servicios
 
 ::: tip BUENA PRÁCTICA — qué fijarse al revisar
 1. **`CrearAsync(codperAutor, dto)`** recibe el codper por parámetro. Si lo lees del `dto`, fallas la seguridad.
-2. **`HandleResult(await ...)`** en todas las acciones excepto `Crear` (que necesita `CreatedAtAction`).
+2. **Una línea por acción**: `HandleResult` en los GET, `HandleCreated` en el POST, `HandleNoContent` en el DELETE.
 3. **`_datos` estático eliminado** del controlador. Si sigue ahí, no estás pasando por Oracle.
 4. **`Program.cs` registra el servicio**: si no, la DI lanza `Unable to resolve service for type 'IObservacionesServicio'` en la primera petición.
 5. **`FakeObservacionesServicio` implementa `IObservacionesServicio` completa**: si la interfaz crece, el fake tiene que crecer también.

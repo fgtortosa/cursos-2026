@@ -450,87 +450,101 @@ END;
 Esto significa que **el cliente .NET NUNCA tiene que poner `try { ... } catch (OracleException) { ... }`**. El paquete absorbe la excepción y la devuelve como datos OUT. La capa .NET lee `P_CODIGO_ERROR` y lo traduce a `Result<T>`.
 :::
 
-### 5.4.2 Llamada desde .NET: `EjecutarParamsAsync` + `DynamicParameters`
+### 5.4.2 Llamada desde .NET: `EjecutarPaqueteAsync`
 
-`ua.DynamicParameters` es el tipo "bolsa de parámetros" que reexporta ClaseOracleBD3. La firma real del método `Add` es:
+Toda llamada a un paquete `PKG_RES_*` pasa por una sola extensión sobre `IClaseOracleBd`:
 
 ```csharp
-Add(string nombre, object? valor, OracleDbType? tipoBd = null,
-    ParameterDirection direccion = ParameterDirection.Input, int tamano = 0)
+// Models/Errors/ExtensionesPaquetePlSql.cs
+public static Task<Result<T>> EjecutarPaqueteAsync<T>(
+    this IClaseOracleBd bd,
+    string procedimiento,
+    DynamicParameters parametros,
+    Func<DynamicParameters, T> leer);
+
+// Sobrecarga para PUT/DELETE (sin valor de retorno).
+public static Task<Result<bool>> EjecutarPaqueteAsync(
+    this IClaseOracleBd bd,
+    string procedimiento,
+    DynamicParameters parametros);
 ```
 
-::: warning IMPORTANTE — nombres en CASTELLANO
-Los parámetros nombrados son `tipoBd`, `direccion`, `tamano` (no `dbType`, `direction`, `size`). Si copias código de tutoriales genéricos verás `direction:` — **no compila**.
+El helper hace tres cosas que antes se repetían en cada servicio:
 
-Por la misma razón, `Get` devuelve `object` (no es genérico). Para sacar un `int` o un `string` con tolerancia a `null`/`DBNull`, usa los helpers del proyecto:
+1. **Declara `P_CODIGO_ERROR` y `P_MENSAJE_ERROR`** como OUT con `tipoBd` y `tamano` correctos.
+2. **Captura `BDException`** si Oracle revienta antes de poder rellenar los OUT (red, sintaxis, OUT mal declarado) y lo convierte a `Result.Failure` clasificado.
+3. **Lee los OUT de error** al volver y los traduce a `Result<T>` vía `ErrorPaquetePlSql.DesdeCodigo`.
 
-```csharp
-int      codigo  = ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR");
-string?  mensaje = ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR");
-int?     idGen   = ErrorPaquetePlSql.LeerIntNullable(p, "P_ID_OBSERVACION_RESERVA");
-```
+El llamador solo aporta los IN y, si el paquete devuelve un id, una función lectora.
 
-:::
-
-Patrón completo (real, no simplificado) para **`TiposRecursoServicio.CrearAsync`** — el mismo paquete y el mismo `_bd` que veremos en `RecursosServicio.CrearAsync` y `ReservasServicio.CrearAsync`. Es **idéntico** en estructura:
+#### Patrón completo
 
 ```csharp
-// Services/Reservas/TiposRecursoServicio.cs (escrituras)
-public async Task<Result<int>> CrearAsync(TipoRecursoCrearDto dto)
+// Services/Reservas/TiposRecursoServicio.cs
+public Task<Result<int>> CrearAsync(TipoRecursoCrearDto dto)
 {
-    // 1) Construye los parametros. NO declaras tipos Oracle: ClaseOracleBD3
-    //    infiere OracleDbType desde el tipo .NET de cada valor.
     var p = new DynamicParameters();
     p.Add("P_CODIGO",          dto.Codigo);
     p.Add("P_NOMBRE_ES",       dto.NombreEs);
     p.Add("P_NOMBRE_CA",       dto.NombreCa);
     p.Add("P_NOMBRE_EN",       dto.NombreEn);
-    p.Add("P_ID_TIPO_RECURSO", null, direccion: ParameterDirection.Output);
-    p.Add("P_CODIGO_ERROR",    null, direccion: ParameterDirection.Output);
-    p.Add("P_MENSAJE_ERROR",   null, direccion: ParameterDirection.Output);
+    p.Add("P_ID_TIPO_RECURSO", null,
+          tipoBd: OracleDbType.Decimal, direccion: ParameterDirection.Output);
 
-    // 2) Llama al procedimiento (esquema.paquete.procedimiento).
-    //    El paquete valida, hace INSERT y COMMIT, y rellena los tres OUT.
-    await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_TIPO_RECURSO.CREAR", p);
-
-    // 3) Traduce los OUT a Result.Failure si toca, o a Result.Success(id).
-    var failure = ErrorPaquetePlSql.AResultFailure<int>(
-        ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR"),
-        ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"));
-    if (failure is not null) return failure;
-
-    return Result<int>.Success(ErrorPaquetePlSql.LeerInt(p, "P_ID_TIPO_RECURSO"));
+    return _bd.EjecutarPaqueteAsync(
+        "CURSONORMADM.PKG_RES_TIPO_RECURSO.CREAR",
+        p,
+        leer: parms => ErrorPaquetePlSql.LeerInt(parms, "P_ID_TIPO_RECURSO"));
 }
 ```
 
-`ActualizarAsync` y `EliminarAsync` son **el mismo patrón** sin el OUT del id generado y devolviendo `Result<bool>`:
+`ActualizarAsync` / `EliminarAsync` son aún más cortos: no necesitan función lectora.
 
 ```csharp
-public async Task<Result<bool>> EliminarAsync(int idTipoRecurso)
+public Task<Result<bool>> EliminarAsync(int idTipoRecurso)
 {
     var p = new DynamicParameters();
     p.Add("P_ID_TIPO_RECURSO", idTipoRecurso);
-    p.Add("P_CODIGO_ERROR",  null, direccion: ParameterDirection.Output);
-    p.Add("P_MENSAJE_ERROR", null, direccion: ParameterDirection.Output);
-
-    await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_TIPO_RECURSO.ELIMINAR", p);
-
-    var failure = ErrorPaquetePlSql.AResultFailure<bool>(
-        ErrorPaquetePlSql.LeerInt   (p, "P_CODIGO_ERROR"),
-        ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR"));
-    return failure ?? Result<bool>.Success(true);
+    return _bd.EjecutarPaqueteAsync("CURSONORMADM.PKG_RES_TIPO_RECURSO.ELIMINAR", p);
 }
 ```
 
-::: info CONTEXTO — `ReservasServicio.CrearAsync` para ver muchos parámetros
-Cuando el procedimiento recibe 10+ parámetros (caso típico de una `RESERVA` con `idRecurso`, `codper`, fechas, horas, observaciones, serie, patrón, excepción...), el patrón es el mismo, solo más largo. Mira `ReservasServicio.cs:91-117`:
+::: warning IMPORTANTE — nombres en CASTELLANO de `DynamicParameters`
+`ua.DynamicParameters` reexporta el patrón de Dapper, pero los parámetros nombrados están castellanizados: `tipoBd`, `direccion`, `tamano` (no `dbType`, `direction`, `size`). Si copias código de tutoriales genéricos verás `direction:` — no compila.
 
-- `dto.EsExcepcion ? "S" : "N"` — los `bool` de C# se mapean a `VARCHAR2(1)` `S`/`N`.
-- `dto.FechaConfirmacion` (puede ser `null`) viaja como `null` directo, sin escape especial.
-- `codper` se pasa **como parámetro propio** (no dentro del DTO): viene del JWT, NUNCA del body.
+Por la misma razón, `Get` devuelve `object` (no es genérico). Para sacar un `int` o un `string` con tolerancia a `null`/`DBNull`, usa los helpers de `ErrorPaquetePlSql`:
 
 ```csharp
-public async Task<Result<int>> CrearAsync(int codper, ReservaCrearDto dto)
+int      codigo  = ErrorPaquetePlSql.LeerInt(p, "P_CODIGO_ERROR");
+string?  mensaje = ErrorPaquetePlSql.LeerString(p, "P_MENSAJE_ERROR");
+int?     idGen   = ErrorPaquetePlSql.LeerIntNullable(p, "P_ID_OBSERVACION_RESERVA");
+```
+:::
+
+::: danger POR QUÉ EXISTE EL HELPER — la trampa ORA-06502
+
+`EjecutarPaqueteAsync` declara `P_MENSAJE_ERROR` con `tipoBd: OracleDbType.Varchar2` y `tamano: 4000`. **No es decorativo**: si lo declaras a mano sin tamaño,
+
+```csharp
+// MAL — buffer minusculo
+p.Add("P_MENSAJE_ERROR", null, direccion: ParameterDirection.Output);
+```
+
+Oracle reserva un buffer ridículo y en cuanto el `EXCEPTION WHEN OTHERS` del paquete intenta escribir `SQLERRM` (200-500 caracteres) el driver lanza:
+
+```text
+ORA-06502: PL/SQL: error : buffer de cadenas de caracteres demasiado pequeño
+ORA-06512: en línea 1
+```
+
+Lo desconcertante es que ves la excepción aunque el INSERT haya ido bien: el buffer se valida al desempacar los OUT, no antes. Antes de centralizar la llamada, este bug aparecía cuando un alumno se saltaba el `tamano` en cualquiera de los nueve `CrearAsync`/`ActualizarAsync`/`EliminarAsync` del proyecto. Con el helper, **es imposible olvidarse**: los OUT de error los declara él.
+:::
+
+::: info CONTEXTO — `ReservasServicio.CrearAsync` con muchos parámetros
+Cuando el procedimiento recibe 10+ parámetros (caso típico de `RESERVA` con `idRecurso`, `codper`, fechas, horas, observaciones, serie, patrón, excepción), el patrón es el mismo, solo más largo. `codper` se pasa como parámetro propio (no dentro del DTO): viene del JWT, NUNCA del body.
+
+```csharp
+public Task<Result<int>> CrearAsync(int codper, ReservaCrearDto dto)
 {
     var p = new DynamicParameters();
     p.Add("P_ID_RECURSO",      dto.IdRecurso);
@@ -539,15 +553,47 @@ public async Task<Result<int>> CrearAsync(int codper, ReservaCrearDto dto)
     p.Add("P_HORA_INICIO",     dto.HoraInicio);
     // ... mas parametros ...
     p.Add("P_ES_EXCEPCION",    dto.EsExcepcion ? "S" : "N");
-    p.Add("P_ID_RESERVA",   null, direccion: ParameterDirection.Output);
-    p.Add("P_CODIGO_ERROR", null, direccion: ParameterDirection.Output);
-    p.Add("P_MENSAJE_ERROR",null, direccion: ParameterDirection.Output);
+    p.Add("P_ID_RESERVA",      null,
+          tipoBd: OracleDbType.Decimal, direccion: ParameterDirection.Output);
 
-    await _bd.EjecutarParamsAsync("CURSONORMADM.PKG_RES_RESERVA.CREAR", p);
-    // resto identico al patron anterior
+    return _bd.EjecutarPaqueteAsync(
+        "CURSONORMADM.PKG_RES_RESERVA.CREAR",
+        p,
+        leer: parms => ErrorPaquetePlSql.LeerInt(parms, "P_ID_RESERVA"));
+}
+```
+:::
+
+::: info BAJO EL CAPÓ — qué hace `EjecutarPaqueteAsync`
+Es útil ver el código del helper una vez para entender qué te ahorras:
+
+```csharp
+public static async Task<Result<T>> EjecutarPaqueteAsync<T>(
+    this IClaseOracleBd bd, string procedimiento,
+    DynamicParameters parametros, Func<DynamicParameters, T> leer)
+{
+    // 1) OUT de error con tipo y tamano correctos.
+    parametros.Add("P_CODIGO_ERROR",  null,
+        tipoBd: OracleDbType.Decimal,  direccion: ParameterDirection.Output);
+    parametros.Add("P_MENSAJE_ERROR", null,
+        tipoBd: OracleDbType.Varchar2, direccion: ParameterDirection.Output,
+        tamano: 4000);
+
+    // 2) Llama y captura excepciones Oracle "duras".
+    try { await bd.EjecutarParamsAsync(procedimiento, parametros); }
+    catch (BDException ex) { return ErrorPaquetePlSql.AResultFailure<T>(ex); }
+
+    // 3) Traduce el codigo OUT a Result clasificado.
+    var fallo = ErrorPaquetePlSql.AResultFailure<T>(
+        ErrorPaquetePlSql.LeerInt   (parametros, "P_CODIGO_ERROR"),
+        ErrorPaquetePlSql.LeerString(parametros, "P_MENSAJE_ERROR"));
+    if (fallo is not null) return fallo;
+
+    return Result<T>.Success(leer(parametros));
 }
 ```
 
+Cualquier excepción que **no** sea `BDException` se deja escapar para que el `ErrorHandlerMiddleware` (sesión 13) la trate como 500 técnico.
 :::
 
 ### 5.4.3 Traducción ORA-\* → `Result<T>`
@@ -602,13 +648,10 @@ public class TipoRecursosController : ControladorBase
     [HttpPost]
     [ProducesResponseType<int>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
-    {
-        var resultado = await _tiposRecurso.CrearAsync(dto);
-        if (!resultado.IsSuccess) return HandleResult(resultado);
-
-        return CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, resultado.Value);
-    }
+    public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto) =>
+        HandleCreated(
+            await _tiposRecurso.CrearAsync(dto),
+            nameof(ObtenerPorId), id => new { id });
 
     /// <summary>Actualiza un tipo de recurso existente.</summary>
     [HttpPut("{id:int}")]
@@ -623,10 +666,7 @@ public class TipoRecursosController : ControladorBase
                 "ID_RUTA_CUERPO_NO_COINCIDE",
                 "El id de la ruta no coincide con el del cuerpo.");
 
-        var resultado = await _tiposRecurso.ActualizarAsync(dto);
-        if (!resultado.IsSuccess) return HandleResult(resultado);
-
-        return NoContent();
+        return HandleNoContent(await _tiposRecurso.ActualizarAsync(dto));
     }
 
     /// <summary>Borra un tipo de recurso.</summary>
@@ -634,13 +674,8 @@ public class TipoRecursosController : ControladorBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> Eliminar([FromRoute] int id)
-    {
-        var resultado = await _tiposRecurso.EliminarAsync(id);
-        if (!resultado.IsSuccess) return HandleResult(resultado);
-
-        return NoContent();
-    }
+    public async Task<ActionResult> Eliminar([FromRoute] int id) =>
+        HandleNoContent(await _tiposRecurso.EliminarAsync(id));
 }
 ```
 
@@ -649,12 +684,14 @@ Cosas a fijarse:
 | Pieza                                        | Por qué está ahí                                                                                                                                                                                                                     |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Heredar de **`ControladorBase`**             | Provee `Idioma`, `CodPer`, `Roles`, `ValidationProblemLocalizado(...)`. Cualquier controlador del proyecto lo hereda.                                                                                                                |
-| **`HandleResult(...)`**                      | Vive en `ApiControllerBase` (que `ControladorBase` hereda). Traduce `Result<T>` → respuesta HTTP correcta: `200` con valor, `404 ProblemDetails`, `400 ValidationProblemDetails`, etc. Es la **única función que mira el `Result`**. |
+| **`HandleResult` / `HandleCreated` / `HandleNoContent`** | Viven en `ApiControllerBase`. Traducen `Result<T>` → la respuesta HTTP correcta del verbo: `GET → 200`, `POST → 201 + Location`, `PUT/DELETE → 204`. Si el `Result` es `Failure` los tres delegan en `HandleResult` para la traducción del error. El controlador queda **one-liner por acción**. |
 | `[ProducesResponseType<T>(...)]`             | Documenta a Scalar / OpenAPI los códigos esperados y los tipos de respuesta. Sin esto, Scalar no sabe qué shape tiene el `200` ni qué errores documentar.                                                                            |
 | `[Tags("TipoRecursos")]`                     | Agrupa en la UI de Scalar todos los endpoints bajo una sola pestaña.                                                                                                                                                                 |
-| `CreatedAtAction(nameof(ObtenerPorId), ...)` | Devuelve `201` con cabecera `Location: /api/TipoRecursos/{id}` apuntando al recurso recién creado. Es el contrato REST para POST de creación.                                                                                        |
+| `HandleCreated(result, nameof(ObtenerPorId), id => new { id })` | Devuelve `201` con cabecera `Location: /api/TipoRecursos/{id}`. El segundo argumento es el nombre del método GET de detalle; el tercero construye los valores de ruta a partir del id devuelto por el servicio.                |
 
 ::: info CÓMO FUNCIONA `CreatedAtAction` paso a paso
+`HandleCreated` delega internamente en `CreatedAtAction` de ASP.NET, que es quien construye la cabecera `Location`. Conviene entender qué hace, porque es la magia que conecta `nameof(ObtenerPorId)` con la URL real.
+
 `nameof(ObtenerPorId)` no construye ninguna URL: solo produce el string `"ObtenerPorId"`. Es `CreatedAtAction` quien, a partir de ese nombre, recorre el sistema de rutas y monta la URL completa:
 
 ```

@@ -99,22 +99,34 @@ public Task<Result<bool>> EliminarAsync(int id)
 }
 ```
 
-El controlador no escribe ni un `if/else`:
+El controlador no escribe ni un `if/else`. Hay un helper por verbo:
 
 ```csharp
+[HttpGet("{id}")]
+public async Task<ActionResult> ObtenerPorId(int id) =>
+    HandleResult(await _tiposRecurso.ObtenerPorIdAsync(id, Idioma));
+
+[HttpPost]
+public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto) =>
+    HandleCreated(
+        await _tiposRecurso.CrearAsync(dto),
+        nameof(ObtenerPorId), id => new { id });
+
 [HttpDelete("{id}")]
 public async Task<ActionResult> Eliminar(int id) =>
-    HandleResult(await _tiposRecurso.EliminarAsync(id));
+    HandleNoContent(await _tiposRecurso.EliminarAsync(id));
 ```
 
-`HandleResult` (en `ApiControllerBase`) hace el `switch` por `ErrorType` y devuelve **un único formato**:
+Los tres (`HandleResult`, `HandleCreated`, `HandleNoContent`) viven en `ApiControllerBase` y, ante un `Failure`, delegan en un mismo `HandleError(error)` privado. Para el éxito devuelven lo que pide el verbo:
 
-| `ErrorType` | HTTP | Body |
-|-------------|------|------|
-| `Success`   | 200 | `result.Value` |
-| `Validation` | 400 | `ValidationProblemDetails` con `errors` (puede tener clave `""` para errores globales) |
-| `NotFound`  | 404 | `ProblemDetails` |
-| `Failure`   | 500 | `ProblemDetails` genérico |
+| `Result<T>` + verbo | HTTP | Body |
+|---|---|---|
+| `Success(v)` + `GET` (`HandleResult`)   | 200 | `result.Value` |
+| `Success(id)` + `POST` (`HandleCreated`) | 201 | `id` en body + cabecera `Location` |
+| `Success(_)` + `PUT`/`DELETE` (`HandleNoContent`) | 204 | sin body |
+| `Validation` | 400 | `ValidationProblemDetails` con `errors` (siempre incluye al menos `errors[""]` para errores globales) |
+| `NotFound`   | 404 | `ProblemDetails` |
+| `Failure`    | 500 | `ProblemDetails` con mensaje localizado (`SQLERRM` nunca llega al cliente) |
 
 ### 12.1.3 ¿Qué ha cambiado de verdad?
 
@@ -482,6 +494,7 @@ const {
   erroresDeCampo,        // (campo) => string[] — todos los errores de ese campo
 
   validarFormulario,     // (formRef) => boolean — HTML5 + Bootstrap (was-validated)
+  validarConEsquema,     // <T>(esquema Zod, datos, prefijo?) => datos is T — ver 12.7.6
   adaptarProblemDetails, // (pd, formRef, prefijo?) — vuelca el ValidationProblemDetails al modelState
   inicializarMensajeError,  // limpia todo (llamar antes de cada submit)
 } = useGestionFormularios({ aislado: true });
@@ -589,6 +602,93 @@ adaptarProblemDetails(pd, formEditRef,  'editar_');   // PUT   → modelState["e
 FluentValidation puede emitir **varios** mensajes para el mismo campo (si no usas `CascadeMode.Stop`). Si solo enseñas `errorDeCampo(campo)`, el usuario corrige el primero y, al volver a enviar, aparece el segundo. Con `erroresDeCampo(campo)` los ve todos a la vez y corrige una sola vez.
 
 Por defecto **usa `erroresDeCampo`** en el template para los mensajes. Reserva `errorDeCampo` solo para el `:class="{ 'is-invalid': ... }"` (donde solo necesitas un booleano).
+
+### 12.7.6 Validación cliente con Zod: `validarConEsquema`
+
+`useGestionFormularios` puede usar también un esquema [**Zod**](https://zod.dev) para validar el formulario en cliente **antes** de llegar al servidor. Útil cuando:
+
+- Quieres reglas más estrictas que el `required` HTML5 (regex de formato, normalizaciones con `.trim()`, refinamientos cruzados con `.refine()`).
+- Quieres tipar el formulario y derivar el tipo TS del propio esquema (`z.infer<typeof esquema>`), evitando duplicar `interface`.
+- Quieres que los mensajes vengan ya en castellano (los del backend dependen de la cultura del request).
+
+#### Esquema
+
+```ts
+import { z } from 'zod';
+
+const esquemaCrearTipoRecurso = z.object({
+  Codigo: z.string()
+    .trim()
+    .min(1,   'El código es obligatorio')
+    .max(100, 'El código no puede superar los 100 caracteres')
+    .regex(/^[A-Z0-9_]+$/, 'Solo se admiten mayúsculas, números y guion bajo'),
+  NombreEs: z.string().trim().min(1, 'El nombre en castellano es obligatorio').max(150),
+  NombreCa: z.string().trim().min(1, 'El nombre en catalán es obligatorio').max(150),
+  NombreEn: z.string().trim().min(1, 'El nombre en inglés es obligatorio').max(150),
+});
+type CrearTipoRecursoInput = z.infer<typeof esquemaCrearTipoRecurso>;
+```
+
+::: info CLAVES EN PASCALCASE
+Las claves del esquema coinciden **letra por letra** con las propiedades del DTO del servidor (`Codigo`, `NombreEs`...). Así un mismo nombre de campo encaja con el `errors` del `ValidationProblemDetails` y con `adaptarProblemDetails` no hace falta renombrar nada. Si en el template usas `id="nuevo_Codigo"`, pasa `prefijocampos: 'nuevo_'` también a `validarConEsquema` para que el cliente alimente las mismas claves.
+:::
+
+#### Submit con Zod + servidor
+
+```ts
+async function crear() {
+  inicializarMensajeError();
+
+  // 1. Cliente: corta antes de salir del navegador.
+  if (!validarConEsquema(esquemaCrearTipoRecurso, form)) return;
+
+  enviando.value = true;
+  try {
+    const id = await peticion<number>('TipoRecursos', verbosAxios.POST, form);
+    avisar('Creado', `Id devuelto: ${id}`);
+  } catch (error: any) {
+    // 2. Servidor: si la regla solo la sabe la BD o FluentValidation,
+    //    el 400 llega con el mismo formato y los mismos campos.
+    if (error.response?.data) {
+      adaptarProblemDetails(error.response.data, formRef);
+    }
+  } finally {
+    enviando.value = false;
+  }
+}
+```
+
+Lo importante: **los dos caminos alimentan el mismo `modelState`**. El template no sabe si el mensaje viene de Zod o del servidor; solo pinta `erroresDeCampo('Codigo')`. Es el mismo principio que con FluentValidation/DataAnnotations: **una superficie, varias fuentes**.
+
+```mermaid
+flowchart LR
+    F[form] --> Z[validarConEsquema · Zod]
+    F --> SRV[POST /api/...]
+    SRV -->|400| PD[adaptarProblemDetails]
+    Z -->|fail| MS[modelState]
+    PD -->|errors| MS
+    MS --> T[Template · erroresDeCampo]
+```
+
+<!-- diagram id="s12-zod-vs-servidor" caption: "Zod y el servidor empujan al mismo modelState; el template no distingue origen" -->
+
+::: tip ZOD NO ES OBLIGATORIO
+`validarConEsquema` y `validarFormulario` conviven. Usa `validarFormulario(formRef)` si te basta con los atributos HTML5 (`required`, `pattern`, `min`, `max`) — es el camino más ligero. Pasa a Zod cuando aparezca la primera regla que no puedes expresar con HTML5: regex significativo, normalizaciones (`trim`), refinamientos entre campos, etc.
+:::
+
+#### Probarlo en el sandbox
+
+Hay una demo conectada al paquete real en
+`/uareservas/sesiones-dotnet/sesion-5/crear-tipo-recurso`
+(fichero `views/sesiones-dotnet/sesion-5/Sesion5CrearTipoRecurso.vue`).
+Ejercicios sugeridos para enseñar las tres capas con el mismo formulario:
+
+| Caso                                                            | Capa que corta            | Qué deberías ver                               |
+|-----------------------------------------------------------------|---------------------------|------------------------------------------------|
+| `Codigo: ""`                                                    | Zod (cliente)             | Mensaje del esquema; no hay request en Network |
+| `Codigo: "abc"` (minúsculas)                                    | Zod (cliente, regex)      | "Solo se admiten mayúsculas…"                  |
+| `curl -d '{}' …/api/TipoRecursos` saltándose el navegador       | DataAnnotations (servidor)| 400 con mensajes en ES (`SharedResource.es.resx`) |
+| Crear dos veces seguidas el mismo `Codigo`                      | Paquete PL/SQL (UK)       | 400 o 500 con mensaje del paquete en `erroresGlobales` |
 
 ## 12.8 Tabla resumen: de Oracle a Vue {#resumen}
 

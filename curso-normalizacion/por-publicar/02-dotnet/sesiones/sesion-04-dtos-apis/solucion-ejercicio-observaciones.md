@@ -251,8 +251,11 @@ Si tu código pasa los cuatro puntos, estás listo para la sesión 2.
 
 ## Próximos pasos (sesión 2)
 
-- Crear `IObservacionesServicio` + `ObservacionesServicio` con el patrón de `TiposRecursoServicio` (`ObtenerTodosAsync` contra la vista; `CrearAsync` / `EliminarAsync` contra el paquete con `DynamicParameters`).
+- Crear `IObservacionesServicio` + `ObservacionesServicio` con el patrón de `TiposRecursoServicio` (`ObtenerTodosAsync` contra la vista; `CrearAsync` / `EliminarAsync` contra el paquete vía `EjecutarPaqueteAsync`).
 - Registrar el servicio en `Program.cs`.
-- Cambiar el controlador para que delegue en el servicio: `HandleResult(await _observaciones.ObtenerTodosAsync(Idioma))` etc.
+- Cambiar el controlador para que delegue en el servicio, usando los tres helpers de `ApiControllerBase`:
+  - `HandleResult(await _observaciones.ObtenerTodosAsync(Idioma))` para los `GET`.
+  - `HandleCreated(await _observaciones.CrearAsync(CodPer, dto), nameof(ObtenerPorId), id => new { id })` para el `POST`.
+  - `HandleNoContent(await _observaciones.EliminarAsync(id))` para el `DELETE`.
 - Borrar el `_datos` estático.
 - Añadir tests xUnit (uno simulado del controlador, uno real contra Oracle con `[SkippableFact]`).

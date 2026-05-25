@@ -171,8 +171,8 @@ public enum ErrorType
 |-------|--------------|----------|
 | `Code` | El equipo (logs) y opcionalmente el cliente | Identificador estable del error (`"ORA-20702"`, `"TIPO_RECURSO_NO_EXISTE"`). |
 | `Message` | El cliente — si no se localiza por `MessageKey` | Mensaje legible "por defecto" en el idioma del literal. |
-| `Type` | `HandleResult` | Decide el código HTTP (400 / 404 / 500). |
-| `ValidationErrors` | El cliente — `useGestionFormularios` | Diccionario `campo → mensajes[]`. La clave `""` se usa para errores globales. |
+| `Type` | `HandleResult` / `HandleCreated` / `HandleNoContent` | Decide el código HTTP (400 / 404 / 500). |
+| `ValidationErrors` | El cliente — `useGestionFormularios` | Diccionario `campo → mensajes[]`. La clave `""` se usa para errores globales y **siempre llega rellena** en un 400 (la siembra `ErrorPaquetePlSql` o, defensivamente, `HandleResult`). |
 | `MessageKey` | `LocalizarMensaje` en `ApiControllerBase` | Clave de `Resources/SharedResource.resx` para traducir según `Content-Language`. |
 | `MessageArgs` | `LocalizarMensaje` | Argumentos `{0}`, `{1}` para el `string.Format` de la traducción. |
 | `TechnicalMessage` | `RegistrarErrorTecnico` y, en el futuro, Serilog y el correo | Detalle técnico (stack trace, código `ORA`, parámetros) que **no** viaja al cliente. |
@@ -257,38 +257,53 @@ La `T` es un **tipo que se decide al usar la clase**, no al escribirla. Así, un
 Si no es `Success`, `Value` es `null` y hay un `Error`. `HandleResult` (§13.2.4) se encarga del resto — tú no tienes que mirar el `Error` a mano.
 :::
 
-### 13.2.4 `HandleResult`: el traductor único `Result<T>` → HTTP {#handleresult}
+### 13.2.4 `HandleResult` / `HandleCreated` / `HandleNoContent`: los traductores únicos `Result<T>` → HTTP {#handleresult}
 
-El controlador **no decide** el código HTTP ni el formato del cuerpo de error: lo decide **`HandleResult`**, una única función en `ApiControllerBase`. **Si quieres cambiar el formato de los errores, este es el único sitio donde tocar**.
+El controlador **no decide** el código HTTP ni el formato del cuerpo de error: lo decide `ApiControllerBase`, con un método por familia de verbo:
+
+| Método | Cuándo | HTTP en `Success` |
+|---|---|---|
+| `HandleResult<T>(Result<T>)` | `GET` | `200 OK` con `result.Value` |
+| `HandleCreated<T>(Result<T>, nombreAccion, valoresRuta)` | `POST` | `201 Created` + `Location` |
+| `HandleNoContent<T>(Result<T>)` | `PUT`, `PATCH`, `DELETE` | `204 No Content` |
+
+Los tres delegan en el mismo `HandleError(error)` privado cuando el `Result` es `Failure`, así que la traducción de errores está centralizada **en un único punto**. Si quieres cambiar el formato de los errores, ese es el único sitio donde tocar.
 
 ```csharp
 // Controllers/Apis/ApiControllerBase.cs (esbozo)
-protected ActionResult HandleResult<T>(Result<T> result)
-{
-    // ── 1) Camino feliz ───────────────────────────────────────────────────────
-    //    El valor viene dentro del Result. Lo desempaquetamos como 200 Ok.
-    if (result.IsSuccess)
-        return Ok(result.Value);                              // 200
+protected ActionResult HandleResult<T>(Result<T> result) =>
+    result.IsSuccess ? Ok(result.Value) : HandleError(result.Error!);
 
-    // ── 2) Hay Error: lo localizamos al idioma del usuario ────────────────────
-    //    LocalizarMensaje busca error.Code en SharedResource.{es,ca,en}.resx
-    //    y aplica string.Format con MessageArgs (los argumentos {0}, {1}...).
-    var error   = result.Error!;
+protected ActionResult HandleCreated<T>(
+    Result<T> result, string nombreAccion, Func<T, object> valoresRuta) =>
+    result.IsSuccess
+        ? CreatedAtAction(nombreAccion, valoresRuta(result.Value!), result.Value)
+        : HandleError(result.Error!);
+
+protected ActionResult HandleNoContent<T>(Result<T> result) =>
+    result.IsSuccess ? NoContent() : HandleError(result.Error!);
+
+private ActionResult HandleError(Error error)
+{
+    // 1) Localizamos al idioma del usuario.
     var mensaje = LocalizarMensaje(error);                    // §13.3
 
-    // ── 3) Si el Error tiene TechnicalMessage → log (y, opcional, correo) ─────
-    RegistrarErrorTecnico(error);                             // §13.6 ruta B
+    // 2) Log estructurado (LogError si Failure, LogInformation si Validation/NotFound con
+    //    TechnicalMessage). El cliente NO ve el TechnicalMessage en ningún caso.
+    RegistrarErrorTecnico(error, mensaje);                    // §13.6 ruta B
 
-    // ── 4) Traduce el ErrorType a uno de los tres ProblemDetails estándar ────
+    // 3) Traduce el ErrorType a uno de los tres ProblemDetails estándar.
     return error.Type switch
     {
-        // 400 Bad Request — incluye el diccionario errors por campo
-        // que useGestionFormularios.adaptarProblemDetails pinta bajo cada input.
+        // 400 Bad Request — el diccionario errors por campo viaja al cliente.
+        // Si Oracle devolvió un Validation global (-20703), NormalizarValidationErrors
+        // garantiza que llegue errors[""] para que useGestionFormularios lo pinte
+        // en el banner de erroresGlobales.
         ErrorType.Validation => ValidationProblem(
             new ValidationProblemDetails(
-                error.ValidationErrors ?? new Dictionary<string, string[]>())
+                NormalizarValidationErrors(error.ValidationErrors, mensaje))
             {
-                Title  = error.Code,        // código estable: "RECURSO_ID_INVALIDO"
+                Title  = error.Code,        // código estable: "ORA-20703"
                 Detail = mensaje,           // texto ya localizado (es/ca/en)
                 Status = StatusCodes.Status400BadRequest
             }),
@@ -302,10 +317,21 @@ protected ActionResult HandleResult<T>(Result<T> result)
         }),
 
         // 500 Internal Server Error — cualquier Failure: bugs, BD caída, paquete roto.
+        // detail llega como mensaje localizado (ERROR_TECNICO), nunca como SQLERRM crudo.
         _ => Problem(detail: mensaje,
                      title:  error.Code,
                      statusCode: StatusCodes.Status500InternalServerError)
     };
+}
+
+// Garantiza que un Validation siempre lleve al menos errors[""] con el mensaje.
+private static IDictionary<string, string[]> NormalizarValidationErrors(
+    IDictionary<string, string[]>? validationErrors, string mensajeFallback)
+{
+    if (validationErrors is { Count: > 0 })
+        return new Dictionary<string, string[]>(validationErrors);
+
+    return new Dictionary<string, string[]> { [""] = new[] { mensajeFallback } };
 }
 ```
 
@@ -313,15 +339,21 @@ Mapeo en una tabla:
 
 | `Result<T>`                     | `ErrorType` | HTTP                          | Cuerpo JSON                                                                    |
 | ------------------------------- | ----------- | ----------------------------- | ------------------------------------------------------------------------------ |
-| `Success(v)`                    | —           | **200 OK**                    | El valor `v` serializado.                                                      |
-| `Validation(code, msg, errors)` | Validation  | **400 Bad Request**           | `ValidationProblemDetails { title=code, detail=msg-localizado, errors={...} }` |
+| `Success(v)` (GET)              | —           | **200 OK**                    | El valor `v` serializado.                                                      |
+| `Success(v)` (POST)             | —           | **201 Created**               | El id en el body + cabecera `Location`.                                        |
+| `Success(_)` (PUT/DELETE)       | —           | **204 No Content**            | Sin body.                                                                       |
+| `Validation(code, msg, errors)` | Validation  | **400 Bad Request**           | `ValidationProblemDetails { title=code, detail=msg-localizado, errors={...} }` — si no había `errors`, llega siempre `errors[""]` con el mensaje. |
 | `NotFound(code, msg, args)`     | NotFound    | **404 Not Found**             | `ProblemDetails { title=code, detail=msg-localizado }`                         |
-| `Fail(code, msg, args)`         | Failure     | **500 Internal Server Error** | `ProblemDetails { title=code, detail=msg-localizado }` + log/correo            |
+| `Fail(code, msg, args)`         | Failure     | **500 Internal Server Error** | `ProblemDetails { title=code, detail=msg-localizado }` + `LogError` con TraceId/TechnicalMessage |
+
+::: info POR QUÉ `errors[""]` SIEMPRE EXISTE EN UN 400
+`useGestionFormularios.adaptarProblemDetails` busca `errors[""]` para alimentar `erroresGlobales` (el banner encima del formulario). Si un paquete PL/SQL rechaza con `-20703` ("Tipo con recursos asociados"), el error no es por campo: es global. `NormalizarValidationErrors` siembra ese `errors[""]` con el mensaje localizado para que el cliente lo pinte sin tener que mirar `detail` ni `title`. Así el contrato Oracle → .NET → Vue queda cerrado: **todo Validation tiene al menos una clave en `errors`**.
+:::
 
 ### 13.2.5 Cómo se escribe un endpoint del curso {#endpoint-canonico}
 
 ::: info QUÉ QUEREMOS ENSEÑAR
-El **patrón único** para escribir controladores: el servicio devuelve `Result<T>`, el controlador se reduce a **una sola línea** que llama a `HandleResult`. Solo el `POST` que crea recursos rompe esa regla, porque REST exige `201 Created` con cabecera `Location`.
+El **patrón único** para escribir controladores: el servicio devuelve `Result<T>`, el controlador se reduce a **una sola línea**. Hay tres helpers (`HandleResult`, `HandleCreated`, `HandleNoContent`); el verbo HTTP elige cuál usar.
 :::
 
 ::: tip POR QUÉ ES IMPORTANTE
@@ -331,14 +363,14 @@ Sin este patrón, cada acción acabaría con su propio `if (recurso is null) ret
 2. **La localización** (`SharedResource.resx`) se duplica en cada `return BadRequest(...)`.
 3. **Cambiar el formato** de errores obliga a tocar decenas de controladores.
 
-Centralizando en `HandleResult`, todos los endpoints hablan el mismo idioma HTTP y el mantenimiento se reduce a una sola función.
+Centralizando en `HandleResult` / `HandleCreated` / `HandleNoContent`, todos los endpoints hablan el mismo idioma HTTP y el mantenimiento se reduce a una sola función.
 :::
 
 #### Qué implica a nivel de código
 
-Hay solo **dos formas** de acción en el curso: lectura/actualización/borrado (que delegan todo en `HandleResult`) y creación (que añade el header `Location`).
+Tres formas, una por familia de verbo:
 
-##### Caso 1 — Lectura, actualización y borrado: una sola línea
+##### Caso 1 — Lectura (`GET`): `HandleResult`
 
 ```csharp
 [HttpGet("{id:int}")]
@@ -354,51 +386,49 @@ El servicio que respalda esa acción:
 ```csharp
 public async Task<Result<TipoRecursoLectura>> ObtenerPorIdAsync(int id, string idioma)
 {
-    // Consulta a Oracle (vía ClaseOracleBd, sesión 5).
     var fila = await _bd.ObtenerPrimeroMapAsync<TipoRecursoLectura>(/* ... */);
 
     return fila is null
-        // No hay fila → 404 con código estable que el cliente reconoce.
         ? Result<TipoRecursoLectura>.NotFound(
               "TIPO_RECURSO_NO_ENCONTRADO",
               "No existe un tipo de recurso con id {0}.",
               id)
-        // Hay fila → 200 con el DTO dentro del Result.
         : Result<TipoRecursoLectura>.Success(fila);
 }
 ```
 
-##### Caso 2 — Creación: `HandleResult` solo para el error, `CreatedAtAction` para el éxito
+##### Caso 2 — Creación (`POST`): `HandleCreated`
 
 ```csharp
 [HttpPost]
 [ProducesResponseType<int>(StatusCodes.Status201Created)]
 [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
-{
-    var resultado = await _tiposRecurso.CrearAsync(dto);
-
-    // Rama de error (400/404/500): la traduce HandleResult, igual que en el Caso 1.
-    if (!resultado.IsSuccess) return HandleResult(resultado);
-
-    // Rama de éxito: REST exige 201 Created + cabecera Location apuntando al nuevo recurso.
-    // nameof(ObtenerPorId) evita strings frágiles si renombramos la acción de lectura.
-    return CreatedAtAction(
-        nameof(ObtenerPorId),
-        new { id = resultado.Value },     // ← parámetros para construir la URL
-        resultado.Value);                  // ← cuerpo de la respuesta (el id creado)
-}
+public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto) =>
+    // HandleCreated centraliza el doble retorno del 201:
+    //   - body: el id devuelto por el paquete (Result.Value)
+    //   - cabecera Location: /api/TipoRecursos/{id} construida con nameof + valoresRuta
+    // Si el Result es Failure, delega en HandleError igual que los otros dos.
+    HandleCreated(
+        await _tiposRecurso.CrearAsync(dto),
+        nameof(ObtenerPorId), id => new { id });
 ```
 
-::: warning POR QUÉ EL POST ES DISTINTO
-`HandleResult` siempre responde con `Ok(...)` en el caso bueno, y `Ok` es 200 — pero crear un recurso debe devolver **201 Created + cabecera `Location`** con la URL del recurso recién creado. Es la única excepción a la regla "una línea": el error sigue pasando por `HandleResult`, el éxito **no**.
-:::
+##### Caso 3 — Actualización y borrado (`PUT` / `PATCH` / `DELETE`): `HandleNoContent`
+
+```csharp
+[HttpDelete("{id:int}")]
+[ProducesResponseType(StatusCodes.Status204NoContent)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+public async Task<ActionResult> Eliminar([FromRoute] int id) =>
+    // 204 NoContent si Success; el error vuelve a HandleError.
+    HandleNoContent(await _tiposRecurso.EliminarAsync(id));
+```
 
 ::: info ¿Y `Task<ActionResult>` en vez de `TypedResults`?
-.NET 10 ofrece varios estilos (`IActionResult`, `ActionResult<T>`, `Results<...>` con `TypedResults`). El curso usa **siempre `Task<ActionResult>` + `HandleResult`** por dos motivos prácticos:
+.NET 10 ofrece varios estilos (`IActionResult`, `ActionResult<T>`, `Results<...>` con `TypedResults`). El curso usa **siempre `Task<ActionResult>` + los tres helpers** por dos motivos prácticos:
 
 1. **Una sola línea por acción** y los códigos los declara `[ProducesResponseType<T>(...)]` — Scalar los lee igual.
-2. **Compatibilidad** con `Ok`, `NoContent`, `CreatedAtAction`, etc. Si necesitas algo "raro" (como `CreatedAtAction` del Caso 2), no hay que reescribir la firma del método.
+2. **Compatibilidad** con `Ok`, `NoContent`, `CreatedAtAction` etc. — los helpers usan estos internamente.
 
 `TypedResults` es válido, pero al hacerlo conviven dos estilos en el mismo proyecto y el JSON de error deja de salir de un solo sitio.
 :::
@@ -625,9 +655,9 @@ classDiagram
 - **`AppException` / `InfoException`:** evita lanzarlas en código nuevo. Si lo haces, hazlo a sabiendas de que pasarán por el middleware.
 :::
 
-### 13.4.3 El patrón `try { } catch (BDException ex) { … }` que aún ves
+### 13.4.3 El patrón `try { } catch (BDException ex) { … }` vive en `EjecutarPaqueteAsync`
 
-Es exactamente lo que hace `TiposRecursoServicio.EjecutarPruebaErrorAsync` cuando la excepción Oracle corta la llamada antes de leer los parámetros OUT:
+Antes los servicios escribían a mano:
 
 ```csharp
 try
@@ -636,11 +666,26 @@ try
 }
 catch (BDException ex)
 {
-    return ErrorPaquetePlSql.AResultFailure<bool>(ex);   // ← BDException → Result.Failure(Error)
+    return ErrorPaquetePlSql.AResultFailure<bool>(ex);   // BDException → Result.Failure(Error)
 }
 ```
 
-Es la única excepción que sigue cazándose explícitamente en el servicio, **y solo para convertirla en `Result`**. A partir de ese punto el flujo es el mismo que cualquier otro error: `HandleResult` decide el HTTP y `RegistrarErrorTecnico` decide si avisar al equipo.
+Hoy ese `try`/`catch` vive **dentro** del helper `EjecutarPaqueteAsync` (sesión 5, §5.4.2). El servicio queda así:
+
+```csharp
+public Task<Result<bool>> EliminarAsync(int idTipoRecurso)
+{
+    var p = new DynamicParameters();
+    p.Add("P_ID_TIPO_RECURSO", idTipoRecurso);
+    return _bd.EjecutarPaqueteAsync("CURSONORMADM.PKG_RES_TIPO_RECURSO.ELIMINAR", p);
+}
+```
+
+El helper hace el `catch (BDException ex)`, lo convierte a `Result.Failure(Error)` y, si la excepción es de otra naturaleza (no Oracle), la deja escapar. A partir de ese punto el flujo es el mismo que cualquier otro error: `HandleResult` / `HandleCreated` / `HandleNoContent` decide el HTTP y `RegistrarErrorTecnico` decide si avisar al equipo.
+
+::: tip CUÁNDO TODAVÍA TIENE SENTIDO EL `try`/`catch` EXPLÍCITO
+Solo si necesitas hacer algo **antes** o **además** de convertir la `BDException` a `Result` (medir tiempos, registrar contexto extra, intentar un fallback). En ese caso, captura, haz lo tuyo y llama a `ErrorPaquetePlSql.AResultFailure<T>(ex)` manualmente para devolver. En el 99 % de los servicios no hace falta — pasa por `EjecutarPaqueteAsync`.
+:::
 
 ## 13.5 `ErrorHandlerMiddleware`: el último cortafuegos {#middleware}
 
@@ -835,26 +880,55 @@ Lo que **ya está** activado al llamar a `UseErrorHandlerMiddleware()`. Cualquie
 
 #### Ruta B — `RegistrarErrorTecnico` (opt-in por endpoint)
 
-`ApiControllerBase.RegistrarErrorTecnico` se llama **siempre** que `HandleResult` recibe un `Failure`, pero hoy solo loguea. Para enviar correo en errores `Failure` (típico: el `error-tecnico` del paquete de pruebas), inyecta `INotificadorError` y notifica:
+`ApiControllerBase.RegistrarErrorTecnico` se llama **siempre** que un handler (`HandleResult` / `HandleCreated` / `HandleNoContent`) recibe un `Failure`. Su implementación actual distingue por `ErrorType`:
 
 ```csharp
-// ApiControllerBase.cs — esbozo recomendado
-private void RegistrarErrorTecnico(Error error)
+// ApiControllerBase.cs (vigente)
+private void RegistrarErrorTecnico(Error error, string mensajeUsuario)
 {
-    if (string.IsNullOrWhiteSpace(error.TechnicalMessage)) return;
-
     var logger = HttpContext.RequestServices.GetService<ILogger<ApiControllerBase>>();
-    logger?.LogWarning(
-        "Error tecnico {Code}: {TechnicalMessage}",
-        error.Code, error.TechnicalMessage);
+    if (logger is null) return;
 
-    // Notificación por correo solo para Failure (no para Validation / NotFound).
-    if (error.Type != ErrorType.Failure) return;
+    if (error.Type == ErrorType.Failure)
+    {
+        // 500 controlado: log de error con contexto buscable (TraceId, ruta, usuario)
+        // y el TechnicalMessage completo. El cliente NO ve este texto.
+        logger.LogError(
+            "Error 500 controlado {Code} en {Method} {Path} (usuario {Usuario}, traceId {TraceId}). " +
+            "Cliente recibe: {Mensaje}. Detalle tecnico: {TechnicalMessage}",
+            error.Code, HttpContext.Request.Method, HttpContext.Request.Path,
+            User?.Identity?.Name ?? "(anonimo)", HttpContext.TraceIdentifier,
+            mensajeUsuario, error.TechnicalMessage ?? "(sin detalle tecnico)");
+        return;
+    }
 
+    // Validation / NotFound: solo log informativo si el paquete adjuntó algo tecnico.
+    if (!string.IsNullOrWhiteSpace(error.TechnicalMessage))
+    {
+        logger.LogInformation(
+            "Error funcional {Code} ({Type}) en {Path}: {Mensaje}. TechnicalMessage: {TechnicalMessage}",
+            error.Code, error.Type, HttpContext.Request.Path,
+            mensajeUsuario, error.TechnicalMessage);
+    }
+}
+```
+
+Tres claves del comportamiento:
+
+1. **`LogError` para `Failure`, `LogInformation` para el resto**. Validation/NotFound son errores del cliente y no deben ensuciar las alertas del equipo.
+2. **El cliente NUNCA ve `TechnicalMessage`**. Para un 500, `detail` lleva el mensaje localizado (`ERROR_TECNICO` del `.resx`); el `SQLERRM` crudo solo va al log.
+3. **`TraceId` y `Path`** quedan en cada línea de log, así que el equipo correlaciona el `traceId` que vio el cliente con la entrada del log sin búsqueda fuzzy.
+
+Para activar el correo en `Failure`, inyecta `INotificadorError` por constructor y llámalo dentro de la rama `Failure`:
+
+```csharp
+// Hook opcional para correo en Failure
+if (error.Type == ErrorType.Failure)
+{
     var notificador = HttpContext.RequestServices.GetService<INotificadorError>();
     notificador?.Notificar(
         $"Error técnico {error.Code}",
-        new ErrorTecnicoControlado(error),       // wrapper que expone error.TechnicalMessage
+        new ErrorTecnicoControlado(error),       // wrapper que expone TechnicalMessage
         ctx => ctx.Operacion = error.Code);
 }
 ```
