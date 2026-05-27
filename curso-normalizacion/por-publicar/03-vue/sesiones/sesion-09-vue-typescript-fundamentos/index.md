@@ -608,6 +608,8 @@ function incrementar() {
 }
 ```
 
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6Depuracion.vue` (botón "3. group + count + time").
+
 ::: warning TRUCO — qué ves en consola cuando logueas un `ref` o `reactive`
 Si haces `console.log(contador)` sin `.value` vers `RefImpl { value: 0, ... }` en lugar del número. Si logueas un `reactive`, vers `Proxy { ... }`. Esto sorprende a quien viene de depurar variables C# donde siempre ves el valor directamente.
 
@@ -663,6 +665,8 @@ function incrementar() {
   contador.value++;
 }
 ```
+
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6Depuracion.vue` (botón "6. Ejecutar con debugger").
 
 ::: warning Acuérdate de quitar los `debugger`
 Si te queda un `debugger` en una rama del código y un compañero abre DevTools, la app le va a parar de repente. Quítalos antes de subir a `main` (los linters de la UA los detectan como `no-debugger`).
@@ -763,7 +767,7 @@ En esta sesión no necesitas una depuración avanzada. Sigue siempre el mismo or
 
 ## 1.7 Pruébalo en el proyecto {#sandbox}
 
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-6/` viven cinco demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-6`:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-6/` viven seis demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-6`:
 
 | Demo                          | Concepto que ilustra                                                             | Fichero                                |
 | ----------------------------- | -------------------------------------------------------------------------------- | -------------------------------------- |
@@ -772,9 +776,10 @@ En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-6/` viven cinco demos nav
 | `Sesion6RefVsReactive.vue`    | Dos contadores lado a lado: `ref<number>` vs `reactive({...})`                   | `sesion-6/Sesion6RefVsReactive.vue`    |
 | `Sesion6Interpolacion.vue`    | Los siete usos típicos de <code v-pre>{{ ... }}</code> sobre un objeto `persona` | `sesion-6/Sesion6Interpolacion.vue`    |
 | `Sesion6DemoTipoRecurso.vue`  | Demo integradora con un `TipoRecursoLectura[]` mock y navegación                 | `sesion-6/Sesion6DemoTipoRecurso.vue`  |
+| `Sesion6Depuracion.vue`       | Variantes de `console`, diferencia `ref` vs `ref.value` en consola y `debugger`  | `sesion-6/Sesion6Depuracion.vue`       |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
-Abre cada fichero en VS Code, lee el `<script setup>` y luego el `<template>`. Modifica un valor, guarda y observa cómo Vue redibuja **solo** lo que ha cambiado. La integradora `Sesion6DemoTipoRecurso.vue` ya usa el mismo DTO (`TipoRecursoLectura`) que devolverá la API real en la sesión 9; cambiar el mock por una llamada axios no toca el template.
+Abre cada fichero en VS Code, lee el `<script setup>` y luego el `<template>`. Modifica un valor, guarda y observa cómo Vue redibuja **solo** lo que ha cambiado. La integradora `Sesion6DemoTipoRecurso.vue` ya usa el mismo DTO (`TipoRecursoLectura`) que devolverá la API real en la sesión 12; cambiar el mock por una llamada axios no toca el template.
 :::
 
 ## 1.8 Lo que viene en las próximas sesiones {#preview}
