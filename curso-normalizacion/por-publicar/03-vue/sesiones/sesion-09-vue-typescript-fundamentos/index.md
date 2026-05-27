@@ -523,7 +523,7 @@ Antes de avanzar a directivas y comunicación entre componentes, conviene establ
 ::: info PUNTO DE PARTIDA PARA DESARROLLADORES DE VISUAL STUDIO
 Si vienes de depurar aplicaciones .NET con **F5 en Visual Studio**, el rol del depurador aquí lo tiene el **navegador** — no el IDE. La aplicación Vue corre en Chrome o Edge, así que abre `F12` → pestaña **Sources** para poner breakpoints y usa la **Console** para ejecutar expresiones.
 
-Lo bueno: los atajos principales son los **mismos** (`F10`, `F11`, `Shift+F11`). El panel **Scope** sustituye a *Autos/Locals*, y la **Console** mientras el código está pausado actúa como la *Ventana inmediata*. Todo esto se desarrolla en el apartado [1.6.3](#debugger).
+Lo bueno: los atajos principales son los **mismos** (`F10`, `F11`, `Shift+F11`). El panel **Scope** sustituye a _Autos/Locals_, y la **Console** mientras el código está pausado actúa como la _Ventana inmediata_. Todo esto se desarrolla en el apartado [1.6.3](#debugger).
 :::
 
 ### 1.6.1 Preparación mínima (navegador + extensión)
@@ -615,12 +615,12 @@ Para obtener el valor limpio:
 
 ```typescript
 // ref
-console.log(contador.value)          // ✅ 0  (el número puro)
-console.log(contador)                // ⚠️ RefImpl { value: 0, ... }
+console.log(contador.value); // ✅ 0  (el número puro)
+console.log(contador); // ⚠️ RefImpl { value: 0, ... }
 
 // reactive
-console.log(JSON.stringify(estado))  // ✅ '{"count":0,"ultimaAccion":"ninguna"}'
-console.dir(estado)                  // ✅ árbol explorable (el más cómodo para objetos profundos)
+console.log(JSON.stringify(estado)); // ✅ '{"count":0,"ultimaAccion":"ninguna"}'
+console.dir(estado); // ✅ árbol explorable (el más cómodo para objetos profundos)
 ```
 
 **Vue Devtools** muestra los valores directamente, sin el envoltorio Proxy — úsala siempre que quieras ver el estado reactivo de un vistazo.
@@ -634,19 +634,19 @@ El `console.log` te dice **qué** valor hay; el **debugger** te deja inspecciona
 
 Para quienes estéis acostumbrados al depurador de VS, el contexto cambia (navegador en lugar del IDE) pero la experiencia es muy parecida:
 
-| Visual Studio | Browser DevTools | Notas |
-| ------------- | ---------------- | ----- |
-| F9 — poner / quitar breakpoint | Clic en número de línea en **Sources** | Aparece un punto azul en el margen |
-| F5 — Continuar | F8 — **Resume** (o botón ▶) | |
-| F10 — Step over | F10 — **Step over** | Mismo atajo |
-| F11 — Step into | F11 — **Step into** | Mismo atajo |
-| Shift+F11 — Step out | Shift+F11 — **Step out** | Mismo atajo |
-| Ventana *Locals / Autos* | Panel **Scope** | Variables locales del frame actual |
-| Ventana *Watch* | Panel **Watch** | Añade expresiones tipo `contador.value` |
-| *Ventana inmediata* | **Console** mientras está pausado | Ejecuta cualquier expresión con el scope actual |
-| Pila de llamadas | Panel **Call Stack** | Clic en un frame para inspeccionar su scope |
-| `Debugger.Break()` en C# | Sentencia `debugger` en TS | Solo pausa si DevTools está abierto |
-| Hover sobre variable | Hover sobre variable en Sources | Muestra un tooltip con el valor actual |
+| Visual Studio                  | Browser DevTools                       | Notas                                           |
+| ------------------------------ | -------------------------------------- | ----------------------------------------------- |
+| F9 — poner / quitar breakpoint | Clic en número de línea en **Sources** | Aparece un punto azul en el margen              |
+| F5 — Continuar                 | F8 — **Resume** (o botón ▶)            |                                                 |
+| F10 — Step over                | F10 — **Step over**                    | Mismo atajo                                     |
+| F11 — Step into                | F11 — **Step into**                    | Mismo atajo                                     |
+| Shift+F11 — Step out           | Shift+F11 — **Step out**               | Mismo atajo                                     |
+| Ventana _Locals / Autos_       | Panel **Scope**                        | Variables locales del frame actual              |
+| Ventana _Watch_                | Panel **Watch**                        | Añade expresiones tipo `contador.value`         |
+| _Ventana inmediata_            | **Console** mientras está pausado      | Ejecuta cualquier expresión con el scope actual |
+| Pila de llamadas               | Panel **Call Stack**                   | Clic en un frame para inspeccionar su scope     |
+| `Debugger.Break()` en C#       | Sentencia `debugger` en TS             | Solo pausa si DevTools está abierto             |
+| Hover sobre variable           | Hover sobre variable en Sources        | Muestra un tooltip con el valor actual          |
 
 ::: tip VS Code también puede depurar TypeScript
 Para quienes prefieran no salir del IDE: VS Code incluye un **JavaScript Debugger** integrado que puede conectarse a Chrome/Edge con un `launch.json` de tipo `"type": "chrome"`. En esta sesión usamos las DevTools del navegador porque son inmediatas y no requieren configuración, pero la alternativa existe.
@@ -938,4 +938,87 @@ En esta sesión todavía **no** usamos interfaces. Primero asentamos `ref`, `.va
 ::: details 10. En TypeScript moderno, ¿qué regla práctica es más recomendable?
 
 - a) Usar var para evitar errores de bloque
-- b)
+- b) Usar let siempre, incluso si no reasignas
+- c) Usar const por defecto y let solo si reasignas
+- d) Evitar const cuando trabajas con Vue
+  :::
+
+::: details 11. ¿Qué efecto tiene style scoped en un componente?
+
+- a) Aplica estilos a toda la aplicación
+- b) Limita los estilos al componente actual
+- c) Desactiva CSS en Vue
+- d) Obliga a usar Bootstrap
+  :::
+
+::: details 12. ¿Qué opción encaja mejor con ref al empezar?
+
+- a) Valores simples como string, number o boolean
+- b) Solo arrays grandes
+- c) Solo props del hijo
+- d) Exclusivamente llamadas HTTP
+  :::
+
+::: details 13. ¿Cuándo puede resultar más cómodo reactive?
+
+- a) Cuando trabajas con un objeto con varias propiedades
+- b) Cuando solo tienes un número
+- c) Cuando quieres evitar toda reactividad
+- d) Cuando defines estilos CSS
+  :::
+
+::: details 14. ¿Qué permite la interpolación de dobles llaves en el template?
+
+- a) Sentencias for completas
+- b) Expresiones que devuelven un valor
+- c) Declarar interfaces
+- d) Ejecutar varias líneas de lógica compleja
+  :::
+
+::: details 15. ¿Qué debería evitarse dentro de una interpolación?
+
+- a) Mostrar un dato simple
+- b) Concatenar texto corto
+- c) Meter lógica de negocio compleja
+- d) Usar un ternario sencillo
+  :::
+
+::: details 16. ¿Qué ventaja principal aporta TypeScript en un proyecto de equipo?
+
+- a) Elimina por completo la necesidad de probar
+- b) Detecta errores antes y mejora el autocompletado
+- c) Hace que Vue no necesite reactividad
+- d) Sustituye las interfaces visuales
+  :::
+
+### Respuestas (Autoevaluación)
+
+::: details Ver respuestas
+
+1. c) script setup.
+2. a) template.
+3. b) contador.value.
+4. b) Sin .value.
+5. b) La interfaz responde cuando cambia el estado reactivo.
+6. b) Cambia el valor interno, no la referencia.
+7. b) unknown.
+8. b) Un tipo que admite varios tipos válidos.
+9. b) TypeScript deduce el tipo desde el valor inicial.
+10. c) Usar const por defecto y let solo si reasignas.
+11. b) Limita los estilos al componente actual.
+12. a) Valores simples como string, number o boolean.
+13. a) Cuando trabajas con un objeto con varias propiedades.
+14. b) Permite expresiones que devuelven valor.
+15. c) Debe evitarse meter lógica de negocio compleja.
+16. b) Detecta errores antes y mejora el autocompletado.
+    :::
+
+---
+
+<!-- NAV:START -->
+
+| Anterior                                                                                           | Inicio                        | Siguiente                                                                                          |
+| -------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| [← Sesión 8: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 10: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-10-directivas-eventos/) |
+
+<!-- NAV:END -->
