@@ -51,13 +51,13 @@ p {
 
 ## Errores que debe detectar la IA
 
-| #   | Problema                                                                                         | Corrección esperada                                                                                                            |
-| --- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | `var contador` en lugar de `const` para una referencia reactiva                                  | Cambiar a `const contador = ref<number>(0)`. Las referencias reactivas se declaran con `const`; no se reasigna la referencia sino su `.value`.          |
-| 2   | Tipo `any` en `ref<any>`                                                                         | Cambiar a `ref<string>("Ana García")`. El tipo debe ser el real; `any` desactiva todas las comprobaciones de TypeScript.       |
-| 3   | `contador++` en el script sin `.value`                                                            | Cambiar a `contador.value++`. Sin `.value`, se intenta incrementar el objeto `RefImpl` entero, no su valor numérico interno.   |
-| 4   | `nombre.value` en el template                                                                    | Cambiar a `{{ nombre }}`. Vue desempaqueta los `ref` automáticamente en el template; añadir `.value` hace que Vue intente acceder a `.value.value`. |
-| 5   | Sentencia `if` dentro de `{{ }}`                                                                 | Cambiar a una expresión ternaria: `{{ contador > 0 ? 'Positivo' : 'Cero' }}`. El template solo acepta expresiones, no sentencias. |
+| #   | Problema                                                        | Corrección esperada                                                                                                                                 |
+| --- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `var contador` en lugar de `const` para una referencia reactiva | Cambiar a `const contador = ref<number>(0)`. Las referencias reactivas se declaran con `const`; no se reasigna la referencia sino su `.value`.      |
+| 2   | Tipo `any` en `ref<any>`                                        | Cambiar a `ref<string>("Ana García")`. El tipo debe ser el real; `any` desactiva todas las comprobaciones de TypeScript.                            |
+| 3   | `contador++` en el script sin `.value`                          | Cambiar a `contador.value++`. Sin `.value`, se intenta incrementar el objeto `RefImpl` entero, no su valor numérico interno.                        |
+| 4   | `nombre.value` en el template                                   | Cambiar a `{{ nombre }}`. Vue desempaqueta los `ref` automáticamente en el template; añadir `.value` hace que Vue intente acceder a `.value.value`. |
+| 5   | Sentencia `if` dentro de `{{ }}`                                | Cambiar a una expresión ternaria: `{{ contador > 0 ? 'Positivo' : 'Cero' }}`. El template solo acepta expresiones, no sentencias.                   |
 
 ## Solución de referencia
 
@@ -65,19 +65,21 @@ p {
 <script setup lang="ts">
 import { ref } from "vue";
 
-const contador = ref<number>(0);         // 1: const, no var
+const contador = ref<number>(0); // 1: const, no var
 const nombre = ref<string>("Ana García"); // 2: tipo string, no any
 
 function incrementar() {
-  contador.value++;                      // 3: .value obligatorio en el script
+  contador.value++; // 3: .value obligatorio en el script
   console.log("Contador:", contador.value);
 }
 </script>
 
 <template>
   <div>
-    <p>Nombre: {{ nombre }}</p>                              <!-- 4: sin .value en template -->
-    <p>Estado: {{ contador > 0 ? 'Positivo' : 'Cero' }}</p> <!-- 5: ternario, no if -->
+    <p>Nombre: {{ nombre }}</p>
+    <!-- 4: sin .value en template -->
+    <p>Estado: {{ contador > 0 ? "Positivo" : "Cero" }}</p>
+    <!-- 5: ternario, no if -->
     <p>Contador: {{ contador }}</p>
     <button @click="incrementar">+1</button>
   </div>

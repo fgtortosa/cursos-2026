@@ -16,7 +16,7 @@ Los temas relacionados que se cubren en otras sesiones tienen su propio test:
 - Props, Emits, `defineModel`, `computed`, `watch` y slots → [Sesión 11](../sesion-11/).
 - Composables, servicios y arquitectura Vista → Composable → Servicio → [Sesión 12](../sesion-12/).
 - Componentes internos UA (`vueua-autocomplete`, `vueua-dialogmodal`, Teleport) → [Sesión 13](../sesion-13/).
-:::
+  :::
 
 ## Pregunta 1
 
