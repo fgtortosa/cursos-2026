@@ -7,7 +7,7 @@ outline: deep
 # Sesión 5: Servicios y acceso a Oracle
 
 ::: info DE DÓNDE VENIMOS
-En la [**sesión 1**](../sesion-07-dtos-apis/) construiste un controlador `ObservacionesController` que devolvía datos hardcodeados. En esta sesión lo conectaremos a Oracle a través de un **servicio**, usando el paquete `PKG_RES_OBSERVACION_RESERVA` que ya tienes en SQL. Al terminar, los mismos botones del `Home.vue` que probabas en clase pasada **traerán datos reales de la base de datos** sin que cambies nada en Vue.
+En la [**sesión 4**](../sesion-04-dtos-apis/) construiste un controlador `ObservacionesController` que devolvía datos hardcodeados. En esta sesión lo conectaremos a Oracle a través de un **servicio**, usando el paquete `PKG_RES_OBSERVACION_RESERVA` que ya tienes en SQL. Al terminar, los mismos botones del `Home.vue` que probabas en clase pasada **traerán datos reales de la base de datos** sin que cambies nada en Vue.
 :::
 
 ## 5.1 Por qué separamos la lógica en capas
@@ -85,7 +85,7 @@ builder.Services.AddScoped<IObservacionesServicio, ObservacionesServicio>();   /
 
 ### 5.2.1 El problema que resuelve
 
-En la sesión 1 el controlador hacía:
+En la sesión 4 el controlador hacía:
 
 ```csharp
 [HttpGet("{id:int}")]
@@ -229,7 +229,7 @@ classDiagram
 
 - El **servicio** SIEMPRE devuelve `Result<T>`. Si tiene que decir "no existe", devuelve `Result<T>.NotFound(...)`. NUNCA tira excepciones para flujo normal.
 - El **controlador** llama al servicio y pasa el resultado a `HandleResult`. NO interpreta el `Result` a mano.
-- Las **excepciones** se reservan para imprevistos reales (Oracle caído, red rota). Un `IExceptionHandler` global las convierte en 500 — pero eso es **sesión 13 (integración)**.
+- Las **excepciones** se reservan para imprevistos reales (Oracle caído, red rota). Un `IExceptionHandler` global las convierte en 500 — pero eso es **[sesión 16 (errores)](../../../04-integracion/sesiones/sesion-16-errores/)**.
   :::
 
 ## 5.3 Lectura: SELECT contra una vista + mapeo automático
@@ -593,7 +593,7 @@ public static async Task<Result<T>> EjecutarPaqueteAsync<T>(
 }
 ```
 
-Cualquier excepción que **no** sea `BDException` se deja escapar para que el `ErrorHandlerMiddleware` (sesión 13) la trate como 500 técnico.
+Cualquier excepción que **no** sea `BDException` se deja escapar para que el `ErrorHandlerMiddleware` (sesión 16) la trate como 500 técnico.
 :::
 
 ### 5.4.3 Traducción ORA-\* → `Result<T>`
@@ -609,9 +609,13 @@ Cualquier excepción que **no** sea `BDException` se deja escapar para que el `E
 
 Cuando añadas un código nuevo en un paquete (`RAISE_APPLICATION_ERROR(-20XYZ, '...')`), recuerda **añadirlo también al `switch` de `ErrorPaquetePlSql.DesdeCodigo`** para que tenga el `ErrorType` correcto.
 
-### 5.4.4 El controlador después de la cirugía: una línea
+### 5.4.4 El controlador después de la cirugía: el patrón en crudo
 
-Así queda `TipoRecursosController` — completo, con los cinco verbos:
+Así queda `TipoRecursosController` — completo, con los cinco verbos. Mostramos el código **en crudo**, sin atajos: cada acción comprueba `IsSuccess`, decide el verbo HTTP correcto (`Ok` / `CreatedAtAction` / `NoContent`) y delega los errores en `HandleResult`. Así se ve la mecánica completa de la traducción `Result<T>` → HTTP.
+
+::: info CONTEXTO
+En el repositorio del curso (último commit) verás dos helpers — `HandleCreated` y `HandleNoContent` — que encapsulan los patrones `POST → 201 + Location` y `PUT/DELETE → 204`. Son atajos útiles **una vez entendido el patrón**. Aquí mantenemos el código abierto a propósito: en la [sesión 15 · validación](../../../04-integracion/sesiones/sesion-15-validacion/) y [sesión 16 · errores](../../../04-integracion/sesiones/sesion-16-errores/#handleresult) los introducimos como normalización.
+:::
 
 ```csharp
 // Controllers/Apis/TipoRecursosController.cs
@@ -633,6 +637,7 @@ public class TipoRecursosController : ControladorBase
     [HttpGet]
     [ProducesResponseType<List<TipoRecursoLectura>>(StatusCodes.Status200OK)]
     public async Task<ActionResult> Listar() =>
+        // GET → HandleResult traduce Success a 200 OK con el body y Failure al ProblemDetails que toque.
         HandleResult(await _tiposRecurso.ObtenerTodosAsync(Idioma));
 
     /// <summary>Devuelve un tipo por su id.</summary>
@@ -648,10 +653,24 @@ public class TipoRecursosController : ControladorBase
     [HttpPost]
     [ProducesResponseType<int>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto) =>
-        HandleCreated(
-            await _tiposRecurso.CrearAsync(dto),
-            nameof(ObtenerPorId), id => new { id });
+    public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
+    {
+        var resultado = await _tiposRecurso.CrearAsync(dto);
+
+        // Si el servicio falla (validacion, NotFound o error tecnico),
+        // delegamos en HandleResult para mapearlo al ProblemDetails correcto.
+        if (!resultado.IsSuccess) return HandleResult(resultado);
+
+        // POST con exito → 201 Created.
+        //   - 1º argumento: nombre del metodo GET de detalle (con nameof, para que un rename rompa la compilacion).
+        //   - 2º argumento: valores de ruta para construir la URL del nuevo recurso.
+        //   - 3º argumento: cuerpo de la respuesta (el id que asigno Oracle).
+        // Resultado HTTP: status 201, cabecera Location: /api/TipoRecursos/{id} y body = id.
+        return CreatedAtAction(
+            nameof(ObtenerPorId),
+            new { id = resultado.Value },
+            resultado.Value);
+    }
 
     /// <summary>Actualiza un tipo de recurso existente.</summary>
     [HttpPut("{id:int}")]
@@ -666,7 +685,11 @@ public class TipoRecursosController : ControladorBase
                 "ID_RUTA_CUERPO_NO_COINCIDE",
                 "El id de la ruta no coincide con el del cuerpo.");
 
-        return HandleNoContent(await _tiposRecurso.ActualizarAsync(dto));
+        var resultado = await _tiposRecurso.ActualizarAsync(dto);
+
+        // PUT con exito → 204 No Content (sin body, el cliente ya conoce la URL).
+        // Si falla, HandleResult traduce el error al ProblemDetails que toque.
+        return resultado.IsSuccess ? NoContent() : HandleResult(resultado);
     }
 
     /// <summary>Borra un tipo de recurso.</summary>
@@ -674,23 +697,30 @@ public class TipoRecursosController : ControladorBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> Eliminar([FromRoute] int id) =>
-        HandleNoContent(await _tiposRecurso.EliminarAsync(id));
+    public async Task<ActionResult> Eliminar([FromRoute] int id)
+    {
+        var resultado = await _tiposRecurso.EliminarAsync(id);
+
+        // DELETE con exito → 204 No Content. Error → HandleResult.
+        return resultado.IsSuccess ? NoContent() : HandleResult(resultado);
+    }
 }
 ```
 
 Cosas a fijarse:
 
-| Pieza                                        | Por qué está ahí                                                                                                                                                                                                                     |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Heredar de **`ControladorBase`**             | Provee `Idioma`, `CodPer`, `Roles`, `ValidationProblemLocalizado(...)`. Cualquier controlador del proyecto lo hereda.                                                                                                                |
-| **`HandleResult` / `HandleCreated` / `HandleNoContent`** | Viven en `ApiControllerBase`. Traducen `Result<T>` → la respuesta HTTP correcta del verbo: `GET → 200`, `POST → 201 + Location`, `PUT/DELETE → 204`. Si el `Result` es `Failure` los tres delegan en `HandleResult` para la traducción del error. El controlador queda **one-liner por acción**. |
-| `[ProducesResponseType<T>(...)]`             | Documenta a Scalar / OpenAPI los códigos esperados y los tipos de respuesta. Sin esto, Scalar no sabe qué shape tiene el `200` ni qué errores documentar.                                                                            |
-| `[Tags("TipoRecursos")]`                     | Agrupa en la UI de Scalar todos los endpoints bajo una sola pestaña.                                                                                                                                                                 |
-| `HandleCreated(result, nameof(ObtenerPorId), id => new { id })` | Devuelve `201` con cabecera `Location: /api/TipoRecursos/{id}`. El segundo argumento es el nombre del método GET de detalle; el tercero construye los valores de ruta a partir del id devuelto por el servicio.                |
+| Pieza                                                                     | Por qué está ahí                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Heredar de **`ControladorBase`**                                          | Provee `Idioma`, `CodPer`, `Roles`, `ValidationProblemLocalizado(...)`. Cualquier controlador del proyecto lo hereda.                                                                                                       |
+| **`HandleResult`**                                                        | Vive en `ApiControllerBase`. Traduce un `Result<T>`: `Success` → `200 OK` con el body, `Failure` → el `ProblemDetails` que toque (`400` validación, `404` no encontrado, `500` técnico).                                    |
+| `if (!resultado.IsSuccess) return HandleResult(resultado);`               | Patrón explícito de cortafuegos: cualquier `Failure` se traduce con el mismo helper. Lo que sigue es el camino feliz, donde decidimos el verbo (`201` o `204`).                                                             |
+| `CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, ...)` | Para `POST` con éxito. Devuelve `201` con cabecera `Location: /api/TipoRecursos/{id}`. `nameof` apunta al GET de detalle; el objeto anónimo construye los valores de ruta a partir del id devuelto por el servicio.         |
+| `NoContent()`                                                             | Para `PUT` / `DELETE` con éxito. Devuelve `204` sin body — el cliente ya conoce la URL.                                                                                                                                     |
+| `[ProducesResponseType<T>(...)]`                                          | Documenta a Scalar / OpenAPI los códigos esperados y los tipos de respuesta. Sin esto, Scalar no sabe qué shape tiene el `200` ni qué errores documentar.                                                                   |
+| `[Tags("TipoRecursos")]`                                                  | Agrupa en la UI de Scalar todos los endpoints bajo una sola pestaña.                                                                                                                                                        |
 
 ::: info CÓMO FUNCIONA `CreatedAtAction` paso a paso
-`HandleCreated` delega internamente en `CreatedAtAction` de ASP.NET, que es quien construye la cabecera `Location`. Conviene entender qué hace, porque es la magia que conecta `nameof(ObtenerPorId)` con la URL real.
+`CreatedAtAction` es el método de ASP.NET que construye la respuesta `201 Created` con cabecera `Location`. Conviene entender qué hace, porque es la magia que conecta `nameof(ObtenerPorId)` con la URL real.
 
 `nameof(ObtenerPorId)` no construye ninguna URL: solo produce el string `"ObtenerPorId"`. Es `CreatedAtAction` quien, a partir de ese nombre, recorre el sistema de rutas y monta la URL completa:
 
@@ -782,11 +812,11 @@ Lo mínimo que necesitas saber **para el ejercicio §5.6** que viene a continuac
 
 ## 5.6 Ejercicio: cerrar `Observaciones` con servicio + tests
 
-Cierre del ejercicio que arrancaste en [§1.9](../sesion-07-dtos-apis/#_1-9-ejercicio-api-de-observaciones-de-reservas). El controlador `ObservacionesController` con `_datos` hardcodeados se queda obsoleto: lo conectamos a Oracle vía un servicio nuevo, registramos el servicio en DI y añadimos los dos tests del patrón (simulado + real).
+Cierre del ejercicio que arrancaste en [§1.9](../sesion-04-dtos-apis/#_1-9-ejercicio-api-de-observaciones-de-reservas). El controlador `ObservacionesController` con `_datos` hardcodeados se queda obsoleto: lo conectamos a Oracle vía un servicio nuevo, registramos el servicio en DI y añadimos los dos tests del patrón (simulado + real).
 
 ### 5.6.1 Punto de partida
 
-Después de la sesión 1 tienes:
+Después de la sesión 4 tienes:
 
 - `Models/Reservas/ObservacionReservaLectura.cs` y `ObservacionReservaCrearDto.cs`.
 - `Controllers/Apis/ObservacionesController.cs` con la lista estática `_datos`.
@@ -796,7 +826,7 @@ Después de la sesión 1 tienes:
 
 ```mermaid
 flowchart LR
-    A[Sesion 1:<br/>controller con _datos<br/>hardcodeados] --> B[Crear IObservacionesServicio<br/>+ ObservacionesServicio]
+    A[Sesion 4:<br/>controller con _datos<br/>hardcodeados] --> B[Crear IObservacionesServicio<br/>+ ObservacionesServicio]
     B --> C[Reescribir<br/>ObservacionesController<br/>delega al servicio]
     C --> D[Registrar en<br/>Program.cs]
     D --> E[FakeObservacionesServicio<br/>+ 2 tests simulados]
@@ -869,7 +899,7 @@ public class ObservacionesController : ControladorBase
 }
 ```
 
-Los atributos de clase (`[Route]`, `[ApiController]`, `[Authorize]`, `[Tags("Observaciones")]`) y los `[ProducesResponseType<T>(...)]` por acción se mantienen igual que en sesión 1 — Scalar sigue documentándolos.
+Los atributos de clase (`[Route]`, `[ApiController]`, `[Authorize]`, `[Tags("Observaciones")]`) y los `[ProducesResponseType<T>(...)]` por acción se mantienen igual que en sesión 4 — Scalar sigue documentándolos.
 
 **3. Registrar el servicio** en `Program.cs`:
 
@@ -969,9 +999,9 @@ En tu rama `tiporecurso-<nombre>`, sustituye el CRUD en memoria por un servicio 
 - Escritura contra `PKG_RES_TIPO_RECURSO.CREAR / ACTUALIZAR / ELIMINAR` con `DynamicParameters` y `P_CODIGO_ERROR / P_MENSAJE_ERROR`.
 - Convierte los errores Oracle con `ErrorPaquetePlSql.AResultFailure(...)` antes de devolver el `Result<T>`.
 
-El controlador **no cambia**: sigue siendo el de la sesión 1, solo pasa a usar el nuevo servicio vía DI.
+El controlador **no cambia**: sigue siendo el de la sesión 4, solo pasa a usar el nuevo servicio vía DI.
 
-**Adelanto del módulo 2 (Recurso)**: empieza a pensar en los campos de auditoría (`FECHA_CREACION`, `CODPER_CREADOR`). En la sesión 11 leeremos `CodPer` del JWT; aquí basta con dejarlos como columnas en la tabla.
+**Adelanto del módulo 2 (Recurso)**: empieza a pensar en los campos de auditoría (`FECHA_CREACION`, `CODPER_CREADOR`). En la sesión 14 leeremos `CodPer` del JWT; aquí basta con dejarlos como columnas en la tabla.
 
 Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 :::
@@ -980,10 +1010,11 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 ## Tests y práctica IA
 
-- [Ver tests y práctica de la sesión](../../test/sesion-2/)
-- [Autoevaluación sesión 2](../../test/sesion-2/autoevaluacion.md)
-- [Preguntas de test sesión 2](../../test/sesion-2/preguntas.md)
-- [Respuestas del test sesión 2](../../test/sesion-2/respuestas.md)
+- [Ver tests y práctica de la sesión](../../test/sesion-05/)
+- [Autoevaluación sesión 5](../../test/sesion-05/autoevaluacion.md)
+- [Preguntas de test sesión 5](../../test/sesion-05/preguntas.md)
+- [Respuestas del test sesión 5](../../test/sesion-05/respuestas.md)
+- [Práctica IA-fix sesión 5](../../test/sesion-05/practica-ia-fix.md)
 
 ---
 
@@ -993,6 +1024,6 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 | Anterior                                                                             | Inicio                        | Siguiente                                                                                                           |
 | ------------------------------------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| [← Sesión 4: Modelos y primer API](../../../02-dotnet/sesiones/sesion-04-dtos-apis/) | [Índice del curso](../../../) | [Sesión 5: Vue 3, TypeScript y primer componente →](../../../03-vue/sesiones/sesion-06-vue-typescript-fundamentos/) |
+| [← Sesión 4: Modelos y primer API](../../../02-dotnet/sesiones/sesion-04-dtos-apis/) | [Índice del curso](../../../) | [Sesión 9: Vue 3, TypeScript y primer componente →](../../../03-vue/sesiones/sesion-09-vue-typescript-fundamentos/) |
 
 <!-- NAV:END -->

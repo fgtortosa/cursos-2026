@@ -1,10 +1,10 @@
 ---
-title: "Sesión 8: Componentes y comunicación"
+title: "Sesión 11: Componentes y comunicación"
 description: Computed, Props, Emits, defineModel, watch, onMounted y slots para construir componentes reutilizables
 outline: deep
 ---
 
-# Sesión 8: Componentes y comunicación
+# Sesión 11: Componentes y comunicación
 <!-- [[toc]] -->
 
 ::: info CONTEXTO
@@ -721,7 +721,7 @@ provide('tema', tema)
 const temaInyectado = inject<Ref<string>>('tema')
 ```
 
-Úsalo cuando realmente quieras evitar pasar props por muchos niveles. Para estado compartido más amplio, ya pensaremos en Pinia en la sesión 4.
+Úsalo cuando realmente quieras evitar pasar props por muchos niveles. Para estado compartido más amplio, ya pensaremos en Pinia en la sesión 20.
 
 ## 3.9 Errores frecuentes y criterio de elección {#errores-frecuentes}
 
@@ -928,7 +928,7 @@ Esta sesión te da las piezas para dos módulos del proyecto final que aún no h
 
 - Recibe el día (lunes-domingo) como prop y las franjas como `defineModel`.
 - Botones "añadir franja", "borrar franja", "bloquear día" usando los patrones de hoy.
-- En la sesión de Pinia (sesión 23) lo conectaremos a un store compartido del horario en edición.
+- En la sesión de Pinia (sesión 20) lo conectaremos a un store compartido del horario en edición.
 
 **Módulo 4 · Reserva** — Componentes `SelectorHora` y `SelectorDuracion`:
 
@@ -940,7 +940,7 @@ Hoy basta con que dejes esbozada la API (`<script setup>` con `defineProps` y `d
 Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 :::
 
-## Test Sesión 3 {#test}
+## Test Sesión 11 {#test}
 
 ### Preguntas (desplegables)
 

@@ -1,10 +1,10 @@
 ---
-title: "Sesión 10: Otros componentes internos"
+title: "Sesión 13: Otros componentes internos"
 description: Componentes vueua de la Universidad de Alicante — modales, toasts, BotonLoading, Checkbox triestado y Teleport
 outline: deep
 ---
 
-# Sesión 10: Otros componentes internos
+# Sesión 13: Otros componentes internos
 <!-- [[toc]] -->
 
 ::: info CONTEXTO
@@ -366,7 +366,7 @@ Vue sigue tratando el contenido teletransportado como parte del componente (reac
 
 ::: details ¿Y `vueua-autocomplete`?
 
-El componente `vueua-autocomplete` (búsqueda remota con selección) figura en el temario maestro pero se aplaza intencionadamente: necesita `useAxios` para mostrar su potencia, y `useAxios` se introduce en la sesión 11. Lo retomamos en la sesión 14 (DataTable + autocomplete) cuando todas las piezas estén disponibles.
+El componente `vueua-autocomplete` (búsqueda remota con selección) figura en el temario maestro pero se aplaza intencionadamente: necesita `useAxios` para mostrar su potencia, y `useAxios` se introduce en la sesión 14. Lo retomamos en la sesión 17 (DataTable + autocomplete) cuando todas las piezas estén disponibles.
 
 :::
 
@@ -374,7 +374,7 @@ El componente `vueua-autocomplete` (búsqueda remota con selección) figura en e
 
 [Demo abrible: `/uareservas/sesiones-vue/sesion-10/crud-recursos`](/uareservas/sesiones-vue/sesion-10/crud-recursos)
 
-Combina en un único flujo los componentes vistos: listar recursos, filtro triestado, crear con `DialogModal`, eliminar con `PopUpModal`, spinner global al cargar, toasts de éxito/error y `BotonLoading` en el botón guardar. Sigue funcionando con datos mock (el composable real con `useAxios` llega en la sesión 11).
+Combina en un único flujo los componentes vistos: listar recursos, filtro triestado, crear con `DialogModal`, eliminar con `PopUpModal`, spinner global al cargar, toasts de éxito/error y `BotonLoading` en el botón guardar. Sigue funcionando con datos mock (el composable real con `useAxios` llega en la sesión 14).
 
 ## 10.10 Pruébalo en el proyecto {#sandbox}
 
@@ -390,12 +390,12 @@ En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-10/` hay siete demos nave
 | `Sesion10CrudRecursos.vue` | Integradora: listar, filtrar, crear, editar y eliminar con todos los componentes UA | `sesion-10/Sesion10CrudRecursos.vue` |
 
 ::: tip CIERRE DEL BLOQUE VUE
-La integradora `Sesion10CrudRecursos.vue` es el **estado final del bloque Vue**: combina `DialogModal` (crear/editar), `PopUpModal` (confirmar eliminación), `SpinnerModal` (carga inicial), `BotonLoading` (guardar), `Checkbox3estados` (filtro) y `useToast` (avisos). Cuando arranque el bloque de **Integración** (sesión 11), sustituiremos el servicio mock por uno con `useAxios` y esta vista no se tocará.
+La integradora `Sesion10CrudRecursos.vue` es el **estado final del bloque Vue**: combina `DialogModal` (crear/editar), `PopUpModal` (confirmar eliminación), `SpinnerModal` (carga inicial), `BotonLoading` (guardar), `Checkbox3estados` (filtro) y `useToast` (avisos). Cuando arranque el bloque de **Integración** (sesión 14), sustituiremos el servicio mock por uno con `useAxios` y esta vista no se tocará.
 :::
 
 ## 10.11 Siguiente sesión {#siguiente}
 
-En la sesión 11 (parte de Integración) sustituiremos el servicio mock por llamadas reales a la API con `useAxios` y veremos la autenticación CAS/JWT. El código de las demos de esta sesión **no necesitará cambios** en las capas de vista ni de composable.
+En la sesión 14 (parte de Integración) sustituiremos el servicio mock por llamadas reales a la API con `useAxios` y veremos la autenticación CAS/JWT. El código de las demos de esta sesión **no necesitará cambios** en las capas de vista ni de composable.
 
 ## Tarea progresiva del proyecto final {#tarea-pf}
 
@@ -413,7 +413,7 @@ A día de hoy sigue trabajando con un **servicio mock**: `tipoRecursoServicioMoc
 Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 :::
 
-## Test Sesión 10 {#test}
+## Test Sesión 13 {#test}
 
 ::: details 1. ¿Cuándo usar `PopUpModal` en lugar de `DialogModal`?
 - a) Siempre que haya botones
@@ -461,9 +461,9 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 ## Referencias {#referencias}
 
 - [Documentación de `@vueua/components`](https://preproddesa.campus.ua.es/ComponentesVue/) — catálogo y demos en vivo.
-- [Skill `ua-validacion`]() — para encadenar este bloque con la validación cross-capa de la sesión 12.
-- Sesión 8 — slots, lifecycle, `defineModel` (base teórica de `DialogModal` y `SpinnerModal`).
-- Sesión 9 — composables, `useToast`, `BotonLoading`, arquitectura tres capas (base de la demo integradora).
+- [Skill `ua-validacion`]() — para encadenar este bloque con la validación cross-capa de la sesión 15.
+- Sesión 11 — slots, lifecycle, `defineModel` (base teórica de `DialogModal` y `SpinnerModal`).
+- Sesión 12 — composables, `useToast`, `BotonLoading`, arquitectura tres capas (base de la demo integradora).
 
 ---
 

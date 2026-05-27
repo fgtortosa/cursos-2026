@@ -31,6 +31,3 @@ Estas sesiones asumen que se han completado:
 | [Sesión 24: Accesibilidad y cumplimiento normativo](./sesiones/sesion-24-accesibilidad-ens/) | WCAG 2.1 AA, ENS, documentación, CAU | 1 h 30 min |
 | [Sesión 25: Copilot y organización del proyecto](./sesiones/sesion-25-copilot-organizacion/) | Copilot agente, repositorio, checklist final | 1 h 30 min |
 
-## Material de apoyo
-
-- [Tests y evaluación](./test/) — Banco de preguntas, autoevaluación y práctica IA-fix por sesión.

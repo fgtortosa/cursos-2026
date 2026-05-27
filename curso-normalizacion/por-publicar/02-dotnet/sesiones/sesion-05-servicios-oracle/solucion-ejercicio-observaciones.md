@@ -1,9 +1,9 @@
 ---
-title: "Solución del ejercicio: Observaciones con servicio + tests (sesión 2)"
+title: "Solución del ejercicio: Observaciones con servicio + tests (sesión 5)"
 description: "Cierre del ejercicio de §1.9 conectado a Oracle vía un servicio real, con sus dos tests."
 ---
 
-# Solución del ejercicio §2.6 — Observaciones con servicio + tests (sesión 2)
+# Solución del ejercicio §5.6 — Observaciones con servicio + tests (sesión 5)
 
 ::: warning ESTO ES LA SOLUCIÓN
 Compárala con la tuya **después** de intentarlo. Antes, mira `TiposRecursoServicio` / `RecursosServicio` y deriva el patrón por tu cuenta. La sesión 3 (Validación + Errores) sigue desde aquí, así que la nomenclatura tiene que coincidir.
@@ -193,7 +193,7 @@ Si tu paquete `PKG_RES_OBSERVACION_RESERVA` añade un `RAISE_APPLICATION_ERROR` 
 
 ## 3. `Controllers/Apis/ObservacionesController.cs` (reescrito)
 
-Borra el `_datos` estático. El controlador queda **una línea por acción** gracias a `HandleResult` (GET), `HandleCreated` (POST) y `HandleNoContent` (DELETE).
+Borra el `_datos` estático. Cada acción comprueba `IsSuccess`, decide el verbo HTTP correcto y delega los errores en `HandleResult`. Mostramos el patrón **en crudo** (sin atajos): es el mismo que viste en §5.4.4 para `TipoRecursosController`.
 
 ```csharp
 using Microsoft.AspNetCore.Authorization;
@@ -244,18 +244,31 @@ namespace uaReservas.Controllers.Apis
         [ProducesResponseType<int>(StatusCodes.Status201Created)]
         [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult> Crear([FromBody] ObservacionReservaCrearDto dto) =>
+        public async Task<ActionResult> Crear([FromBody] ObservacionReservaCrearDto dto)
+        {
             // CodperAutor SIEMPRE de CodPer (ControladorBase, del JWT), NUNCA del body.
-            HandleCreated(
-                await _observaciones.CrearAsync(CodPer, dto),
-                nameof(ObtenerPorId), id => new { id });
+            var resultado = await _observaciones.CrearAsync(CodPer, dto);
+
+            // Failure → ProblemDetails (400 / 404 / 500 segun ErrorType).
+            if (!resultado.IsSuccess) return HandleResult(resultado);
+
+            // Exito → 201 Created con cabecera Location: /api/Observaciones/{id} y body = id.
+            return CreatedAtAction(
+                nameof(ObtenerPorId),
+                new { id = resultado.Value },
+                resultado.Value);
+        }
 
         /// <summary>Borra una observación (soft: ACTIVO='N').</summary>
         [HttpDelete("{id:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> Eliminar([FromRoute] int id) =>
-            HandleNoContent(await _observaciones.EliminarAsync(id));
+        public async Task<ActionResult> Eliminar([FromRoute] int id)
+        {
+            var resultado = await _observaciones.EliminarAsync(id);
+            // DELETE con exito → 204 No Content. Error → HandleResult.
+            return resultado.IsSuccess ? NoContent() : HandleResult(resultado);
+        }
     }
 }
 ```
@@ -504,7 +517,7 @@ namespace uaReservas.Tests.Servicios
 
 ::: tip BUENA PRÁCTICA — qué fijarse al revisar
 1. **`CrearAsync(codperAutor, dto)`** recibe el codper por parámetro. Si lo lees del `dto`, fallas la seguridad.
-2. **Una línea por acción**: `HandleResult` en los GET, `HandleCreated` en el POST, `HandleNoContent` en el DELETE.
+2. **Patrón uniforme**: `HandleResult` traduce el `Failure` en los tres casos; el camino feliz decide el verbo (`Ok` implícito en GET, `CreatedAtAction` en POST, `NoContent()` en DELETE).
 3. **`_datos` estático eliminado** del controlador. Si sigue ahí, no estás pasando por Oracle.
 4. **`Program.cs` registra el servicio**: si no, la DI lanza `Unable to resolve service for type 'IObservacionesServicio'` en la primera petición.
 5. **`FakeObservacionesServicio` implementa `IObservacionesServicio` completa**: si la interfaz crece, el fake tiene que crecer también.

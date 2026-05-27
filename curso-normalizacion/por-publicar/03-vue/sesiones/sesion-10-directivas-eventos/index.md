@@ -1,10 +1,10 @@
 ---
-title: "Sesión 7: Directivas, eventos y datos"
+title: "Sesión 10: Directivas, eventos y datos"
 description: Interfaces TypeScript, funciones tipadas, directivas de Vue, eventos del DOM y métodos de arrays para trabajar con datos
 outline: deep
 ---
 
-# Sesión 7: Directivas, eventos y datos
+# Sesión 10: Directivas, eventos y datos
 <!-- [[toc]] -->
 
 ::: info CONTEXTO
@@ -356,7 +356,7 @@ Con `:key="item.id"` no pasa: Vue ve que la id de B ya no esta y monta un nodo n
 ```
 
 ::: tip BUENA PRÁCTICA
-La mejor solución es usar una propiedad `computed` que filtre antes de renderizar (lo veremos en la sesión 3).
+La mejor solución es usar una propiedad `computed` que filtre antes de renderizar (lo veremos en la sesión 11).
 :::
 
 ## 2.6 Vincular atributos: `v-bind` (`:`) {#v-bind}
@@ -744,7 +744,7 @@ Usa `??` en lugar de `||` cuando quieras distinguir entre "valor vacío pero vá
 :::
 
 ::: info PUENTE A LA SESIÓN 3
-En esta sesión trabajamos `v-model`, handlers y validaciones básicas. En la sesión 3 verás el patrón completo de formulario con **estado derivado** usando `computed`: normalización de entrada, habilitar/deshabilitar acciones y criterio `computed` vs método.
+En esta sesión trabajamos `v-model`, handlers y validaciones básicas. En la sesión 11 verás el patrón completo de formulario con **estado derivado** usando `computed`: normalización de entrada, habilitar/deshabilitar acciones y criterio `computed` vs método.
 :::
 
 ## 2.11 Pruébalo en el proyecto {#sandbox}
@@ -766,7 +766,7 @@ Abre `Sesion7TablaRecursos.vue` con F12 abierto y mira cómo Vue solo redibuja l
 
 ---
 
-## Ejercicio Sesión 2 {#ejercicio}
+## Ejercicio Sesión 10 {#ejercicio}
 
 ::: info ENUNCIADO
 Debes implementar una mini lista de tareas para validar que dominas el flujo completo de esta sesión: tipado de datos con interface, renderizado de listas, formulario con `v-model`, eventos de usuario y transformación de arrays para actualizar estado.
@@ -902,7 +902,7 @@ const pendientes = (): number => {
 ```
 :::
 
-## Test Sesión 2 {#test}
+## Test Sesión 10 {#test}
 
 ### Preguntas (desplegables)
 

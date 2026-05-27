@@ -1,9 +1,9 @@
 ---
-title: "Solución del ejercicio: API de Observaciones (sesión 1)"
-description: "Ficheros completos de la API mock de Observaciones que el alumno debe construir en la sesión 1."
+title: "Solución del ejercicio: API de Observaciones (sesión 4)"
+description: "Ficheros completos de la API mock de Observaciones que el alumno debe construir en la sesión 4."
 ---
 
-# Solución del ejercicio §1.9 — API de Observaciones (sesión 1)
+# Solución del ejercicio §1.9 — API de Observaciones (sesión 4)
 
 ::: warning ESTO ES LA SOLUCIÓN
 Este fichero contiene los ficheros completos que el alumno debería entregar al final de §1.9. **Compáralo con el tuyo después de intentarlo**, no antes. Si lo lees antes, te pierdes el aprendizaje de mirar `TipoRecursosController` y derivar el patrón por tu cuenta.
@@ -249,13 +249,13 @@ Si tu código pasa los cuatro puntos, estás listo para la sesión 2.
 6. **`POST /api/Observaciones`** con `textoEs` vacío → 400 con `ValidationProblemDetails` y `errors.TextoEs[0] = "VALIDACION_TEXTO_ES_REQUERIDO"` (la clave en crudo, hasta que la sesión 3 te enseñe a añadir entradas al `SharedResource.resx`).
 7. Abrir `Home.vue` y pulsar **`GET /api/Observaciones (ejercicio)`** → la zona de salida pinta el JSON.
 
-## Próximos pasos (sesión 2)
+## Próximos pasos (sesión 5)
 
 - Crear `IObservacionesServicio` + `ObservacionesServicio` con el patrón de `TiposRecursoServicio` (`ObtenerTodosAsync` contra la vista; `CrearAsync` / `EliminarAsync` contra el paquete vía `EjecutarPaqueteAsync`).
 - Registrar el servicio en `Program.cs`.
-- Cambiar el controlador para que delegue en el servicio, usando los tres helpers de `ApiControllerBase`:
-  - `HandleResult(await _observaciones.ObtenerTodosAsync(Idioma))` para los `GET`.
-  - `HandleCreated(await _observaciones.CrearAsync(CodPer, dto), nameof(ObtenerPorId), id => new { id })` para el `POST`.
-  - `HandleNoContent(await _observaciones.EliminarAsync(id))` para el `DELETE`.
+- Cambiar el controlador para que delegue en el servicio, manteniendo el patrón **en crudo** que ya conoces:
+  - `GET` → `HandleResult(await _observaciones.ObtenerTodosAsync(Idioma))` (traduce `Success` a `200` y los errores al `ProblemDetails` correcto).
+  - `POST` → comprobar `IsSuccess`; si falla, `HandleResult(resultado)`; si va bien, `CreatedAtAction(nameof(ObtenerPorId), new { id = resultado.Value }, resultado.Value)`.
+  - `DELETE` → `resultado.IsSuccess ? NoContent() : HandleResult(resultado)`.
 - Borrar el `_datos` estático.
 - Añadir tests xUnit (uno simulado del controlador, uno real contra Oracle con `[SkippableFact]`).

@@ -1,3 +1,0 @@
-﻿Ultima actualizacion : 15/05/2026 18:53:03
-Schema               : CURSONORMADM
-Total objetos        : 149

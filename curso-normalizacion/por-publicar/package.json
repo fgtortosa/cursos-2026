@@ -1,0 +1,27 @@
+{
+  "name": "curso-normalizacion-docs",
+  "version": "1.0.0",
+  "description": "Sitio VitePress independiente del curso de normalización (deploy a https://preproddesa.campus.ua.es/curso-normalizacion/).",
+  "private": true,
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview",
+    "docs:deploy": "powershell -ExecutionPolicy Bypass -File ./deploy.ps1",
+    "docs:deploy-preview": "powershell -ExecutionPolicy Bypass -File ./deploy.ps1 -Preview"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "devDependencies": {
+    "@braintree/sanitize-url": "^7.1.1",
+    "cytoscape": "^3.29.3",
+    "cytoscape-cose-bilkent": "^4.1.0",
+    "dayjs": "^1.11.18",
+    "gray-matter": "^4.0.3",
+    "mermaid": "^11.12.3",
+    "vitepress": "2.0.0-alpha.15",
+    "vitepress-mermaid": "^2.1.2",
+    "vitepress-plugin-diagrams": "^1.2.2",
+    "vitepress-plugin-llms": "^1.11.0",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  }
+}

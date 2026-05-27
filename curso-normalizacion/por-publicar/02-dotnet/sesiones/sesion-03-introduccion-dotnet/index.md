@@ -417,7 +417,7 @@ if (!exito)
 public record Error(string Code, string Message, ErrorType Type);
 
 // Equivale a una clase con constructor, Equals, GetHashCode, ToString...
-// Lo usamos en nuestro patrón Result<T> (sesión 2)
+// Lo usamos en nuestro patrón Result<T> (sesión 5)
 ```
 
 ### Pattern matching con `switch`
@@ -480,29 +480,27 @@ int[] numeros = [1, 2, 3, 4, 5];
 
 Para que tengas el mapa mental completo de lo que vamos a construir:
 
-### Sesión 1: DTOs y APIs sin base de datos
+### Sesión 4: Modelos y primer API
 
-Crearemos controladores API que devuelven datos hardcodeados. Aprenderemos a usar `[ApiController]`, verbos HTTP y códigos de estado. Añadiremos validación con `DataAnnotations`.
+Crearemos controladores API que devuelven datos hardcodeados. Aprenderemos a usar `[ApiController]`, verbos HTTP y códigos de estado. Añadiremos validación básica con `DataAnnotations`.
 
-### Sesión 2: Servicios, Oracle y `Result<T>`
+### Sesión 5: Servicios y acceso a Oracle
 
-Conectaremos con Oracle usando `ClaseOracleBD3`. Implementaremos el patrón `Result<T>` para que los servicios no lancen excepciones sino que devuelvan errores tipados.
+Conectaremos con Oracle usando `ClaseOracleBD3`. Implementaremos el patrón `Result<T>` para que los servicios no lancen excepciones sino que devuelvan errores tipados, y veremos cómo se consumen los paquetes PL/SQL.
 
-### Sesión 3: Validación y errores
+### Más adelante en el curso (sesiones de integración y avanzadas)
 
-Pasaremos de `DataAnnotations` a **FluentValidation** con mensajes multiidioma. Configuraremos `ProblemDetails` para que todos los errores tengan el mismo formato.
-
-### Sesión 4: DataTable server-side
-
-Implementaremos paginación, filtrado y ordenación en servidor con `ClaseCrudUtils`. El frontend usará el componente DataTable UA de Vue.
-
-### Sesión 5: OpenAPI, Scalar y testing
-
-Documentaremos nuestras APIs con OpenAPI + Scalar. Escribiremos tests de integración con `WebApplicationFactory`.
+| Tema | Dónde se aborda |
+| --- | --- |
+| Probar la API desde Vue (`peticion`, `useAxios`, interceptor) y autenticación CAS+JWT | [Sesión 14 — API y autenticación](../../../04-integracion/sesiones/sesion-14-api-autenticacion/) |
+| Validación robusta: `DataAnnotations` → **FluentValidation** + localización | [Sesión 15 — Validación](../../../04-integracion/sesiones/sesion-15-validacion/) |
+| Errores end-to-end: `ProblemDetails`, `HandleResult`, `useGestionFormularios`, toasts | [Sesión 16 — Errores](../../../04-integracion/sesiones/sesion-16-errores/) |
+| DataTable server-side: paginación, filtros y ordenación con `ClaseCrudUtils` | [Sesión 17 — DataTable](../../../04-integracion/sesiones/sesion-17-datatable/) |
+| Tests unitarios xUnit, `OracleTestFixture`, calidad de código | [Sesión 21 — Tests y calidad](../../../05-avanzadas/sesiones/sesion-21-tests-calidad/) |
 
 ---
 
-## Ejercicio Sesión 0
+## Ejercicio Sesión 3
 
 **Objetivo:** Familiarizarse con la estructura del proyecto y la inyección de dependencias.
 
@@ -679,11 +677,11 @@ app.Run();
 
 ## Tests y práctica IA
 
-- [Ver tests y práctica de la sesión](../../test/sesion-0/)
-- [Autoevaluación sesión 0](../../test/sesion-0/autoevaluacion.md)
-- [Preguntas de test sesión 0](../../test/sesion-0/preguntas.md)
-- [Respuestas del test sesión 0](../../test/sesion-0/respuestas.md)
-- [Práctica IA-fix sesión 0](../../test/sesion-0/practica-ia-fix.md)
+- [Ver tests y práctica de la sesión](../../test/sesion-03/)
+- [Autoevaluación sesión 3](../../test/sesion-03/autoevaluacion.md)
+- [Preguntas de test sesión 3](../../test/sesion-03/preguntas.md)
+- [Respuestas del test sesión 3](../../test/sesion-03/respuestas.md)
+- [Práctica IA-fix sesión 3](../../test/sesion-03/practica-ia-fix.md)
 
 ---
 

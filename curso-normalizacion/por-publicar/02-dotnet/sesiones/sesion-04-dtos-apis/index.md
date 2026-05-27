@@ -1410,7 +1410,7 @@ Lo único que necesitas recordar **hoy** para terminar el ejercicio §1.9:
 
 ## 1.9 Ejercicio: API de `Observaciones` de reservas
 
-Vamos a construir una API nueva entera, **desde cero**, replicando el patrón que ya hemos visto en `TipoRecursos`. La parte de base de datos está hecha (tabla, vista, paquete PL/SQL); tú haces los DTOs y el controlador en memoria. La sesión 2 enganchará un servicio real contra Oracle sobre el mismo controlador.
+Vamos a construir una API nueva entera, **desde cero**, replicando el patrón que ya hemos visto en `TipoRecursos`. La parte de base de datos está hecha (tabla, vista, paquete PL/SQL); tú haces los DTOs y el controlador en memoria. La sesión 5 enganchará un servicio real contra Oracle sobre el mismo controlador.
 
 ### 1.9.1 Contexto
 
@@ -1468,7 +1468,7 @@ Estos tres ficheros SQL ya están en el repo, **no los tocas tú**:
 Solo expone **CREAR** y **ELIMINAR**. La lectura se hace desde .NET contra la vista `VRES_OBSERVACION_RESERVA` (no hay procedimiento `OBTENER_TODOS` en PL/SQL). Es el patrón que vamos a defender todo el curso: **las vistas son el "GET" del paquete**.
 :::
 
-### 1.9.3 Lo que tienes que entregar en la sesión 1
+### 1.9.3 Lo que tienes que entregar en la sesión 4
 
 Tres ficheros nuevos en `uaReservas`. Nada de Oracle ni de servicios: solo DTOs y un controlador con datos en memoria.
 
@@ -1490,7 +1490,7 @@ uaReservas/
 - Sus `ErrorMessage` deben ser **claves** del estilo `VALIDACION_TEXTO_ES_REQUERIDO` — la sesión 3 traduce esas claves desde `Resources/SharedResource.{idioma}.resx`.
 
 ::: danger ZONA PELIGROSA — `CodperAutor` NO va en el DTO de entrada
-Aunque la tabla lo tenga, **no lo pongas en `ObservacionReservaCrearDto`**. En la sesión 2 lo rellenará el controlador con `CodPer` (del token). Si lo aceptas en el body, un usuario malicioso podría crear observaciones a nombre de otro.
+Aunque la tabla lo tenga, **no lo pongas en `ObservacionReservaCrearDto`**. En la sesión 5 lo rellenará el controlador con `CodPer` (del token). Si lo aceptas en el body, un usuario malicioso podría crear observaciones a nombre de otro.
 :::
 
 **3. `ObservacionesController.cs`** — tres endpoints:
@@ -1524,7 +1524,7 @@ Abre `Controllers/Apis/TipoRecursosController.cs` en otra pestaña. Tu `Observac
 4. **Home.vue**: el botón **`GET /api/Observaciones (ejercicio)`** ya está cableado. Debe pintar el JSON en la zona de salida sin tocar Vue.
 5. **DevTools → Network**: la URL es `/uareservas/api/Observaciones` y la cookie `X-Access-Token` viaja sola.
 
-### 1.9.5 Qué se cubrirá en la sesión 2 (lo que NO tocas hoy)
+### 1.9.5 Qué se cubrirá en la sesión 5 (lo que NO tocas hoy)
 
 - Crear `IObservacionesServicio` + `ObservacionesServicio` siguiendo el patrón de `TiposRecursoServicio` (§2.3.2 y §2.4.2).
 - El servicio leerá `VRES_OBSERVACION_RESERVA` con `ObtenerTodosMapAsync<T>` y llamará a `PKG_RES_OBSERVACION_RESERVA.CREAR`/`ELIMINAR` con `EjecutarParamsAsync` + `DynamicParameters`.
@@ -1533,7 +1533,7 @@ Abre `Controllers/Apis/TipoRecursosController.cs` en otra pestaña. Tu `Observac
 - Añadir un test xUnit "simulado" del controlador y otro "real" del servicio contra Oracle (con `[SkippableFact]`).
 
 ::: tip BUENA PRÁCTICA — ejercicio acumulativo
-Lo que entregues hoy (DTOs + controlador con datos en memoria) **es el cimiento sobre el que la sesión 2 construirá los servicios y los tests**. Si los DTOs no tienen los nombres adecuados, las cabeceras de respuesta no son consistentes o falta `[Authorize]`, la sesión 2 se complica. Tómate el rato de comparar tus respuestas en Scalar con las de `TipoRecursos`.
+Lo que entregues hoy (DTOs + controlador con datos en memoria) **es el cimiento sobre el que la sesión 5 construirá los servicios y los tests**. Si los DTOs no tienen los nombres adecuados, las cabeceras de respuesta no son consistentes o falta `[Authorize]`, la sesión 5 se complica. Tómate el rato de comparar tus respuestas en Scalar con las de `TipoRecursos`.
 :::
 
 ::: details Solución completa (revísala DESPUÉS de intentarlo)
@@ -1556,7 +1556,7 @@ En tu rama `tiporecurso-<nombre>` reproduce el patrón que has visto en clase:
 - Documenta cada endpoint con XML doc para que Scalar lo recoja.
 - Comprueba con el botón **`GET /api/Observaciones (ejercicio)`** del probador y en Scalar.
 
-En la sesión 2 conectarás el controlador al paquete Oracle real. **No reescribas**: solo cambiarás el servicio.
+En la sesión 5 conectarás el controlador al paquete Oracle real. **No reescribas**: solo cambiarás el servicio.
 
 Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 :::
@@ -1565,11 +1565,11 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 ## Tests y práctica IA
 
-- [Ver tests y práctica de la sesión](../../test/sesion-1/)
-- [Autoevaluación sesión 1](../../test/sesion-1/autoevaluacion.md)
-- [Preguntas de test sesión 1](../../test/sesion-1/preguntas.md)
-- [Respuestas del test sesión 1](../../test/sesion-1/respuestas.md)
-- [Práctica IA-fix sesión 1](../../test/sesion-1/practica-ia-fix.md)
+- [Ver tests y práctica de la sesión](../../test/sesion-04/)
+- [Autoevaluación sesión 4](../../test/sesion-04/autoevaluacion.md)
+- [Preguntas de test sesión 4](../../test/sesion-04/preguntas.md)
+- [Respuestas del test sesión 4](../../test/sesion-04/respuestas.md)
+- [Práctica IA-fix sesión 4](../../test/sesion-04/practica-ia-fix.md)
 
 ---
 
@@ -1579,6 +1579,6 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 | Anterior                                                                                      | Inicio                        | Siguiente                                                                                          |
 | --------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| [← Sesión 3: Introducción a .NET](../../../02-dotnet/sesiones/sesion-03-introduccion-dotnet/) | [Índice del curso](../../../) | [Sesión 8: Servicios y acceso a Oracle →](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/) |
+| [← Sesión 3: Introducción a .NET](../../../02-dotnet/sesiones/sesion-03-introduccion-dotnet/) | [Índice del curso](../../../) | [Sesión 5: Servicios y acceso a Oracle →](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/) |
 
 <!-- NAV:END -->

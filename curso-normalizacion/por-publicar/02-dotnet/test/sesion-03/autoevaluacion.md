@@ -1,4 +1,4 @@
-# Autoevaluación — Sesión 0
+# Autoevaluación — Sesión 3
 
 ## Preguntas rápidas
 

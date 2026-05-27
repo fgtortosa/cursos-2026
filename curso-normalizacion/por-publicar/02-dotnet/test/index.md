@@ -1,50 +1,31 @@
 ---
-title: Material Docente .NET
-description: Tests y prácticas de apoyo por sesion del modulo .NET
+title: Material docente .NET
+description: Tests y prácticas de apoyo por sesión del módulo .NET (sesiones 3 a 5 del temario global).
 outline: [2, 2]
 search: false
 ---
 
-# Test y Práctica (.NET)
+# Tests y práctica IA (.NET)
 
-## Sesion 0
+Material de autoevaluación y práctica de "fix con IA" para las tres sesiones del bloque .NET.
 
-- [Test: autoevaluacion](./sesion-0/autoevaluacion.md)
-- [Test: preguntas](./sesion-0/preguntas.md)
-- [Test: respuestas](./sesion-0/respuestas.md)
-- [Practica IA-fix](./sesion-0/practica-ia-fix.md)
+## Sesión 3 — Introducción a .NET
 
-## Sesion 1
+- [Autoevaluación rápida](./sesion-03/autoevaluacion.md)
+- [Preguntas de test](./sesion-03/preguntas.md)
+- [Respuestas](./sesion-03/respuestas.md)
+- [Práctica IA-fix](./sesion-03/practica-ia-fix.md)
 
-- [Test: autoevaluacion](./sesion-1/autoevaluacion.md)
-- [Test: preguntas](./sesion-1/preguntas.md)
-- [Test: respuestas](./sesion-1/respuestas.md)
-- [Practica IA-fix](./sesion-1/practica-ia-fix.md)
+## Sesión 4 — Modelos y primer API
 
-## Sesion 2
+- [Autoevaluación rápida](./sesion-04/autoevaluacion.md)
+- [Preguntas de test](./sesion-04/preguntas.md)
+- [Respuestas](./sesion-04/respuestas.md)
+- [Práctica IA-fix](./sesion-04/practica-ia-fix.md)
 
-- [Test: autoevaluacion](./sesion-2/autoevaluacion.md)
-- [Test: preguntas](./sesion-2/preguntas.md)
-- [Test: respuestas](./sesion-2/respuestas.md)
-- [Practica IA-fix](./sesion-2/practica-ia-fix.md)
+## Sesión 5 — Servicios y acceso a Oracle
 
-## Sesion 3
-
-- [Test: autoevaluacion](./sesion-3/autoevaluacion.md)
-- [Test: preguntas](./sesion-3/preguntas.md)
-- [Test: respuestas](./sesion-3/respuestas.md)
-- [Practica IA-fix](./sesion-3/practica-ia-fix.md)
-
-## Sesion 4
-
-- [Test: autoevaluacion](./sesion-4/autoevaluacion.md)
-- [Test: preguntas](./sesion-4/preguntas.md)
-- [Test: respuestas](./sesion-4/respuestas.md)
-- [Practica IA-fix](./sesion-4/practica-ia-fix.md)
-
-## Sesion 5
-
-- [Test: autoevaluacion](./sesion-5/autoevaluacion.md)
-- [Test: preguntas](./sesion-5/preguntas.md)
-- [Test: respuestas](./sesion-5/respuestas.md)
-- [Practica IA-fix](./sesion-5/practica-ia-fix.md)
+- [Autoevaluación rápida](./sesion-05/autoevaluacion.md)
+- [Preguntas de test](./sesion-05/preguntas.md)
+- [Respuestas](./sesion-05/respuestas.md)
+- [Práctica IA-fix](./sesion-05/practica-ia-fix.md)

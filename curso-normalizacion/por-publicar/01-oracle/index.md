@@ -29,6 +29,3 @@ Al finalizar este bloque serás capaz de:
 | [Sesión 4](./sesiones/sesion-02-ejercicio-2a-tablas-vistas/)  | Ejercicio: diseño de vistas (`VRES_FRANJA_HORARIO`, `VRES_HORARIO_DIA`)                              |            |
 | [Sesión 5](./sesiones/sesion-02-ejercicio-2b-paquetes/)       | Ejercicio: procedimientos en paquetes (`ACTUALIZAR_BLOQUEADO`, `CREAR_HORARIO_DIA`, `CREAR_RESERVA`) |            |
 
-## Material de apoyo
-
-- [Tests y evaluación](./test/) — Banco de preguntas, autoevaluación y práctica IA-fix por sesión.

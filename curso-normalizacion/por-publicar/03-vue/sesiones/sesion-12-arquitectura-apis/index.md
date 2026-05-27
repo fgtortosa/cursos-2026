@@ -1,15 +1,15 @@
 ---
-title: "Sesión 9: Arquitectura de componentes y servicios"
+title: "Sesión 12: Arquitectura de componentes y servicios"
 description: Composables vs Servicios, arquitectura Vista → Composable → Servicio y herramientas de depuración
 outline: deep
 ---
 
-# Sesión 9: Arquitectura de componentes y servicios
+# Sesión 12: Arquitectura de componentes y servicios
 ::: tip SESIÓN DE INTEGRACIÓN
 Esta sesión se centra en la **arquitectura** (Composables vs Servicios). Los temas de `useAxios`, validación de formularios (`useGestionFormularios`) y estado global (Pinia) se cubren en:
-- **Sesión 11** — Llamadas a la API y autenticación
-- **Sesión 12** — Validación en todas las capas
-- **Sesión 17** — Estado global y persistencia
+- **Sesión 14** — Llamadas a la API y autenticación
+- **Sesión 15** — Validación en todas las capas
+- **Sesión 20** — Estado y persistencia
 :::
 
 <!-- [[toc]] -->
@@ -141,7 +141,7 @@ La **vista** no debe saber **cómo** se piden los datos. El **composable** no de
 
 ### Ejemplo completo: listado de recursos
 
-Es el patrón real que vive en el sandbox (demo `Sesion9ArquitecturaTresCapas.vue`). El servicio todavía es **mock** — en la sesión 11 se reemplaza por la versión con `useAxios` y la vista no cambia.
+Es el patrón real que vive en el sandbox (demo `Sesion9ArquitecturaTresCapas.vue`). El servicio todavía es **mock** — en la sesión 14 se reemplaza por la versión con `useAxios` y la vista no cambia.
 
 **1. Servicio** — habla con la "API" y devuelve DTOs en formato servidor:
 
@@ -826,12 +826,12 @@ En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-9/` hay cinco demos naveg
 | `Sesion9ArquitecturaTresCapas.vue` | Integradora: Vista → `useRecursos` → `recursosServicioMock` con `SpinnerModal` y `useToast` | `sesion-9/Sesion9ArquitecturaTresCapas.vue` + `composables/useRecursos.ts` + `services/recursosServicioMock.ts` |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
-La integradora `Sesion9ArquitecturaTresCapas.vue` es el "estado final" de esta sesión: la vista no sabe de dónde vienen los datos, el composable transforma DTOs PascalCase del servidor a camelCase del cliente, y el servicio aún es mock. Cuando en la sesión 11 sustituyas `recursosServicioMock` por uno con `useAxios`, ni la vista ni el composable se tocan.
+La integradora `Sesion9ArquitecturaTresCapas.vue` es el "estado final" de esta sesión: la vista no sabe de dónde vienen los datos, el composable transforma DTOs PascalCase del servidor a camelCase del cliente, y el servicio aún es mock. Cuando en la sesión 14 sustituyas `recursosServicioMock` por uno con `useAxios`, ni la vista ni el composable se tocan.
 :::
 
 ---
 
-## Ejercicio Sesión 4 {#ejercicio}
+## Ejercicio Sesión 12 {#ejercicio}
 
 ::: info ENUNCIADO
 En esta práctica construirás una funcionalidad real con separación por capas: una vista para mostrar y filtrar datos, un composable para estado reactivo y derivados, y un servicio para llamadas HTTP. El objetivo no es solo que funcione, sino que cada responsabilidad quede en su sitio.
@@ -1007,7 +1007,7 @@ onMounted(() => cargarUnidades())
 ```
 :::
 
-## Test Sesión 4 {#test}
+## Test Sesión 12 {#test}
 
 ### Preguntas (desplegables)
 

@@ -22,19 +22,9 @@ Este espacio queda fuera del sidebar principal del curso. Solo aparece cuando na
   <span class="landing-card__link">Abrir guías de Oracle →</span>
 </a>
 
-<a class="landing-card" href="../02-dotnet/guia-profesor/">
-  <span class="landing-card__eyebrow">Bloque 2</span>
-  <strong class="landing-card__title">.NET</strong>
-  <span class="landing-card__description">Guías de impartición y material de referencia de las sesiones .NET: introducción, modelos, servicios con Oracle, validación y errores, DataTable server-side, OpenAPI y pruebas.</span>
-  <span class="landing-card__link">Abrir guías de .NET →</span>
-</a>
-
-<a class="landing-card" href="../03-vue/guia-profesor/">
-  <span class="landing-card__eyebrow">Bloque 3</span>
-  <strong class="landing-card__title">Vue</strong>
-  <span class="landing-card__description">Guías de impartición de las sesiones Vue: fundamentos de Vue 3 y TypeScript, directivas, componentes, comunicación, arquitectura y servicios.</span>
-  <span class="landing-card__link">Abrir guías de Vue →</span>
-</a>
+::: info PENDIENTE
+Las guías de profesor para los bloques **.NET (sesiones 3–5)** y **Vue (sesiones 9–13)** aún no están redactadas. El material del alumnado sí está publicado en [`02-dotnet/sesiones/`](../../por-publicar/02-dotnet/sesiones/) y [`03-vue/sesiones/`](../../por-publicar/03-vue/sesiones/). Las notas docentes se incorporarán aquí a medida que las sesiones se vayan estabilizando.
+:::
 
 ## Coordinación
 

@@ -1,20 +1,17 @@
 ---
-title: Tests
-description: Indice de contenidos de Tests.
+title: "Sesión 5 — Tests y práctica IA"
+description: Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 5 (Servicios y acceso a Oracle).
 outline: [2, 2]
+search: false
 ---
 
-# Tests
+# Sesión 5 — Tests y práctica IA
 
-Indice generado automaticamente para navegar por esta carpeta.
-
-<!-- AUTO-GENERATED:START -->
+Material de evaluación de la [Sesión 5: Servicios y acceso a Oracle](../../sesiones/sesion-05-servicios-oracle/).
 
 ## Contenido
 
-- [Autoevaluación — Sesión 2](/cursos/curso-2026/curso/dotnet/sesion-2/tests/autoevaluacion)
-- [Práctica IA-fix — Sesión 2](/cursos/curso-2026/curso/dotnet/sesion-2/tests/practica-ia-fix)
-- [Test de autoevaluacion -- Sesion 2: Servicios y Oracle](/cursos/curso-2026/curso/dotnet/sesion-2/tests/preguntas)
-- [Respuestas -- Test Sesion 2: Servicios y Oracle](/cursos/curso-2026/curso/dotnet/sesion-2/tests/respuestas)
-
-<!-- AUTO-GENERATED:END -->
+- [Autoevaluación rápida](./autoevaluacion.md) — 5 preguntas de 10 minutos para cerrar la clase.
+- [Preguntas de test](./preguntas.md) — banco extenso de preguntas tipo test.
+- [Respuestas](./respuestas.md) — solucionario razonado del banco anterior.
+- [Práctica IA-fix](./practica-ia-fix.md) — código con errores para que la IA lo corrija siguiendo los patrones del curso.

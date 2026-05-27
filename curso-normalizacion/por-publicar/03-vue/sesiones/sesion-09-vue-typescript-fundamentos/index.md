@@ -1,10 +1,10 @@
 ---
-title: "Sesión 6: Vue 3, TypeScript y tu primer componente"
+title: "Sesión 9: Vue 3, TypeScript y tu primer componente"
 description: Fundamentos de Vue 3 con Composition API, TypeScript básico, reactividad e interpolación
 outline: deep
 ---
 
-# Sesión 6: Vue 3, TypeScript y tu primer componente
+# Sesión 9: Vue 3, TypeScript y tu primer componente
 <!-- [[toc]] -->
 
 ::: info CONTEXTO
@@ -30,7 +30,7 @@ Los temas de `useAxios`, validación y Pinia se cubren en las sesiones de **Inte
 | **Teoría guiada** | 45 min | 1.1 a 1.6 (fundamentos, TS, reactividad, interpolación y depuración básica) |
 | **Práctica en aula** | 25 min | Ejercicio de tarjeta personal + revisión en directo |
 | **Test de sesión** | 15 min | Preguntas rápidas en formato desplegable y corrección grupal |
-| **Cierre** | 5 min | Dudas, errores frecuentes y preparación de la sesión 2 |
+| **Cierre** | 5 min | Dudas, errores frecuentes y preparación de la sesión 10 |
 
 ::: tip ENFOQUE DIDÁCTICO
 Con 90 minutos buscamos no solo explicar sintaxis, sino también consolidar hábitos: leer errores, comprobar tipos y validar que cada alumno pueda crear y entender un componente básico sin ayuda.
@@ -218,7 +218,7 @@ config.timeout = 7000       // ✅ permitido
 // config.apiBase = '/v2'   // ❌ error (readonly)
 ```
 
-En sesión 1 basta con recordar:
+En esta sesión basta con recordar:
 
 - `as const` fija literales.
 - `readonly` protege propiedades que no deberían modificarse.
@@ -705,21 +705,25 @@ Abre cada fichero en VS Code, lee el `<script setup>` y luego el `<template>`. M
 
 ## 1.8 Lo que viene en las próximas sesiones {#preview}
 
-### Sesión 2: Datos e interactividad
+### Sesión 10: Directivas, eventos y datos
 
 Aprenderemos a definir contratos de datos con **interfaces**, a escribir **funciones tipadas** y a construir interfaces interactivas con `v-if`, `v-for`, `v-bind`, `v-model` y eventos. También veremos los métodos de arrays (`.map()`, `.filter()`, `.find()`, `.reduce()`) que usaremos constantemente.
 
-### Sesión 3: Componentes, comunicación y estado derivado
+### Sesión 11: Componentes, comunicación y estado derivado
 
 Crearemos componentes reutilizables y aprenderemos a pasar datos entre ellos con Props, Emits y `defineModel`. Implementaremos `computed`, `watch` y `onMounted` para construir componentes más completos.
 
-### Sesión 4: Arquitectura profesional, APIs y flujo de trabajo
+### Sesión 12: Arquitectura profesional, APIs y flujo de trabajo
 
 Estructuraremos nuestra aplicación con el patrón Vista → Composable → Servicio. Consumiremos APIs REST con `useAxios` y validaremos formularios con `useGestionFormularios`.
 
+### Sesión 13: Otros componentes UA
+
+Veremos los componentes de la librería `vueua-lib` (modales, toasts, `BotonLoading`, checkbox triestado, Teleport) que estandarizan el aspecto y comportamiento de las apps internas de la UA.
+
 ---
 
-## Ejercicio Sesión 1 {#ejercicio}
+## Ejercicio Sesión 9 {#ejercicio}
 
 ::: info ENUNCIADO
 Acabas de incorporarte a un proyecto Vue y tu primera tarea es crear una tarjeta de presentación de un miembro del equipo. El objetivo no es el diseño visual, sino demostrar que sabes declarar estado reactivo con `ref` y pintarlo correctamente en el template con interpolación y expresiones simples.
@@ -742,7 +746,7 @@ Crea un componente `TarjetaPresentacion.vue` con:
    - Un mensaje con ternario: <code v-pre>{{ edad >= 50 ? '¡Veterano!' : '¡Joven aún!' }}</code>
 
 ::: tip PISTA DIDÁCTICA
-En esta sesión todavía **no** usamos interfaces. Primero asentamos `ref`, `.value` e interpolación. Los contratos de datos llegarán en la sesión 2.
+En esta sesión todavía **no** usamos interfaces. Primero asentamos `ref`, `.value` e interpolación. Los contratos de datos llegarán en la sesión 10.
 :::
 
 ::: details Solución
@@ -780,7 +784,7 @@ const activo = ref<boolean>(true)
 ```
 :::
 
-## Test Sesión 1 {#test}
+## Test Sesión 9 {#test}
 
 ### Preguntas (desplegables)
 
@@ -922,5 +926,5 @@ const activo = ref<boolean>(true)
 <!-- NAV:START -->
 | Anterior | Inicio | Siguiente |
 |---|---|---|
-| [← Sesión 8: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 10: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-10-directivas-eventos/) |
+| [← Sesión 5: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 10: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-10-directivas-eventos/) |
 <!-- NAV:END -->

@@ -37,6 +37,3 @@ p_codigo_error ──────────► ProblemDetails (RFC 7807) ─�
 LISTAR paginado ─────────► ClaseCrudUtils ───────────────► vueua-datatable
 ```
 
-## Material de apoyo
-
-- [Tests y evaluación](./test/) — Banco de preguntas, autoevaluación y práctica IA-fix por sesión.
