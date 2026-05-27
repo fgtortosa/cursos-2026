@@ -56,8 +56,8 @@ p {
 | 1   | `var contador` en lugar de `const` para una referencia reactiva | Cambiar a `const contador = ref<number>(0)`. Las referencias reactivas se declaran con `const`; no se reasigna la referencia sino su `.value`.      |
 | 2   | Tipo `any` en `ref<any>`                                        | Cambiar a `ref<string>("Ana García")`. El tipo debe ser el real; `any` desactiva todas las comprobaciones de TypeScript.                            |
 | 3   | `contador++` en el script sin `.value`                          | Cambiar a `contador.value++`. Sin `.value`, se intenta incrementar el objeto `RefImpl` entero, no su valor numérico interno.                        |
-| 4   | `nombre.value` en el template                                   | Cambiar a `{{ nombre }}`. Vue desempaqueta los `ref` automáticamente en el template; añadir `.value` hace que Vue intente acceder a `.value.value`. |
-| 5   | Sentencia `if` dentro de `{{ }}`                                | Cambiar a una expresión ternaria: `{{ contador > 0 ? 'Positivo' : 'Cero' }}`. El template solo acepta expresiones, no sentencias.                   |
+| 4   | `nombre.value` en el template                                   | Cambiar a <code v-pre>{{ nombre }}</code>. Vue desempaqueta los `ref` automáticamente en el template; añadir `.value` hace que Vue intente acceder a `.value.value`. |
+| 5   | Sentencia `if` dentro de <code v-pre>{{ }}</code>                                | Cambiar a una expresión ternaria: <code v-pre>{{ contador > 0 ? 'Positivo' : 'Cero' }}</code>. El template solo acepta expresiones, no sentencias.                   |
 
 ## Solución de referencia
 

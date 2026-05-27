@@ -12,6 +12,4 @@ Material de evaluación de la [Sesión 8: Servicios y acceso a Oracle](../../ses
 ## Contenido
 
 - [Autoevaluación rápida](./autoevaluacion.md) — 5 preguntas de 10 minutos para cerrar la clase.
-- [Preguntas de test](./preguntas.md) — banco extenso de preguntas tipo test.
-- [Respuestas](./respuestas.md) — solucionario razonado del banco anterior.
 - [Práctica IA-fix](./practica-ia-fix.md) — código con errores para que la IA lo corrija siguiendo los patrones del curso.

@@ -679,8 +679,6 @@ app.Run();
 
 - [Ver tests y práctica de la sesión](../../test/sesion-03/)
 - [Autoevaluación sesión 3](../../test/sesion-03/autoevaluacion.md)
-- [Preguntas de test sesión 3](../../test/sesion-03/preguntas.md)
-- [Respuestas del test sesión 3](../../test/sesion-03/respuestas.md)
 - [Práctica IA-fix sesión 3](../../test/sesion-03/practica-ia-fix.md)
 
 ---

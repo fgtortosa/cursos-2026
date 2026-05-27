@@ -1565,10 +1565,7 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 ## Tests y práctica IA
 
-- [Ver tests y práctica de la sesión](../../test/sesion-04/)
 - [Autoevaluación sesión 4](../../test/sesion-04/autoevaluacion.md)
-- [Preguntas de test sesión 4](../../test/sesion-04/preguntas.md)
-- [Respuestas del test sesión 4](../../test/sesion-04/respuestas.md)
 - [Práctica IA-fix sesión 4](../../test/sesion-04/practica-ia-fix.md)
 
 ---

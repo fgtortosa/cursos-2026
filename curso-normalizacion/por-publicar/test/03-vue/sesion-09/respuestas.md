@@ -9,7 +9,7 @@ search: false
 
 1. **c)** Tres bloques: `<script>`, `<template>` y `<style>`. El bloque `<script setup lang="ts">` contiene la lógica TypeScript; `<template>` el HTML con directivas Vue; `<style scoped>` el CSS encapsulado al componente. No existe un bloque `<router>` en los ficheros `.vue`.
 
-2. **b)** `{{ mensaje }}`. Las llaves dobles son la forma principal de interpolación en Vue. La opción d) es técnicamente válida (`v-text` existe), pero es la forma secundaria y no la que se enseña como estándar en la sesión.
+2. **b)** <code v-pre>{{ mensaje }}</code>. Las llaves dobles son la forma principal de interpolación en Vue. La opción d) es técnicamente válida (`v-text` existe), pero es la forma secundaria y no la que se enseña como estándar en la sesión.
 
 3. **c)** Limita los estilos al componente actual. Vue añade un atributo único al HTML generado y en los selectores CSS para que los estilos no "escapen" al resto del árbol. Sin `scoped`, un `.btn { color: red }` afectaría a todos los botones de la app.
 
@@ -23,7 +23,7 @@ search: false
 
 8. **b)** Accedes al objeto `RefImpl`, no al valor. Un `ref` es un objeto envoltorio con una propiedad `.value` que Vue observa. Si escribes `contador` en el script sin `.value`, estás refiriéndote al envoltorio entero. En el template Vue aplica el desempaquetado automáticamente, por eso allí no hace falta `.value`.
 
-9. **c)** El operador ternario `activo ? 'Activo' : 'Inactivo'`. El template de Vue solo acepta **expresiones** (código que se evalúa y produce un valor). Las sentencias `if`, `for` y las asignaciones (`x = ...`) no están permitidas dentro de `{{ }}`; para lógica condicional o iteración en el template se usan las directivas `v-if` y `v-for` (sesión 10).
+9. **c)** El operador ternario `activo ? 'Activo' : 'Inactivo'`. El template de Vue solo acepta **expresiones** (código que se evalúa y produce un valor). Las sentencias `if`, `for` y las asignaciones (`x = ...`) no están permitidas dentro de <code v-pre>{{ }}</code>; para lógica condicional o iteración en el template se usan las directivas `v-if` y `v-for` (sesión 10).
 
 10. **b)** Con `unknown` TypeScript te obliga a comprobar el tipo antes de operar. Ambos tipos aceptan cualquier valor, pero `unknown` es seguro: `dato.toUpperCase()` con tipo `unknown` da error de compilación hasta que compruebes `typeof dato === "string"`. La opción d) es falsa; la diferencia es sustancial y ambos existen en TypeScript desde hace años.
 

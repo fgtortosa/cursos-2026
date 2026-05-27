@@ -36,7 +36,7 @@ d) Cuatro (`<script>`, `<template>`, `<style>` y `<router>`)
 
 a) `@mensaje`
 
-b) `{{ mensaje }}`
+b) <code v-pre>{{ mensaje }}</code>
 
 c) `[mensaje]`
 
@@ -116,15 +116,15 @@ d) La variable devuelve `undefined` porque sin `.value` el ref no existe
 
 ## Pregunta 9
 
-¿Cuál de las siguientes expresiones es válida dentro de `{{ }}` en el template?
+¿Cuál de las siguientes expresiones es válida dentro de <code v-pre>{{ }}</code> en el template?
 
-a) `{{ if (activo) { return 'Sí' } }}`
+a) <code v-pre>{{ if (activo) { return 'Sí' } }}</code>
 
-b) `{{ for (let i of items) { ... } }}`
+b) <code v-pre>{{ for (let i of items) { ... } }}</code>
 
-c) `{{ activo ? 'Activo' : 'Inactivo' }}`
+c) <code v-pre>{{ activo ? 'Activo' : 'Inactivo' }}</code>
 
-d) `{{ x = nombre + ' García' }}`
+d) <code v-pre>{{ x = nombre + ' García' }}</code>
 
 ## Pregunta 10
 

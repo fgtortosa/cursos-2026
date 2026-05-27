@@ -191,11 +191,11 @@ export const generatedSidebar = {
           "link": "/curso-normalizacion/00-preparacion/"
         },
         {
-          "text": "Parte Oracle — Sesiones 1 a 2",
+          "text": "Parte Oracle — Sesiones 1 a 5",
           "link": "/curso-normalizacion/01-oracle/"
         },
         {
-          "text": "Parte .NET Core 10 — Sesiones 3 a 5",
+          "text": "Parte .NET Core 10 — Sesiones 6 a 8",
           "link": "/curso-normalizacion/02-dotnet/"
         },
         {
@@ -213,6 +213,10 @@ export const generatedSidebar = {
         {
           "text": "Proyecto final del curso",
           "link": "/curso-normalizacion/06-proyecto-final/"
+        },
+        {
+          "text": "Tests y evaluación",
+          "link": "/curso-normalizacion/test/"
         },
         {
           "text": "Organización del curso",
