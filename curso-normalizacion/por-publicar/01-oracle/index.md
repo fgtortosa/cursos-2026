@@ -28,4 +28,3 @@ Al finalizar este bloque serás capaz de:
 | [Sesión 3](./sesiones/sesion-02-docencia-tablas-vistas/)      | Tablas, vistas y paquetes                                                                            | 1 h 30 min |
 | [Sesión 4](./sesiones/sesion-02-ejercicio-2a-tablas-vistas/)  | Ejercicio: diseño de vistas (`VRES_FRANJA_HORARIO`, `VRES_HORARIO_DIA`)                              |            |
 | [Sesión 5](./sesiones/sesion-02-ejercicio-2b-paquetes/)       | Ejercicio: procedimientos en paquetes (`ACTUALIZAR_BLOQUEADO`, `CREAR_HORARIO_DIA`, `CREAR_RESERVA`) |            |
-

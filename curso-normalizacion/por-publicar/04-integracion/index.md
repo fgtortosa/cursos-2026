@@ -12,19 +12,20 @@ Esta sección cubre las **sesiones 14 a 17** del curso. Cada sesión trata un te
 
 ::: warning IMPORTANTE
 Estas sesiones asumen que se han completado las partes anteriores:
+
 - [Parte Oracle](../01-oracle/) (sesiones 1-5).
 - [Parte .NET](../02-dotnet/) (sesiones 6-8).
 - [Parte Vue](../03-vue/) (sesiones 9-13).
-:::
+  :::
 
 ## Sesiones de este bloque
 
-| Sesión | Título | Duración |
-|--------|--------|----------|
-| [Sesión 14: Llamadas a la API y autenticación](./sesiones/sesion-14-api-autenticacion/) | Cómo Vue habla con .NET, CAS/JWT, OpenAPI y Scalar | 1 h 30 min |
-| [Sesión 15: Validación en todas las capas](./sesiones/sesion-15-validacion/) | DataAnnotations, FluentValidation, ModelState y errores en Vue | 1 h 30 min |
-| [Sesión 16: Gestión de errores de extremo a extremo](./sesiones/sesion-16-errores/) | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts y modales | 1 h 30 min |
-| [Sesión 17: DataTable de extremo a extremo](./sesiones/sesion-17-datatable/) | `ClaseCrudUtils` en .NET + `@vueua/components` DataTable en Vue | 1 h 30 min |
+| Sesión                                                                                  | Título                                                               | Duración   |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------- |
+| [Sesión 14: Llamadas a la API y autenticación](./sesiones/sesion-14-api-autenticacion/) | Cómo Vue habla con .NET, CAS/JWT, OpenAPI y Scalar                   | 1 h 30 min |
+| [Sesión 15: Validación en todas las capas](./sesiones/sesion-15-validacion/)            | DataAnnotations, FluentValidation, ModelState y errores en Vue       | 1 h 30 min |
+| [Sesión 16: Gestión de errores de extremo a extremo](./sesiones/sesion-16-errores/)     | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts y modales | 1 h 30 min |
+| [Sesión 17: DataTable de extremo a extremo](./sesiones/sesion-17-datatable/)            | `ClaseCrudUtils` en .NET + `@vueua/components` DataTable en Vue      | 1 h 30 min |
 
 ## Flujo de integración
 
@@ -36,4 +37,3 @@ Paquetes CRUD  ──────────► Servicios + Result<T> ───
 p_codigo_error ──────────► ProblemDetails (RFC 7807) ────► Toasts / Errores form
 LISTAR paginado ─────────► ClaseCrudUtils ───────────────► vueua-datatable
 ```
-

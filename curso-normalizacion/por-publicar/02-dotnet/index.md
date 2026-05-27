@@ -57,4 +57,3 @@ Los temas de validación avanzada, gestión de errores global, DataTable y consu
 ::: info CONTEXTO — ejercicio transversal de sesiones 7 y 8
 Durante estas dos sesiones el alumno trabajará sobre una entidad nueva, **`TRES_OBSERVACION_RESERVA`** (observaciones asociadas a una reserva, con texto multiidioma + `CODPER_AUTOR`). El SQL completo (tabla, vista `VRES_OBSERVACION_RESERVA` y paquete `PKG_RES_OBSERVACION_RESERVA` con `CREAR` y `ELIMINAR` por `ACTIVO='N'`) **se entrega ya hecho**. La sesión 7 pide que el alumno cree DTOs y la API que devuelva 200 OK con datos hardcodeados; la sesión 8 pide que conecte el servicio al paquete y escriba un test simulado.
 :::
-

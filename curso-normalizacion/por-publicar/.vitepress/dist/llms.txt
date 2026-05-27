@@ -1,0 +1,194 @@
+# Curso Normalización
+
+> Material del curso de normalización de aplicaciones — 25 sesiones de Oracle, .NET y Vue.
+
+## Table of Contents
+
+### Configuración del entorno de desarrollo en Windows
+
+- [Configuración del entorno de desarrollo en Windows](/curso-normalizacion/00-preparacion.md): Guía de configuración de Git, SSH, npm, NuGet y herramientas para desarrolladores del Servicio de Informática de la UA.
+
+### Parte Oracle — Sesiones 1 a 2
+
+- [Parte Oracle — Sesiones 1 a 2](/curso-normalizacion/01-oracle.md): Bloque de base de datos Oracle del curso de normalización. Arquitectura ADM/WEB, convenciones, tipos, diseño de tablas, vistas orientadas a WEB y paquetes CRUD completos.
+
+#### sesiones
+
+- [Sesión 1 — Fundamentos Oracle](/01-oracle/sesiones/sesion-01-docencia-fundamentos-oracle.md): Arquitectura de dos esquemas ADM/WEB, convenciones de nombres en Oracle, restricciones CHECK en Oracle 19, control de acceso con grants y traducción de tipos Oracle a .NET.
+- [Ejercicio sesión 1 — Inspección del schema y diseño de un catálogo](/01-oracle/sesiones/sesion-01-ejercicio-fundamentos.md): Ejercicio práctico de la sesión 1. Inspección del schema CURSONORMADM, análisis de conversiones de tipos, verificación de grants y diseño de un catálogo simple aplicando convenciones, IDENTITY y restricciones CHECK.
+- [Sesión 2 — Tablas, vistas y paquetes](/01-oracle/sesiones/sesion-02-docencia-tablas-vistas.md): Diseño completo del ciclo TRES_TIPO_RECURSO → VRES_TIPO_RECURSO → PKG_RES_TIPO_RECURSO sobre el schema real CURSONORMADM. Edición a través de la vista (DML directo en vistas key-preserved), CRUD por package con OUT P_CODIGO_ERROR/P_MENSAJE_ERROR y gestión de errores normalizada.
+- [Ejercicio sesión 2A — Diseño de vistas](/01-oracle/sesiones/sesion-02-ejercicio-2a-tablas-vistas.md): Ejercicio entre la sesión 2 de Oracle y la primera sesión de .NET. Diseñar VRES_HORARIO_DIA y VRES_FRANJA_HORARIO razonando alias, JOINs, filtros y documentación, y compararlas con las vistas reales del schema.
+- [Ejercicio sesión 2B — Procedimientos en paquetes](/01-oracle/sesiones/sesion-02-ejercicio-2b-paquetes.md): Ejercicio práctico de PL/SQL. Implementar ACTUALIZAR_BLOQUEADO, CREAR de horario por día y CREAR de reserva, apoyándose en validaciones reutilizables (VALIDAR_TEXTO, VALIDAR_ID_POSITIVO, VALIDAR_FLAG, VALIDAR_FECHAS).
+
+#### test
+
+- [Tests sesión 1](/01-oracle/test/sesion-01.md): Material de evaluación de la sesión 1 del curso de normalización.
+- [Tests sesión 2](/01-oracle/test/sesion-02.md): Material de evaluación de la sesión 2 del curso de normalización.
+- [Tests sesión 3](/01-oracle/test/sesion-03.md): Material de evaluación de la sesión 3 del curso de normalización.
+- [Tests sesión 4](/01-oracle/test/sesion-04.md): Material de evaluación de la sesión 4 del curso de normalización.
+- [Tests sesión 5](/01-oracle/test/sesion-05.md): Material de evaluación de la sesión 5 del curso de normalización.
+
+### Parte .NET Core 10 — Sesiones 3 a 5
+
+- [Parte .NET Core 10 — Sesiones 3 a 5](/curso-normalizacion/02-dotnet.md): Fundamentos de .NET Core 10 para el curso de normalización (sesiones 3 a 5 del temario global).
+
+#### sesiones
+
+- [Sesión 3: Introducción a .NET y conceptos previos](/02-dotnet/sesiones/sesion-03-introduccion-dotnet.md): Fundamentos de .NET 10, inyección de dependencias, estructura de Program.cs y anatomía de un proyecto ASP.NET Core con SPA Vue
+- [Sesión 4: Modelos y primer API](/02-dotnet/sesiones/sesion-04-dtos-apis.md): DTOs, controladores API REST, verbos HTTP, status codes, documentación Scalar y prueba sin BD desde Chrome
+- [Sesión 5: Servicios y acceso a Oracle](/02-dotnet/sesiones/sesion-05-servicios-oracle.md): Arquitectura de capas, Result<T>, ClaseOracleBD3, llamada a paquetes PL/SQL desde .NET y primer test xUnit
+
+#### Material docente .NET
+
+- [Material docente .NET](/02-dotnet/test.md): Tests y prácticas de apoyo por sesión del módulo .NET (sesiones 3 a 5 del temario global).
+- [Sesión 3 — Tests y práctica IA](/02-dotnet/test/sesion-03.md): Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 3 (Introducción a .NET).
+- [Sesión 4 — Tests y práctica IA](/02-dotnet/test/sesion-04.md): Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 4 (Modelos y primer API).
+- [Sesión 5 — Tests y práctica IA](/02-dotnet/test/sesion-05.md): Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 5 (Servicios y acceso a Oracle).
+
+### Parte Vue 3 con TypeScript — Sesiones 9 a 13
+
+- [Parte Vue 3 con TypeScript — Sesiones 9 a 13](/curso-normalizacion/03-vue.md): Fundamentos de Vue 3 con TypeScript para el curso de normalización (sesiones 9 a 13 del temario global).
+
+#### sesiones
+
+- [Sesión 9: Vue 3, TypeScript y tu primer componente](/03-vue/sesiones/sesion-09-vue-typescript-fundamentos.md): Fundamentos de Vue 3 con Composition API, TypeScript básico, reactividad e interpolación
+- [Sesión 10: Directivas, eventos y datos](/03-vue/sesiones/sesion-10-directivas-eventos.md): Interfaces TypeScript, funciones tipadas, directivas de Vue, eventos del DOM y métodos de arrays para trabajar con datos
+- [Sesión 11: Componentes y comunicación](/03-vue/sesiones/sesion-11-componentes-estado.md): Computed, Props, Emits, defineModel, watch, onMounted y slots para construir componentes reutilizables
+- [Sesión 12: Arquitectura de componentes y servicios](/03-vue/sesiones/sesion-12-arquitectura-apis.md): Composables vs Servicios, arquitectura Vista → Composable → Servicio y herramientas de depuración
+- [Sesión 13: Otros componentes internos](/03-vue/sesiones/sesion-13-componentes-ua.md): Componentes vueua de la Universidad de Alicante — modales, toasts, BotonLoading, Checkbox triestado y Teleport
+
+### Integración full-stack — Sesiones 14 a 17
+
+- [Integración full-stack — Sesiones 14 a 17](/curso-normalizacion/04-integracion.md): Sesiones de integración donde cada tema se cubre de extremo a extremo (Oracle → .NET → Vue).
+
+#### sesiones
+
+- [Sesión 11: Llamadas a la API y autenticación](/04-integracion/sesiones/sesion-14-api-autenticacion.md): Autenticación CAS/JWT, peticion y HttpApi, interceptores de axios, estados de carga reactivos y OpenAPI/Scalar.
+- [Sesión 12: Validación en todas las capas](/04-integracion/sesiones/sesion-15-validacion.md): Del modelo "excepciones + middleware" al modelo "Result<T> + HandleResult". DataAnnotations, FluentValidation, ValidationProblemDetails y useGestionFormularios.
+- [Sesión 13: Gestión de errores de extremo a extremo](/04-integracion/sesiones/sesion-16-errores.md): El viaje del error desde Oracle hasta el toast. Result<T>, ProblemDetails, excepciones UA, ErrorHandlerMiddleware y notificación por correo.
+- [Sesión 14: DataTable de extremo a extremo](/04-integracion/sesiones/sesion-17-datatable.md): DataTable server-side con ClaseCrudUtils en .NET y vueua-datatable en Vue — paginación, filtros y ordenación
+
+#### test
+
+- [Tests sesión 14](/04-integracion/test/sesion-14.md): Material de evaluación de la sesión 14 del curso de normalización.
+- [Tests sesión 15](/04-integracion/test/sesion-15.md): Material de evaluación de la sesión 15 del curso de normalización.
+- [Tests sesión 16](/04-integracion/test/sesion-16.md): Material de evaluación de la sesión 16 del curso de normalización.
+- [Tests sesión 17](/04-integracion/test/sesion-17.md): Material de evaluación de la sesión 17 del curso de normalización.
+
+### Sesiones avanzadas — Sesiones 18 a 25
+
+- [Sesiones avanzadas — Sesiones 18 a 25](/curso-normalizacion/05-avanzadas.md): Temas especializados del curso de normalización — i18n, seguridad, estado, tests, ficheros, logs, accesibilidad y Copilot.
+
+#### sesiones
+
+- [Sesión 15: Internacionalización](/05-avanzadas/sesiones/sesion-18-internacionalizacion.md): Archivos de traducción con vue-i18n, localización de mensajes .resx en .NET y extensión i18n Ally
+- [Sesión 16: Seguridad, menús y perfiles de aplicación](/05-avanzadas/sesiones/sesion-19-seguridad-menus.md): Autorización basada en roles y políticas, menú dinámico, layout y protección de rutas
+- [Sesión 17: Estado global y persistencia](/05-avanzadas/sesiones/sesion-20-estado-persistencia.md): Pinia stores, localStorage, sessionStorage, cookies y provide/inject para dependencias transversales
+- [Sesión 21: Tests y calidad de código](/05-avanzadas/sesiones/sesion-21-tests-calidad.md): Tests unitarios con xUnit (controlador + servicio), tests reales contra Oracle con SkippableFact e IClassFixture, tests de integración con WebApplicationFactory, httpRepl, ActionFilters y naming JSON
+- [Sesión 19: Trabajo con ficheros](/05-avanzadas/sesiones/sesion-22-ficheros.md): Subida y descarga de ficheros desde Vue a .NET, almacenamiento en Oracle BLOB y disco, validaciones
+- [Sesión 20: Logs y diagnóstico](/05-avanzadas/sesiones/sesion-23-logs-diagnostico.md): Logging estructurado con Serilog, sinks Console/Oracle/File/Email, enriquecimiento y VS Code como IDE
+- [Sesión 21: Accesibilidad y cumplimiento normativo](/05-avanzadas/sesiones/sesion-24-accesibilidad-ens.md): WCAG 2.1 nivel AA, herramientas de auditoría, accesibilidad en Vue, ENS, documentación y CAU
+- [Sesión 22: Copilot y organización del proyecto](/05-avanzadas/sesiones/sesion-25-copilot-organizacion.md): Copilot en modo agente, prompts efectivos, revisión de código generado, organización del repositorio y retrospectiva
+
+#### test
+
+- [Tests sesión 18](/05-avanzadas/test/sesion-18.md): Material de evaluación de la sesión 18 del curso de normalización.
+- [Tests sesión 19](/05-avanzadas/test/sesion-19.md): Material de evaluación de la sesión 19 del curso de normalización.
+- [Tests sesión 20](/05-avanzadas/test/sesion-20.md): Material de evaluación de la sesión 20 del curso de normalización.
+- [Tests sesión 21](/05-avanzadas/test/sesion-21.md): Material de evaluación de la sesión 21 del curso de normalización.
+- [Tests sesión 22](/05-avanzadas/test/sesion-22.md): Material de evaluación de la sesión 22 del curso de normalización.
+- [Tests sesión 23](/05-avanzadas/test/sesion-23.md): Material de evaluación de la sesión 23 del curso de normalización.
+- [Tests sesión 24](/05-avanzadas/test/sesion-24.md): Material de evaluación de la sesión 24 del curso de normalización.
+- [Tests sesión 25](/05-avanzadas/test/sesion-25.md): Material de evaluación de la sesión 25 del curso de normalización.
+
+### Proyecto final del curso
+
+- [Proyecto final del curso](/curso-normalizacion/06-proyecto-final.md): Aplicación de reservas construida en cuatro módulos progresivos (Tipo de recurso, Recurso, Horario, Reserva) que el alumno desarrolla a lo largo de las 22 sesiones.
+
+### Other
+
+- [Autoevaluación — Sesión 3](/curso-normalizacion/02-dotnet/test/sesion-03/autoevaluacion.md)
+- [Autoevaluación — Sesión 4](/curso-normalizacion/02-dotnet/test/sesion-04/autoevaluacion.md)
+- [Autoevaluación — Sesión 5](/curso-normalizacion/02-dotnet/test/sesion-05/autoevaluacion.md)
+- [Autoevaluación sesión 1](/curso-normalizacion/01-oracle/test/sesion-01/autoevaluacion.md): Guía de autoevaluación de la sesión 1.
+- [Autoevaluación sesión 14](/curso-normalizacion/04-integracion/test/sesion-14/autoevaluacion.md): Guía de autoevaluación de la sesión 14.
+- [Autoevaluación sesión 15](/curso-normalizacion/04-integracion/test/sesion-15/autoevaluacion.md): Guía de autoevaluación de la sesión 15.
+- [Autoevaluación sesión 16](/curso-normalizacion/04-integracion/test/sesion-16/autoevaluacion.md): Guía de autoevaluación de la sesión 16.
+- [Autoevaluación sesión 17](/curso-normalizacion/04-integracion/test/sesion-17/autoevaluacion.md): Guía de autoevaluación de la sesión 17.
+- [Autoevaluación sesión 18](/curso-normalizacion/05-avanzadas/test/sesion-18/autoevaluacion.md): Guía de autoevaluación de la sesión 18.
+- [Autoevaluación sesión 19](/curso-normalizacion/05-avanzadas/test/sesion-19/autoevaluacion.md): Guía de autoevaluación de la sesión 19.
+- [Autoevaluación sesión 2](/curso-normalizacion/01-oracle/test/sesion-02/autoevaluacion.md): Guía de autoevaluación de la sesión 2.
+- [Autoevaluación sesión 20](/curso-normalizacion/05-avanzadas/test/sesion-20/autoevaluacion.md): Guía de autoevaluación de la sesión 20.
+- [Autoevaluación sesión 21](/curso-normalizacion/05-avanzadas/test/sesion-21/autoevaluacion.md): Guía de autoevaluación de la sesión 21.
+- [Autoevaluación sesión 22](/curso-normalizacion/05-avanzadas/test/sesion-22/autoevaluacion.md): Guía de autoevaluación de la sesión 22.
+- [Autoevaluación sesión 23](/curso-normalizacion/05-avanzadas/test/sesion-23/autoevaluacion.md): Guía de autoevaluación de la sesión 23.
+- [Autoevaluación sesión 24](/curso-normalizacion/05-avanzadas/test/sesion-24/autoevaluacion.md): Guía de autoevaluación de la sesión 24.
+- [Autoevaluación sesión 25](/curso-normalizacion/05-avanzadas/test/sesion-25/autoevaluacion.md): Guía de autoevaluación de la sesión 25.
+- [Autoevaluación sesión 3](/curso-normalizacion/01-oracle/test/sesion-03/autoevaluacion.md): Guía de autoevaluación de la sesión 3.
+- [Autoevaluación sesión 4](/curso-normalizacion/01-oracle/test/sesion-04/autoevaluacion.md): Guía de autoevaluación de la sesión 4.
+- [Autoevaluación sesión 5](/curso-normalizacion/01-oracle/test/sesion-05/autoevaluacion.md): Guía de autoevaluación de la sesión 5.
+- [Organización del curso](/curso-normalizacion/organizacion-del-curso.md): Índice y estructura completa del curso de normalización de la Universidad de Alicante — 25 sesiones de 1 h 30 min.
+- [Práctica IA-fix — Sesión 3](/curso-normalizacion/02-dotnet/test/sesion-03/practica-ia-fix.md): Corregir un Program.cs con 5 errores típicos de inyección de dependencias y orden del pipeline.
+- [Práctica IA-fix — Sesión 4](/curso-normalizacion/02-dotnet/test/sesion-04/practica-ia-fix.md): Corregir un controlador POST que no respeta los patrones de la sesión 4 (ControladorBase, Result<T>, CreatedAtAction).
+- [Práctica IA-fix — Sesión 5](/curso-normalizacion/02-dotnet/test/sesion-05/practica-ia-fix.md): Corregir un servicio Oracle que no respeta los patrones de la sesión 5 (parametrización, vista de lectura, Result<T> con NotFound).
+- [Práctica IA-fix sesión 1](/curso-normalizacion/01-oracle/test/sesion-01/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 1.
+- [Práctica IA-fix sesión 14](/curso-normalizacion/04-integracion/test/sesion-14/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 14.
+- [Práctica IA-fix sesión 15](/curso-normalizacion/04-integracion/test/sesion-15/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 15.
+- [Práctica IA-fix sesión 16](/curso-normalizacion/04-integracion/test/sesion-16/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 16.
+- [Práctica IA-fix sesión 17](/curso-normalizacion/04-integracion/test/sesion-17/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 17.
+- [Práctica IA-fix sesión 18](/curso-normalizacion/05-avanzadas/test/sesion-18/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 18.
+- [Práctica IA-fix sesión 19](/curso-normalizacion/05-avanzadas/test/sesion-19/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 19.
+- [Práctica IA-fix sesión 2](/curso-normalizacion/01-oracle/test/sesion-02/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 2.
+- [Práctica IA-fix sesión 20](/curso-normalizacion/05-avanzadas/test/sesion-20/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 20.
+- [Práctica IA-fix sesión 21](/curso-normalizacion/05-avanzadas/test/sesion-21/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 21.
+- [Práctica IA-fix sesión 22](/curso-normalizacion/05-avanzadas/test/sesion-22/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 22.
+- [Práctica IA-fix sesión 23](/curso-normalizacion/05-avanzadas/test/sesion-23/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 23.
+- [Práctica IA-fix sesión 24](/curso-normalizacion/05-avanzadas/test/sesion-24/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 24.
+- [Práctica IA-fix sesión 25](/curso-normalizacion/05-avanzadas/test/sesion-25/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 25.
+- [Práctica IA-fix sesión 3](/curso-normalizacion/01-oracle/test/sesion-03/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 3.
+- [Práctica IA-fix sesión 4](/curso-normalizacion/01-oracle/test/sesion-04/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 4.
+- [Práctica IA-fix sesión 5](/curso-normalizacion/01-oracle/test/sesion-05/practica-ia-fix.md): Ejercicio guiado con asistente IA para la sesión 5.
+- [Pre-requisitos del curso .NET](/curso-normalizacion/02-dotnet/sesiones/sesion-04-dtos-apis/pre-requisitos.md): Configuración del entorno, paquetes NuGet, npm/pnpm, appsettings, user-secrets e inyección de dependencias
+- [Preguntas — Sesión 3: Introducción a .NET](/curso-normalizacion/02-dotnet/test/sesion-03/preguntas.md): Banco de 22 preguntas tipo test sobre Program.cs, inyección de dependencias, pipeline, C# moderno y arquitectura del proyecto UA.
+- [Preguntas — Sesión 4: Modelos y primer API](/curso-normalizacion/02-dotnet/test/sesion-04/preguntas.md): Banco de 22 preguntas tipo test sobre DTOs, [ApiController], verbos HTTP, routing y validación básica con DataAnnotations.
+- [Preguntas — Sesión 5: Servicios y acceso a Oracle](/curso-normalizacion/02-dotnet/test/sesion-05/preguntas.md): Banco de 21 preguntas tipo test sobre ClaseOracleBD3, mapeo automático, Result<T> básico, paquetes PL/SQL con OUT params y patrón de servicio.
+- [Preguntas sesión 1](/curso-normalizacion/01-oracle/test/sesion-01/preguntas.md): Preguntas tipo test de la sesión 1.
+- [Preguntas sesión 14](/curso-normalizacion/04-integracion/test/sesion-14/preguntas.md): Preguntas tipo test de la sesión 14.
+- [Preguntas sesión 15](/curso-normalizacion/04-integracion/test/sesion-15/preguntas.md): Preguntas tipo test de la sesión 15.
+- [Preguntas sesión 16](/curso-normalizacion/04-integracion/test/sesion-16/preguntas.md): Preguntas tipo test de la sesión 16.
+- [Preguntas sesión 17](/curso-normalizacion/04-integracion/test/sesion-17/preguntas.md): Preguntas tipo test de la sesión 17.
+- [Preguntas sesión 18](/curso-normalizacion/05-avanzadas/test/sesion-18/preguntas.md): Preguntas tipo test de la sesión 18.
+- [Preguntas sesión 19](/curso-normalizacion/05-avanzadas/test/sesion-19/preguntas.md): Preguntas tipo test de la sesión 19.
+- [Preguntas sesión 2](/curso-normalizacion/01-oracle/test/sesion-02/preguntas.md): Preguntas tipo test de la sesión 2.
+- [Preguntas sesión 20](/curso-normalizacion/05-avanzadas/test/sesion-20/preguntas.md): Preguntas tipo test de la sesión 20.
+- [Preguntas sesión 21](/curso-normalizacion/05-avanzadas/test/sesion-21/preguntas.md): Preguntas tipo test de la sesión 21.
+- [Preguntas sesión 22](/curso-normalizacion/05-avanzadas/test/sesion-22/preguntas.md): Preguntas tipo test de la sesión 22.
+- [Preguntas sesión 23](/curso-normalizacion/05-avanzadas/test/sesion-23/preguntas.md): Preguntas tipo test de la sesión 23.
+- [Preguntas sesión 24](/curso-normalizacion/05-avanzadas/test/sesion-24/preguntas.md): Preguntas tipo test de la sesión 24.
+- [Preguntas sesión 25](/curso-normalizacion/05-avanzadas/test/sesion-25/preguntas.md): Preguntas tipo test de la sesión 25.
+- [Preguntas sesión 3](/curso-normalizacion/01-oracle/test/sesion-03/preguntas.md): Preguntas tipo test de la sesión 3.
+- [Preguntas sesión 4](/curso-normalizacion/01-oracle/test/sesion-04/preguntas.md): Preguntas tipo test de la sesión 4.
+- [Preguntas sesión 5](/curso-normalizacion/01-oracle/test/sesion-05/preguntas.md): Preguntas tipo test de la sesión 5.
+- [Respuestas — Sesión 3: Introducción a .NET](/curso-normalizacion/02-dotnet/test/sesion-03/respuestas.md): Solucionario razonado del test de 22 preguntas de la Sesión 3.
+- [Respuestas — Sesión 4: Modelos y primer API](/curso-normalizacion/02-dotnet/test/sesion-04/respuestas.md): Solucionario razonado del test de 22 preguntas de la Sesión 4.
+- [Respuestas — Sesión 5: Servicios y acceso a Oracle](/curso-normalizacion/02-dotnet/test/sesion-05/respuestas.md): Solucionario razonado del test de 21 preguntas de la Sesión 5.
+- [Respuestas sesión 1](/curso-normalizacion/01-oracle/test/sesion-01/respuestas.md): Respuestas comentadas de la sesión 1.
+- [Respuestas sesión 14](/curso-normalizacion/04-integracion/test/sesion-14/respuestas.md): Respuestas comentadas de la sesión 14.
+- [Respuestas sesión 15](/curso-normalizacion/04-integracion/test/sesion-15/respuestas.md): Respuestas comentadas de la sesión 15.
+- [Respuestas sesión 16](/curso-normalizacion/04-integracion/test/sesion-16/respuestas.md): Respuestas comentadas de la sesión 16.
+- [Respuestas sesión 17](/curso-normalizacion/04-integracion/test/sesion-17/respuestas.md): Respuestas comentadas de la sesión 17.
+- [Respuestas sesión 18](/curso-normalizacion/05-avanzadas/test/sesion-18/respuestas.md): Respuestas comentadas de la sesión 18.
+- [Respuestas sesión 19](/curso-normalizacion/05-avanzadas/test/sesion-19/respuestas.md): Respuestas comentadas de la sesión 19.
+- [Respuestas sesión 2](/curso-normalizacion/01-oracle/test/sesion-02/respuestas.md): Respuestas comentadas de la sesión 2.
+- [Respuestas sesión 20](/curso-normalizacion/05-avanzadas/test/sesion-20/respuestas.md): Respuestas comentadas de la sesión 20.
+- [Respuestas sesión 21](/curso-normalizacion/05-avanzadas/test/sesion-21/respuestas.md): Respuestas comentadas de la sesión 21.
+- [Respuestas sesión 22](/curso-normalizacion/05-avanzadas/test/sesion-22/respuestas.md): Respuestas comentadas de la sesión 22.
+- [Respuestas sesión 23](/curso-normalizacion/05-avanzadas/test/sesion-23/respuestas.md): Respuestas comentadas de la sesión 23.
+- [Respuestas sesión 24](/curso-normalizacion/05-avanzadas/test/sesion-24/respuestas.md): Respuestas comentadas de la sesión 24.
+- [Respuestas sesión 25](/curso-normalizacion/05-avanzadas/test/sesion-25/respuestas.md): Respuestas comentadas de la sesión 25.
+- [Respuestas sesión 3](/curso-normalizacion/01-oracle/test/sesion-03/respuestas.md): Respuestas comentadas de la sesión 3.
+- [Respuestas sesión 4](/curso-normalizacion/01-oracle/test/sesion-04/respuestas.md): Respuestas comentadas de la sesión 4.
+- [Respuestas sesión 5](/curso-normalizacion/01-oracle/test/sesion-05/respuestas.md): Respuestas comentadas de la sesión 5.
+- [Solución del ejercicio: API de Observaciones (sesión 4)](/curso-normalizacion/02-dotnet/sesiones/sesion-04-dtos-apis/solucion-ejercicio-observaciones.md): Ficheros completos de la API mock de Observaciones que el alumno debe construir en la sesión 4.
+- [Solución del ejercicio: Observaciones con servicio + tests (sesión 5)](/curso-normalizacion/02-dotnet/sesiones/sesion-05-servicios-oracle/solucion-ejercicio-observaciones.md): Cierre del ejercicio de §1.9 conectado a Oracle vía un servicio real, con sus dos tests.
+- [Tests y evaluación](/curso-normalizacion/test.md): Banco de preguntas, respuestas, autoevaluación y práctica IA-fix para todas las sesiones del curso.
