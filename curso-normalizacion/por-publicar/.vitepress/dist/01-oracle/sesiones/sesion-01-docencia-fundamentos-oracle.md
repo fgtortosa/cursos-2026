@@ -760,7 +760,7 @@ Menos superficie de API, más coherencia. Volveremos a ello en la sesión 2.
 Toda la sesión hasta aquí trata de Oracle puro. La aplicación .NET no inventa nada nuevo: simplemente lee la vista y ejecuta el package usando una librería que se llama `ClaseOracleBD3`.
 
 ::: info CONTEXTO
-Esta parte cierra la sesión: te enseña cómo Oracle se conecta con C# y TypeScript. La sesión 3 (parte .NET) ampliará cada pieza, pero llegando aquí ya entiendes cómo se traducen los nombres y los tipos.
+Esta parte cierra la sesión: te enseña cómo Oracle se conecta con C# y TypeScript. La sesión 6 (parte .NET) ampliará cada pieza, pero llegando aquí ya entiendes cómo se traducen los nombres y los tipos.
 :::
 
 ### `ClaseOracleBD3` como puente

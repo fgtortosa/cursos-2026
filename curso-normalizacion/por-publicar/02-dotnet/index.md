@@ -1,6 +1,6 @@
 ---
-title: Parte .NET Core 10 — Sesiones 3 a 5
-description: Fundamentos de .NET Core 10 para el curso de normalización (sesiones 3 a 5 del temario global).
+title: Parte .NET Core 10 — Sesiones 6 a 8
+description: Fundamentos de .NET Core 10 para el curso de normalización (sesiones 6 a 8 del temario global).
 outline: deep
 ---
 
@@ -26,9 +26,9 @@ Al finalizar este bloque, el alumno será capaz de:
 
 | Sesión                                                                          | Título                                                                                      | Duración   |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------- |
-| [Sesión 3: Introducción a .NET](./sesiones/sesion-03-introduccion-dotnet/)      | Estructura del proyecto, `Program.cs`, inyección de dependencias, C# útil                   | 1 h 30 min |
-| [Sesión 4: Modelos y primer API](./sesiones/sesion-04-dtos-apis/)               | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | 1 h 30 min |
-| [Sesión 5: Servicios y acceso a Oracle](./sesiones/sesion-05-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit         | 1 h 30 min |
+| [Sesión 6: Introducción a .NET](./sesiones/sesion-06-introduccion-dotnet/)      | Estructura del proyecto, `Program.cs`, inyección de dependencias, C# útil                   | 1 h 30 min |
+| [Sesión 7: Modelos y primer API](./sesiones/sesion-07-dtos-apis/)               | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | 1 h 30 min |
+| [Sesión 8: Servicios y acceso a Oracle](./sesiones/sesion-08-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit         | 1 h 30 min |
 
 ::: tip CONTINUACIÓN EN INTEGRACIÓN
 Los temas de validación avanzada, gestión de errores global, DataTable y consumo desde Vue se cubren en las sesiones de **Integración full-stack** (sesiones 14-17), donde se ven de extremo a extremo:

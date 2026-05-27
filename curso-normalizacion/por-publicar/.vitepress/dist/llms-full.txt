@@ -585,7 +585,7 @@ description: >-
 
 # Parte Oracle
 
-Esta sección cubre las **sesiones 1 y 1** del curso, dedicadas a Oracle. Es el punto de entrada antes de continuar con [.NET](../02-dotnet/) y [Vue](../03-vue/).
+Esta sección cubre las **sesiones 1 a 5** del curso, dedicadas a Oracle. Es el punto de entrada antes de continuar con [.NET](../02-dotnet/) y [Vue](../03-vue/).
 
 ## Objetivos del módulo
 
@@ -603,10 +603,10 @@ Al finalizar este bloque serás capaz de:
 | Sesión                                                        | Título                                                                                               | Duración   |
 | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------- |
 | [Sesión 1](./sesiones/sesion-01-docencia-fundamentos-oracle/) | Fundamentos Oracle                                                                                   | 1 h 30 min |
-| [Sesión 2](./sesiones/sesion-01-ejercicio-fundamentos/)       | Ejercicio: inspección del schema y diseño de un catálogo                                             |            |
-| [Sesión 3](./sesiones/sesion-02-docencia-tablas-vistas/)      | Tablas, vistas y paquetes                                                                            | 1 h 30 min |
-| [Sesión 4](./sesiones/sesion-02-ejercicio-2a-tablas-vistas/)  | Ejercicio: diseño de vistas (`VRES_FRANJA_HORARIO`, `VRES_HORARIO_DIA`)                              |            |
-| [Sesión 5](./sesiones/sesion-02-ejercicio-2b-paquetes/)       | Ejercicio: procedimientos en paquetes (`ACTUALIZAR_BLOQUEADO`, `CREAR_HORARIO_DIA`, `CREAR_RESERVA`) |            |
+| [Sesión 2](./sesiones/sesion-02-ejercicio-fundamentos/)       | Ejercicio: inspección del schema y diseño de un catálogo                                             |            |
+| [Sesión 3](./sesiones/sesion-03-docencia-tablas-vistas/)      | Tablas, vistas y paquetes                                                                            | 1 h 30 min |
+| [Sesión 4](./sesiones/sesion-04-ejercicio-2a-tablas-vistas/)  | Ejercicio: diseño de vistas (`VRES_FRANJA_HORARIO`, `VRES_HORARIO_DIA`)                              |            |
+| [Sesión 5](./sesiones/sesion-05-ejercicio-2b-paquetes/)       | Ejercicio: procedimientos en paquetes (`ACTUALIZAR_BLOQUEADO`, `CREAR_HORARIO_DIA`, `CREAR_RESERVA`) |            |
 
 ---
 
@@ -1372,7 +1372,7 @@ Menos superficie de API, más coherencia. Volveremos a ello en la sesión 2.
 Toda la sesión hasta aquí trata de Oracle puro. La aplicación .NET no inventa nada nuevo: simplemente lee la vista y ejecuta el package usando una librería que se llama `ClaseOracleBD3`.
 
 ::: info CONTEXTO
-Esta parte cierra la sesión: te enseña cómo Oracle se conecta con C# y TypeScript. La sesión 3 (parte .NET) ampliará cada pieza, pero llegando aquí ya entiendes cómo se traducen los nombres y los tipos.
+Esta parte cierra la sesión: te enseña cómo Oracle se conecta con C# y TypeScript. La sesión 6 (parte .NET) ampliará cada pieza, pero llegando aquí ya entiendes cómo se traducen los nombres y los tipos.
 :::
 
 ### `ClaseOracleBD3` como puente
@@ -1653,14 +1653,14 @@ Aunque `NUMBER(1) IN (0,1)` también funcionaría, la convención de la UA es `V
 ---
 
 ---
-url: /curso-normalizacion/01-oracle/sesiones/sesion-01-ejercicio-fundamentos.md
+url: /curso-normalizacion/01-oracle/sesiones/sesion-02-ejercicio-fundamentos.md
 description: >-
-  Ejercicio práctico de la sesión 1. Inspección del schema CURSONORMADM,
+  Ejercicio práctico de la sesión 2. Inspección del schema CURSONORMADM,
   análisis de conversiones de tipos, verificación de grants y diseño de un
   catálogo simple aplicando convenciones, IDENTITY y restricciones CHECK.
 ---
 
-# Ejercicio sesión 1 — Inspección del schema y diseño de un catálogo
+# Ejercicio sesión 2 — Inspección del schema y diseño de un catálogo
 
 ::: info CONTEXTO
 En la sesión 1 has visto la arquitectura ADM/WEB, las convenciones de nombres, `IDENTITY`, las seis variantes de `CHECK` y el modelo de errores Oracle.
@@ -1670,7 +1670,7 @@ Este ejercicio aplica todo lo anterior en dos partes:
 1. **Inspección guiada** del schema `CURSONORMADM` que ya está creado.
 2. **Diseño de una tabla nueva** (un catálogo) aplicando las convenciones aprendidas.
 
-No tocas todavía vistas ni paquetes: eso pertenece al ejercicio de la sesión 2.
+No tocas todavía vistas ni paquetes: eso pertenece al ejercicio de las sesiones 4 y 5.
 :::
 
 ## Objetivos
@@ -1964,7 +1964,7 @@ Una vez entregado este ejercicio, estás listo para la [Sesión 2 — Tablas, vi
 ---
 
 ---
-url: /curso-normalizacion/01-oracle/sesiones/sesion-02-docencia-tablas-vistas.md
+url: /curso-normalizacion/01-oracle/sesiones/sesion-03-docencia-tablas-vistas.md
 description: >-
   Diseño completo del ciclo TRES_TIPO_RECURSO → VRES_TIPO_RECURSO →
   PKG_RES_TIPO_RECURSO sobre el schema real CURSONORMADM. Edición a través de la
@@ -1972,7 +1972,7 @@ description: >-
   P_CODIGO_ERROR/P_MENSAJE_ERROR y gestión de errores normalizada.
 ---
 
-# Sesión 2 — Tablas, vistas y paquetes
+# Sesión 3 — Tablas, vistas y paquetes
 
 ::: info CONTEXTO
 **Duración:** 1 h 30 min
@@ -3904,17 +3904,17 @@ Captura excepciones específicas (`DUP_VAL_ON_INDEX`, `NO_DATA_FOUND`) cuando pu
 
 ---
 url: >-
-  /curso-normalizacion/01-oracle/sesiones/sesion-02-ejercicio-2a-tablas-vistas.md
+  /curso-normalizacion/01-oracle/sesiones/sesion-04-ejercicio-2a-tablas-vistas.md
 description: >-
   Ejercicio entre la sesión 2 de Oracle y la primera sesión de .NET. Diseñar
   VRES_HORARIO_DIA y VRES_FRANJA_HORARIO razonando alias, JOINs, filtros y
   documentación, y compararlas con las vistas reales del schema.
 ---
 
-# Ejercicio sesión 2A — Diseño de vistas
+# Ejercicio sesión 4 — Diseño de vistas
 
 ::: info CONTEXTO
-En la sesión 2 has visto la vista `VRES_TIPO_RECURSO` (proyección simple) y la vista `VRES_RECURSO` (con `JOIN` para evitar consultas N+1). Este ejercicio te pide diseñar **dos vistas más** del schema de reservas, decidir tú mismo cuándo aplicar `JOIN` y cuándo filtrar.
+En la sesión 3 has visto la vista `VRES_TIPO_RECURSO` (proyección simple) y la vista `VRES_RECURSO` (con `JOIN` para evitar consultas N+1). Este ejercicio te pide diseñar **dos vistas más** del schema de reservas, decidir tú mismo cuándo aplicar `JOIN` y cuándo filtrar.
 
 No se trata solo de escribir un `SELECT`: lo importante es la **reflexión** sobre cómo será el contrato de lectura para la aplicación .NET que construirás en las próximas sesiones.
 :::
@@ -4146,17 +4146,17 @@ Continúa con el [Ejercicio 2B — Procedimientos en paquetes](../5-paquetes/), 
 ---
 
 ---
-url: /curso-normalizacion/01-oracle/sesiones/sesion-02-ejercicio-2b-paquetes.md
+url: /curso-normalizacion/01-oracle/sesiones/sesion-05-ejercicio-2b-paquetes.md
 description: >-
   Ejercicio práctico de PL/SQL. Implementar ACTUALIZAR_BLOQUEADO, CREAR de
   horario por día y CREAR de reserva, apoyándose en validaciones reutilizables
   (VALIDAR_TEXTO, VALIDAR_ID_POSITIVO, VALIDAR_FLAG, VALIDAR_FECHAS).
 ---
 
-# Ejercicio sesión 2B — Procedimientos en paquetes
+# Ejercicio sesión 5 — Procedimientos en paquetes
 
 ::: info CONTEXTO
-En la sesión 2 has visto el package `PKG_RES_TIPO_RECURSO` con `VALIDAR_TEXTO` y `VALIDAR_ID_POSITIVO`, los códigos `-20700`/`-20701`/`-20702`/`-20703` y el patrón `RETURNING ... INTO`.
+En la sesión 3 has visto el package `PKG_RES_TIPO_RECURSO` con `VALIDAR_TEXTO` y `VALIDAR_ID_POSITIVO`, los códigos `-20700`/`-20701`/`-20702`/`-20703` y el patrón `RETURNING ... INTO`.
 
 Este ejercicio introduce dos validaciones nuevas que verás en el schema real (`VALIDAR_FLAG` y `VALIDAR_FECHAS`) y te pide implementar tres procedimientos del modelo de reservas.
 :::
@@ -4535,7 +4535,7 @@ Con esto cierras la parte Oracle. La siguiente sesión (parte .NET) toma estos p
 
 | Anterior                                                                                                      | Inicio                        | Siguiente                                                                                     |
 | ------------------------------------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------- |
-| [← Sesión 4: Ejercicio: diseño de vistas](../../../01-oracle/sesiones/sesion-01-docencia-fundamentos-oracle/) | [Índice del curso](../../../) | [Sesión 6: Introducción a .NET →](../../../02-dotnet/sesiones/sesion-03-introduccion-dotnet/) |
+| [← Sesión 4: Ejercicio: diseño de vistas](../../../01-oracle/sesiones/sesion-04-ejercicio-2a-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 6: Introducción a .NET →](../../../02-dotnet/sesiones/sesion-06-introduccion-dotnet/) |
 
 ---
 
@@ -4632,7 +4632,7 @@ Material de evaluación de la sesión 5. Aún no desarrollado.
 ---
 url: /curso-normalizacion/02-dotnet.md
 description: >-
-  Fundamentos de .NET Core 10 para el curso de normalización (sesiones 3 a 5 del
+  Fundamentos de .NET Core 10 para el curso de normalización (sesiones 6 a 8 del
   temario global).
 ---
 
@@ -4658,9 +4658,9 @@ Al finalizar este bloque, el alumno será capaz de:
 
 | Sesión                                                                          | Título                                                                                      | Duración   |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------- |
-| [Sesión 3: Introducción a .NET](./sesiones/sesion-03-introduccion-dotnet/)      | Estructura del proyecto, `Program.cs`, inyección de dependencias, C# útil                   | 1 h 30 min |
-| [Sesión 4: Modelos y primer API](./sesiones/sesion-04-dtos-apis/)               | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | 1 h 30 min |
-| [Sesión 5: Servicios y acceso a Oracle](./sesiones/sesion-05-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit         | 1 h 30 min |
+| [Sesión 6: Introducción a .NET](./sesiones/sesion-06-introduccion-dotnet/)      | Estructura del proyecto, `Program.cs`, inyección de dependencias, C# útil                   | 1 h 30 min |
+| [Sesión 7: Modelos y primer API](./sesiones/sesion-07-dtos-apis/)               | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | 1 h 30 min |
+| [Sesión 8: Servicios y acceso a Oracle](./sesiones/sesion-08-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit         | 1 h 30 min |
 
 ::: tip CONTINUACIÓN EN INTEGRACIÓN
 Los temas de validación avanzada, gestión de errores global, DataTable y consumo desde Vue se cubren en las sesiones de **Integración full-stack** (sesiones 14-17), donde se ven de extremo a extremo:
@@ -4693,13 +4693,13 @@ Durante estas dos sesiones el alumno trabajará sobre una entidad nueva, **`TRES
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/sesiones/sesion-03-introduccion-dotnet.md
+url: /curso-normalizacion/02-dotnet/sesiones/sesion-06-introduccion-dotnet.md
 description: >-
   Fundamentos de .NET 10, inyección de dependencias, estructura de Program.cs y
   anatomía de un proyecto ASP.NET Core con SPA Vue
 ---
 
-# Sesión 3: Introducción a .NET y conceptos previos
+# Sesión 6: Introducción a .NET y conceptos previos
 
 ::: info CONTEXTO
 Esta sesión sienta las bases para el resto del curso. Si ya conoces .NET Core, sirve como repaso rápido y actualización a .NET 10. Si vienes de otros lenguajes, aquí encontrarás todo lo que necesitas para seguir las sesiones siguientes.
@@ -4708,9 +4708,9 @@ Esta sesión sienta las bases para el resto del curso. Si ya conoces .NET Core, 
 
 | Sesión       | Tema                        | Qué aprenderás                                                 |
 | ------------ | --------------------------- | -------------------------------------------------------------- |
-| **3 (esta)** | Introducción a .NET         | Estructura del proyecto, inyección de dependencias, Program.cs |
-| **4**        | Modelos y primer API        | Crear controladores API REST, verbos HTTP, códigos de estado   |
-| **5**        | Servicios y acceso a Oracle | Capas, ClaseOracleBD3, mapeo automático, flujo completo        |
+| **6 (esta)** | Introducción a .NET         | Estructura del proyecto, inyección de dependencias, Program.cs |
+| **7**        | Modelos y primer API        | Crear controladores API REST, verbos HTTP, códigos de estado   |
+| **8**        | Servicios y acceso a Oracle | Capas, ClaseOracleBD3, mapeo automático, flujo completo        |
 
 Los temas de validación, errores, DataTable y OpenAPI se cubren en las sesiones de **Integración full-stack** (11-14).
 :::
@@ -5384,23 +5384,23 @@ app.Run();
 
 | Anterior                                                                                     | Inicio                        | Siguiente                                                                            |
 | -------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
-| [← Sesión 2: tablas y vistas](../../../01-oracle/sesiones/sesion-02-docencia-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 4: Modelos y primer API →](../../../02-dotnet/sesiones/sesion-04-dtos-apis/) |
+| [← Sesión 3: tablas y vistas](../../../01-oracle/sesiones/sesion-03-docencia-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 7: Modelos y primer API →](../../../02-dotnet/sesiones/sesion-07-dtos-apis/) |
 
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/sesiones/sesion-04-dtos-apis.md
+url: /curso-normalizacion/02-dotnet/sesiones/sesion-07-dtos-apis.md
 description: >-
   DTOs, controladores API REST, verbos HTTP, status codes, documentación Scalar
   y prueba sin BD desde Chrome
 ---
 
-# Sesión 4: Modelos y primer API
+# Sesión 7: Modelos y primer API
 
 ::: info ¿Para quién es este material?
 Esta sesión está pensada para gente con perfiles muy distintos: desde quien lleva años con Oracle PL/SQL pero nunca ha tocado HTTP, hasta quien viene de ASP clásico, WebForms o MVC y nunca ha trabajado con SPAs. Por eso empezamos despacio con la arquitectura conceptual y vamos descendiendo al detalle.
 
-**En esta sesión no vamos a tocar Oracle ni a escribir Vue:** la API se prueba desde Chrome DevTools y desde la página `Home.vue` (que ya está hecha). El acceso a base de datos y la arquitectura por capas se ven en la [**sesión 5**](../sesion-05-servicios-oracle/).
+**En esta sesión no vamos a tocar Oracle ni a escribir Vue:** la API se prueba desde Chrome DevTools y desde la página `Home.vue` (que ya está hecha). El acceso a base de datos y la arquitectura por capas se ven en la [**sesión 8**](../sesion-08-servicios-oracle/).
 :::
 
 ## 0. Pre-requisitos del curso
@@ -6948,21 +6948,21 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 | Anterior                                                                                      | Inicio                        | Siguiente                                                                                          |
 | --------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| [← Sesión 3: Introducción a .NET](../../../02-dotnet/sesiones/sesion-03-introduccion-dotnet/) | [Índice del curso](../../../) | [Sesión 5: Servicios y acceso a Oracle →](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/) |
+| [← Sesión 6: Introducción a .NET](../../../02-dotnet/sesiones/sesion-06-introduccion-dotnet/) | [Índice del curso](../../../) | [Sesión 8: Servicios y acceso a Oracle →](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/) |
 
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/sesiones/sesion-05-servicios-oracle.md
+url: /curso-normalizacion/02-dotnet/sesiones/sesion-08-servicios-oracle.md
 description: >-
   Arquitectura de capas, Result<T>, ClaseOracleBD3, llamada a paquetes PL/SQL
   desde .NET y primer test xUnit
 ---
 
-# Sesión 5: Servicios y acceso a Oracle
+# Sesión 8: Servicios y acceso a Oracle
 
 ::: info DE DÓNDE VENIMOS
-En la [**sesión 4**](../sesion-04-dtos-apis/) construiste un controlador `ObservacionesController` que devolvía datos hardcodeados. En esta sesión lo conectaremos a Oracle a través de un **servicio**, usando el paquete `PKG_RES_OBSERVACION_RESERVA` que ya tienes en SQL. Al terminar, los mismos botones del `Home.vue` que probabas en clase pasada **traerán datos reales de la base de datos** sin que cambies nada en Vue.
+En la [**sesión 7**](../sesion-07-dtos-apis/) construiste un controlador `ObservacionesController` que devolvía datos hardcodeados. En esta sesión lo conectaremos a Oracle a través de un **servicio**, usando el paquete `PKG_RES_OBSERVACION_RESERVA` que ya tienes en SQL. Al terminar, los mismos botones del `Home.vue` que probabas en clase pasada **traerán datos reales de la base de datos** sin que cambies nada en Vue.
 :::
 
 ## 5.1 Por qué separamos la lógica en capas
@@ -7765,11 +7765,11 @@ Lo mínimo que necesitas saber **para el ejercicio §5.6** que viene a continuac
 
 ## 5.6 Ejercicio: cerrar `Observaciones` con servicio + tests
 
-Cierre del ejercicio que arrancaste en [§1.9](../sesion-04-dtos-apis/#_1-9-ejercicio-api-de-observaciones-de-reservas). El controlador `ObservacionesController` con `_datos` hardcodeados se queda obsoleto: lo conectamos a Oracle vía un servicio nuevo, registramos el servicio en DI y añadimos los dos tests del patrón (simulado + real).
+Cierre del ejercicio que arrancaste en [§1.9](../sesion-07-dtos-apis/#_1-9-ejercicio-api-de-observaciones-de-reservas). El controlador `ObservacionesController` con `_datos` hardcodeados se queda obsoleto: lo conectamos a Oracle vía un servicio nuevo, registramos el servicio en DI y añadimos los dos tests del patrón (simulado + real).
 
 ### 5.6.1 Punto de partida
 
-Después de la sesión 4 tienes:
+Después de la sesión 7 tienes:
 
 * `Models/Reservas/ObservacionReservaLectura.cs` y `ObservacionReservaCrearDto.cs`.
 * `Controllers/Apis/ObservacionesController.cs` con la lista estática `_datos`.
@@ -7973,14 +7973,14 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 | Anterior                                                                             | Inicio                        | Siguiente                                                                                                           |
 | ------------------------------------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| [← Sesión 4: Modelos y primer API](../../../02-dotnet/sesiones/sesion-04-dtos-apis/) | [Índice del curso](../../../) | [Sesión 9: Vue 3, TypeScript y primer componente →](../../../03-vue/sesiones/sesion-09-vue-typescript-fundamentos/) |
+| [← Sesión 7: Modelos y primer API](../../../02-dotnet/sesiones/sesion-07-dtos-apis/) | [Índice del curso](../../../) | [Sesión 9: Vue 3, TypeScript y primer componente →](../../../03-vue/sesiones/sesion-09-vue-typescript-fundamentos/) |
 
 ---
 
 ---
 url: /curso-normalizacion/02-dotnet/test.md
 description: >-
-  Tests y prácticas de apoyo por sesión del módulo .NET (sesiones 3 a 5 del
+  Tests y prácticas de apoyo por sesión del módulo .NET (sesiones 6 a 8 del
   temario global).
 ---
 
@@ -7988,39 +7988,39 @@ description: >-
 
 Material de autoevaluación y práctica de "fix con IA" para las tres sesiones del bloque .NET.
 
-## Sesión 3 — Introducción a .NET
+## Sesión 6 — Introducción a .NET
 
-* [Autoevaluación rápida](./sesion-03/autoevaluacion.md)
-* [Preguntas de test](./sesion-03/preguntas.md)
-* [Respuestas](./sesion-03/respuestas.md)
-* [Práctica IA-fix](./sesion-03/practica-ia-fix.md)
+* [Autoevaluación rápida](./sesion-06/autoevaluacion.md)
+* [Preguntas de test](./sesion-06/preguntas.md)
+* [Respuestas](./sesion-06/respuestas.md)
+* [Práctica IA-fix](./sesion-06/practica-ia-fix.md)
 
-## Sesión 4 — Modelos y primer API
+## Sesión 7 — Modelos y primer API
 
-* [Autoevaluación rápida](./sesion-04/autoevaluacion.md)
-* [Preguntas de test](./sesion-04/preguntas.md)
-* [Respuestas](./sesion-04/respuestas.md)
-* [Práctica IA-fix](./sesion-04/practica-ia-fix.md)
+* [Autoevaluación rápida](./sesion-07/autoevaluacion.md)
+* [Preguntas de test](./sesion-07/preguntas.md)
+* [Respuestas](./sesion-07/respuestas.md)
+* [Práctica IA-fix](./sesion-07/practica-ia-fix.md)
 
-## Sesión 5 — Servicios y acceso a Oracle
+## Sesión 8 — Servicios y acceso a Oracle
 
-* [Autoevaluación rápida](./sesion-05/autoevaluacion.md)
-* [Preguntas de test](./sesion-05/preguntas.md)
-* [Respuestas](./sesion-05/respuestas.md)
-* [Práctica IA-fix](./sesion-05/practica-ia-fix.md)
-
----
+* [Autoevaluación rápida](./sesion-08/autoevaluacion.md)
+* [Preguntas de test](./sesion-08/preguntas.md)
+* [Respuestas](./sesion-08/respuestas.md)
+* [Práctica IA-fix](./sesion-08/practica-ia-fix.md)
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-03.md
+
+---
+url: /curso-normalizacion/02-dotnet/test/sesion-06.md
 description: >-
-  Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 3
+  Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 6
   (Introducción a .NET).
 ---
 
-# Sesión 3 — Tests y práctica IA
+# Sesión 6 — Tests y práctica IA
 
-Material de evaluación de la [Sesión 3: Introducción a .NET](../../sesiones/sesion-03-introduccion-dotnet/).
+Material de evaluación de la [Sesión 6: Introducción a .NET](../../sesiones/sesion-06-introduccion-dotnet/).
 
 ## Contenido
 
@@ -8032,15 +8032,15 @@ Material de evaluación de la [Sesión 3: Introducción a .NET](../../sesiones/s
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-04.md
+url: /curso-normalizacion/02-dotnet/test/sesion-07.md
 description: >-
-  Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 4
+  Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 7
   (Modelos y primer API).
 ---
 
-# Sesión 4 — Tests y práctica IA
+# Sesión 7 — Tests y práctica IA
 
-Material de evaluación de la [Sesión 4: Modelos y primer API](../../sesiones/sesion-04-dtos-apis/).
+Material de evaluación de la [Sesión 7: Modelos y primer API](../../sesiones/sesion-07-dtos-apis/).
 
 ## Contenido
 
@@ -8052,15 +8052,15 @@ Material de evaluación de la [Sesión 4: Modelos y primer API](../../sesiones/s
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-05.md
+url: /curso-normalizacion/02-dotnet/test/sesion-08.md
 description: >-
-  Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 5
+  Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 8
   (Servicios y acceso a Oracle).
 ---
 
-# Sesión 5 — Tests y práctica IA
+# Sesión 8 — Tests y práctica IA
 
-Material de evaluación de la [Sesión 5: Servicios y acceso a Oracle](../../sesiones/sesion-05-servicios-oracle/).
+Material de evaluación de la [Sesión 8: Servicios y acceso a Oracle](../../sesiones/sesion-08-servicios-oracle/).
 
 ## Contenido
 
@@ -8147,7 +8147,7 @@ Esta sesión sienta las bases para el resto del módulo. Si ya conoces Vue 3, si
 | **9** | Arquitectura y servicios | Composables, servicios, Vista → Composable → Servicio |
 | **10** | Componentes internos UA | `vueua-autocomplete`, `vueua-dialogmodal`, Teleport |
 
-Los temas de `useAxios`, validación y Pinia se cubren en las sesiones de **Integración full-stack** (11-14).
+Los temas de `useAxios`, validación y Pinia se cubren en las sesiones de **Integración full-stack** (14-17).
 :::
 
 ## Plan de sesión (90 min) {#plan-90}
@@ -9069,7 +9069,7 @@ const activo = ref<boolean>(true)
 
 | Anterior | Inicio | Siguiente |
 |---|---|---|
-| [← Sesión 5: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 10: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-10-directivas-eventos/) |
+| [← Sesión 8: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 10: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-10-directivas-eventos/) |
 
 ---
 
@@ -12423,7 +12423,7 @@ En las sesiones anteriores construimos componentes y composables a mano para ent
 | **Teoría guiada** | 45 min | 10.1 a 10.7 (árbol de decisión + componentes uno a uno + Teleport) |
 | **Práctica en aula** | 25 min | Demo integradora CRUD mock (`Sesion10CrudRecursos.vue`) |
 | **Test de sesión** | 15 min | Preguntas rápidas en formato desplegable y corrección grupal |
-| **Cierre** | 5 min | Dudas y enlace con sesiones de integración (11-14) |
+| **Cierre** | 5 min | Dudas y enlace con sesiones de integración (14-17) |
 
 ::: tip ENFOQUE DIDÁCTICO
 Cada componente se presenta junto con su demo abrible en `uareservas/sesiones-vue/sesion-10/...`. Abre el código y modifica valores: es la forma más rápida de fijar la API.
@@ -12903,12 +12903,12 @@ Estas sesiones asumen que se han completado las partes anteriores:
 
 ## Sesiones de este bloque
 
-| Sesión | Título | Duración |
-|--------|--------|----------|
-| [Sesión 14: Llamadas a la API y autenticación](./sesiones/sesion-14-api-autenticacion/) | Cómo Vue habla con .NET, CAS/JWT, OpenAPI y Scalar | 1 h 30 min |
-| [Sesión 15: Validación en todas las capas](./sesiones/sesion-15-validacion/) | DataAnnotations, FluentValidation, ModelState y errores en Vue | 1 h 30 min |
-| [Sesión 16: Gestión de errores de extremo a extremo](./sesiones/sesion-16-errores/) | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts y modales | 1 h 30 min |
-| [Sesión 17: DataTable de extremo a extremo](./sesiones/sesion-17-datatable/) | `ClaseCrudUtils` en .NET + `@vueua/components` DataTable en Vue | 1 h 30 min |
+| Sesión                                                                                  | Título                                                               | Duración   |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------- |
+| [Sesión 14: Llamadas a la API y autenticación](./sesiones/sesion-14-api-autenticacion/) | Cómo Vue habla con .NET, CAS/JWT, OpenAPI y Scalar                   | 1 h 30 min |
+| [Sesión 15: Validación en todas las capas](./sesiones/sesion-15-validacion/)            | DataAnnotations, FluentValidation, ModelState y errores en Vue       | 1 h 30 min |
+| [Sesión 16: Gestión de errores de extremo a extremo](./sesiones/sesion-16-errores/)     | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts y modales | 1 h 30 min |
+| [Sesión 17: DataTable de extremo a extremo](./sesiones/sesion-17-datatable/)            | `ClaseCrudUtils` en .NET + `@vueua/components` DataTable en Vue      | 1 h 30 min |
 
 ## Flujo de integración
 
@@ -15926,15 +15926,15 @@ Estas sesiones asumen que se han completado:
 
 ## Sesiones de este bloque
 
-| Sesión | Título | Duración |
-|--------|--------|----------|
-| [Sesión 18: Internacionalización](./sesiones/sesion-18-internacionalizacion/) | `vue-i18n`, `.resx`, idioma del JWT | 1 h 30 min |
-| [Sesión 19: Seguridad, menús y perfiles](./sesiones/sesion-19-seguridad-menus/) | Roles, políticas, rutas protegidas, layout | 1 h 30 min |
-| [Sesión 20: Estado global y persistencia](./sesiones/sesion-20-estado-persistencia/) | Pinia, `localStorage`, `provide`/`inject` | 1 h 30 min |
-| [Sesión 21: Tests y calidad de código](./sesiones/sesion-21-tests-calidad/) | xUnit, `WebApplicationFactory`, `httpRepl` | 1 h 30 min |
-| [Sesión 22: Trabajo con ficheros](./sesiones/sesion-22-ficheros/) | Upload/download, BLOB, validaciones | 1 h 30 min |
-| [Sesión 23: Logs y diagnóstico](./sesiones/sesion-23-logs-diagnostico/) | Serilog, sinks, consultas Oracle | 1 h 30 min |
-| [Sesión 24: Accesibilidad y cumplimiento normativo](./sesiones/sesion-24-accesibilidad-ens/) | WCAG 2.1 AA, ENS, documentación, CAU | 1 h 30 min |
+| Sesión                                                                                       | Título                                       | Duración   |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------- | ---------- |
+| [Sesión 18: Internacionalización](./sesiones/sesion-18-internacionalizacion/)                | `vue-i18n`, `.resx`, idioma del JWT          | 1 h 30 min |
+| [Sesión 19: Seguridad, menús y perfiles](./sesiones/sesion-19-seguridad-menus/)              | Roles, políticas, rutas protegidas, layout   | 1 h 30 min |
+| [Sesión 20: Estado global y persistencia](./sesiones/sesion-20-estado-persistencia/)         | Pinia, `localStorage`, `provide`/`inject`    | 1 h 30 min |
+| [Sesión 21: Tests y calidad de código](./sesiones/sesion-21-tests-calidad/)                  | xUnit, `WebApplicationFactory`, `httpRepl`   | 1 h 30 min |
+| [Sesión 22: Trabajo con ficheros](./sesiones/sesion-22-ficheros/)                            | Upload/download, BLOB, validaciones          | 1 h 30 min |
+| [Sesión 23: Logs y diagnóstico](./sesiones/sesion-23-logs-diagnostico/)                      | Serilog, sinks, consultas Oracle             | 1 h 30 min |
+| [Sesión 24: Accesibilidad y cumplimiento normativo](./sesiones/sesion-24-accesibilidad-ens/) | WCAG 2.1 AA, ENS, documentación, CAU         | 1 h 30 min |
 | [Sesión 25: Copilot y organización del proyecto](./sesiones/sesion-25-copilot-organizacion/) | Copilot agente, repositorio, checklist final | 1 h 30 min |
 
 ---
@@ -16489,7 +16489,7 @@ Los tests reales son **lentos**. Cada uno abre una conexión a Oracle y ejecuta 
    :::
 
 ::: info → Continuación práctica del patrón
-El ejercicio §5.6 de la **[sesión 5](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/#_5-6-ejercicio-cerrar-observaciones-con-servicio-tests)** te pide replicar este patrón (fake + test simulado + test real con `SkippableFact`) sobre `Observaciones`. La solución completa con los siete ficheros está en [solucion-ejercicio-observaciones.md](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/solucion-ejercicio-observaciones.md).
+El ejercicio §5.6 de la **[sesión 8](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/#_5-6-ejercicio-cerrar-observaciones-con-servicio-tests)** te pide replicar este patrón (fake + test simulado + test real con `SkippableFact`) sobre `Observaciones`. La solución completa con los siete ficheros está en [solucion-ejercicio-observaciones.md](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/solucion-ejercicio-observaciones.md).
 :::
 
 ## 21.2 Tests de integración con `WebApplicationFactory` {#tests-integracion}
@@ -17175,9 +17175,9 @@ Antes de la entrega, repasa este checklist por módulo:
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-03/autoevaluacion.md
+url: /curso-normalizacion/02-dotnet/test/sesion-06/autoevaluacion.md
 ---
-# Autoevaluación — Sesión 3
+# Autoevaluación — Sesión 6
 
 ## Preguntas rápidas
 
@@ -17198,9 +17198,9 @@ url: /curso-normalizacion/02-dotnet/test/sesion-03/autoevaluacion.md
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-04/autoevaluacion.md
+url: /curso-normalizacion/02-dotnet/test/sesion-07/autoevaluacion.md
 ---
-# Autoevaluación — Sesión 4
+# Autoevaluación — Sesión 7
 
 ## Preguntas rápidas
 
@@ -17225,9 +17225,9 @@ url: /curso-normalizacion/02-dotnet/test/sesion-04/autoevaluacion.md
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-05/autoevaluacion.md
+url: /curso-normalizacion/02-dotnet/test/sesion-08/autoevaluacion.md
 ---
-# Autoevaluación — Sesión 5
+# Autoevaluación — Sesión 8
 
 ## Preguntas rápidas
 
@@ -17741,13 +17741,13 @@ Mapa maestro, hitos por sesión y criterios de aceptación en: [Proyecto final d
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-03/practica-ia-fix.md
+url: /curso-normalizacion/02-dotnet/test/sesion-06/practica-ia-fix.md
 description: >-
   Corregir un Program.cs con 5 errores típicos de inyección de dependencias y
   orden del pipeline.
 ---
 
-# Práctica IA-fix — Sesión 3
+# Práctica IA-fix — Sesión 6
 
 ## Objetivo
 
@@ -17816,13 +17816,13 @@ Es habitual que Copilot te proponga `AddSingleton` para "mejorar el rendimiento"
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-04/practica-ia-fix.md
+url: /curso-normalizacion/02-dotnet/test/sesion-07/practica-ia-fix.md
 description: >-
-  Corregir un controlador POST que no respeta los patrones de la sesión 4
+  Corregir un controlador POST que no respeta los patrones de la sesión 7
   (ControladorBase, Result<T>, CreatedAtAction).
 ---
 
-# Práctica IA-fix — Sesión 4
+# Práctica IA-fix — Sesión 7
 
 ## Objetivo
 
@@ -17906,13 +17906,13 @@ Es muy posible que Copilot te proponga `return Created("/api/TipoRecursos/" + re
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-05/practica-ia-fix.md
+url: /curso-normalizacion/02-dotnet/test/sesion-08/practica-ia-fix.md
 description: >-
-  Corregir un servicio Oracle que no respeta los patrones de la sesión 5
+  Corregir un servicio Oracle que no respeta los patrones de la sesión 8
   (parametrización, vista de lectura, Result<T> con NotFound).
 ---
 
-# Práctica IA-fix — Sesión 5
+# Práctica IA-fix — Sesión 8
 
 ## Objetivo
 
@@ -18200,7 +18200,7 @@ Práctica con asistente IA por desarrollar.
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/sesiones/sesion-04-dtos-apis/pre-requisitos.md
+url: /curso-normalizacion/02-dotnet/sesiones/sesion-07-dtos-apis/pre-requisitos.md
 description: >-
   Configuración del entorno, paquetes NuGet, npm/pnpm, appsettings, user-secrets
   e inyección de dependencias
@@ -18895,21 +18895,21 @@ Las tuplas son perfectas para retornos privados. **NO las uses en una API públi
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-03/preguntas.md
+url: /curso-normalizacion/02-dotnet/test/sesion-06/preguntas.md
 description: >-
   Banco de 22 preguntas tipo test sobre Program.cs, inyección de dependencias,
   pipeline, C# moderno y arquitectura del proyecto UA.
 ---
 
-# Test de autoevaluación — Sesión 3: Introducción a .NET
+# Test de autoevaluación — Sesión 6: Introducción a .NET
 
 ::: tip ALCANCE
 Las preguntas cubren **solo** lo que se enseña en esta sesión: anatomía del proyecto, `Program.cs`, inyección de dependencias (`AddScoped`/`Transient`/`Singleton`), orden del pipeline, características útiles de C# (operadores `?.` / `??`, records, raw strings, expresiones de colección, `switch` con discard, tuplas) y arquitectura por capas.
 
 Los temas relacionados que se cubren en otras sesiones tienen su propio test:
 
-* DTOs, `[ApiController]`, verbos HTTP, validación con DataAnnotations → [Sesión 4](../sesion-04/).
-* `ClaseOracleBD3`, mapeo automático, `[Columna]`, `Result<T>`, paquetes PL/SQL → [Sesión 5](../sesion-05/).
+* DTOs, `[ApiController]`, verbos HTTP, validación con DataAnnotations → [Sesión 7](../sesion-07/).
+* `ClaseOracleBD3`, mapeo automático, `[Columna]`, `Result<T>`, paquetes PL/SQL → [Sesión 8](../sesion-08/).
 * `HandleResult` interno, `ProblemDetails`, `ValidationProblemDetails`, contrato de error UA → [Sesión 16](../../../04-integracion/sesiones/sesion-16-errores/).
 * FluentValidation, `AddValidatorsFromAssemblyContaining`, localización con `.resx` → [Sesión 15](../../../04-integracion/sesiones/sesion-15-validacion/).
 * CAS / JWT / claims → [Sesión 14](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
@@ -19205,13 +19205,13 @@ d) Es requisito obligatorio de ASP.NET Core 10
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-04/preguntas.md
+url: /curso-normalizacion/02-dotnet/test/sesion-07/preguntas.md
 description: >-
   Banco de 22 preguntas tipo test sobre DTOs, [ApiController], verbos HTTP,
   routing y validación básica con DataAnnotations.
 ---
 
-# Test de autoevaluación — Sesión 4: Modelos y primer API
+# Test de autoevaluación — Sesión 7: Modelos y primer API
 
 ::: tip ALCANCE
 Las preguntas cubren **solo** lo que se enseña en esta sesión: DTOs, controladores `[ApiController]`, verbos HTTP, status codes, `ControladorBase`, `ActionResult<T>`, `[Produces]`, `[ProducesResponseType]` y validación básica con DataAnnotations.
@@ -19221,7 +19221,7 @@ Los temas relacionados que se cubren en otras sesiones tienen su propio test:
 * `ProblemDetails` / `ValidationProblemDetails` detallados, `Result<T>`, `HandleResult` → [Sesión 16](../../../04-integracion/sesiones/sesion-16-errores/).
 * FluentValidation con mensajes localizados → [Sesión 15](../../../04-integracion/sesiones/sesion-15-validacion/).
 * `peticion<T>` / `llamadaAxios` / `useGestionFormularios` / toasts → [Sesión 14](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
-* `[Columna]`, `[IgnorarMapeo]`, mapeo `'S'/'N'` ↔ `bool` y resolución de idioma de `ClaseOracleBD3` → [Sesión 5](../sesion-05/).
+* `[Columna]`, `[IgnorarMapeo]`, mapeo `'S'/'N'` ↔ `bool` y resolución de idioma de `ClaseOracleBD3` → [Sesión 8](../sesion-08/).
   :::
 
 ## Pregunta 1
@@ -19497,13 +19497,13 @@ d) `return new JsonResult(_reservas.Where(r => r.Activo));`
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-05/preguntas.md
+url: /curso-normalizacion/02-dotnet/test/sesion-08/preguntas.md
 description: >-
   Banco de 21 preguntas tipo test sobre ClaseOracleBD3, mapeo automático,
   Result<T> básico, paquetes PL/SQL con OUT params y patrón de servicio.
 ---
 
-# Test de autoevaluación — Sesión 5: Servicios y acceso a Oracle
+# Test de autoevaluación — Sesión 8: Servicios y acceso a Oracle
 
 ::: tip ALCANCE
 Las preguntas cubren **solo** lo que se enseña en esta sesión: separación de capas, `ClaseOracleBD3` (mapeo automático PascalCase → SNAKE\_CASE, `[Columna]`, `[IgnorarMapeo]`, idioma), `Result<T>` con `Success`/`NotFound`/`Failure`, paquetes PL/SQL con `OUT` params y patrón de servicio + registro DI.
@@ -20003,11 +20003,11 @@ Banco de preguntas por desarrollar.
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-03/respuestas.md
-description: Solucionario razonado del test de 22 preguntas de la Sesión 3.
+url: /curso-normalizacion/02-dotnet/test/sesion-06/respuestas.md
+description: Solucionario razonado del test de 22 preguntas de la Sesión 6.
 ---
 
-# Respuestas — Test Sesión 3: Introducción a .NET
+# Respuestas — Test Sesión 6: Introducción a .NET
 
 1. **c)** Se crea una instancia por cada petición HTTP. `AddScoped` crea una instancia que vive durante toda la petición HTTP y se destruye al finalizar.
 
@@ -20056,11 +20056,11 @@ description: Solucionario razonado del test de 22 preguntas de la Sesión 3.
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-04/respuestas.md
-description: Solucionario razonado del test de 22 preguntas de la Sesión 4.
+url: /curso-normalizacion/02-dotnet/test/sesion-07/respuestas.md
+description: Solucionario razonado del test de 22 preguntas de la Sesión 7.
 ---
 
-# Respuestas — Test Sesión 4: Modelos y primer API
+# Respuestas — Test Sesión 7: Modelos y primer API
 
 1. **c)** El DTO transporta datos entre capas sin lógica de negocio; la entidad representa una fila de la BD con mapeo directo. Los DTOs son objetos planos con solo propiedades, sin métodos de acceso a datos ni lógica de negocio.
 
@@ -20109,11 +20109,11 @@ description: Solucionario razonado del test de 22 preguntas de la Sesión 4.
 ---
 
 ---
-url: /curso-normalizacion/02-dotnet/test/sesion-05/respuestas.md
-description: Solucionario razonado del test de 21 preguntas de la Sesión 5.
+url: /curso-normalizacion/02-dotnet/test/sesion-08/respuestas.md
+description: Solucionario razonado del test de 21 preguntas de la Sesión 8.
 ---
 
-# Respuestas — Test Sesión 5: Servicios y acceso a Oracle
+# Respuestas — Test Sesión 8: Servicios y acceso a Oracle
 
 1. **b)** Error de mapeo: la librería buscará una columna `TIENE_CONTENIDO` que no existe. `ClaseOracleBD3` intenta mapear TODAS las propiedades públicas del modelo a columnas Oracle. Sin `[IgnorarMapeo]`, buscará una columna para `TieneContenido` y fallará al no encontrarla.
 
@@ -20382,18 +20382,18 @@ Respuestas comentadas por desarrollar.
 
 ---
 url: >-
-  /curso-normalizacion/02-dotnet/sesiones/sesion-04-dtos-apis/solucion-ejercicio-observaciones.md
+  /curso-normalizacion/02-dotnet/sesiones/sesion-07-dtos-apis/solucion-ejercicio-observaciones.md
 description: >-
   Ficheros completos de la API mock de Observaciones que el alumno debe
-  construir en la sesión 4.
+  construir en la sesión 7.
 ---
 
-# Solución del ejercicio §1.9 — API de Observaciones (sesión 4)
+# Solución del ejercicio §1.9 — API de Observaciones (sesión 7)
 
 ::: warning ESTO ES LA SOLUCIÓN
 Este fichero contiene los ficheros completos que el alumno debería entregar al final de §1.9. **Compáralo con el tuyo después de intentarlo**, no antes. Si lo lees antes, te pierdes el aprendizaje de mirar `TipoRecursosController` y derivar el patrón por tu cuenta.
 
-La sesión 2 (Servicios Oracle) **continúa este ejercicio**: pasaremos del controlador con datos hardcodeados al controlador con un servicio real contra Oracle. La nomenclatura (DTOs, nombre del controlador, claves de error) tiene que coincidir con la de esta solución para que la sesión 2 enganche sin sobresaltos.
+La sesión 8 (Servicios Oracle) **continúa este ejercicio**: pasaremos del controlador con datos hardcodeados al controlador con un servicio real contra Oracle. La nomenclatura (DTOs, nombre del controlador, claves de error) tiene que coincidir con la de esta solución para que la sesión 2 enganche sin sobresaltos.
 :::
 
 ## Estructura
@@ -20649,16 +20649,16 @@ Si tu código pasa los cuatro puntos, estás listo para la sesión 2.
 
 ---
 url: >-
-  /curso-normalizacion/02-dotnet/sesiones/sesion-05-servicios-oracle/solucion-ejercicio-observaciones.md
+  /curso-normalizacion/02-dotnet/sesiones/sesion-08-servicios-oracle/solucion-ejercicio-observaciones.md
 description: >-
   Cierre del ejercicio de §1.9 conectado a Oracle vía un servicio real, con sus
   dos tests.
 ---
 
-# Solución del ejercicio §5.6 — Observaciones con servicio + tests (sesión 5)
+# Solución del ejercicio §5.6 — Observaciones con servicio + tests (sesión 8)
 
 ::: warning ESTO ES LA SOLUCIÓN
-Compárala con la tuya **después** de intentarlo. Antes, mira `TiposRecursoServicio` / `RecursosServicio` y deriva el patrón por tu cuenta. La sesión 3 (Validación + Errores) sigue desde aquí, así que la nomenclatura tiene que coincidir.
+Compárala con la tuya **después** de intentarlo. Antes, mira `TiposRecursoServicio` / `RecursosServicio` y deriva el patrón por tu cuenta. La sesión 15-16 (Validación y Errores) sigue desde aquí, así que la nomenclatura tiene que coincidir.
 :::
 
 ## Estructura
@@ -21233,28 +21233,28 @@ Material de evaluación para todas las sesiones del curso, agrupado por bloque. 
 * [Autoevaluación](../01-oracle/test/sesion-05/autoevaluacion.md)
 * [Práctica IA-fix](../01-oracle/test/sesion-05/practica-ia-fix.md)
 
-## Bloque .NET — Sesiones 3 a 5
+## Bloque .NET — Sesiones 6 a 8
 
-### Sesión 3 — Introducción a .NET
+### Sesión 6 — Introducción a .NET
 
-* [Preguntas](../02-dotnet/test/sesion-03/preguntas.md)
-* [Respuestas](../02-dotnet/test/sesion-03/respuestas.md)
-* [Autoevaluación](../02-dotnet/test/sesion-03/autoevaluacion.md)
-* [Práctica IA-fix](../02-dotnet/test/sesion-03/practica-ia-fix.md)
+* [Preguntas](../02-dotnet/test/sesion-06/preguntas.md)
+* [Respuestas](../02-dotnet/test/sesion-06/respuestas.md)
+* [Autoevaluación](../02-dotnet/test/sesion-06/autoevaluacion.md)
+* [Práctica IA-fix](../02-dotnet/test/sesion-06/practica-ia-fix.md)
 
-### Sesión 4 — Modelos y primer API
+### Sesión 7 — Modelos y primer API
 
-* [Preguntas](../02-dotnet/test/sesion-04/preguntas.md)
-* [Respuestas](../02-dotnet/test/sesion-04/respuestas.md)
-* [Autoevaluación](../02-dotnet/test/sesion-04/autoevaluacion.md)
-* [Práctica IA-fix](../02-dotnet/test/sesion-04/practica-ia-fix.md)
+* [Preguntas](../02-dotnet/test/sesion-07/preguntas.md)
+* [Respuestas](../02-dotnet/test/sesion-07/respuestas.md)
+* [Autoevaluación](../02-dotnet/test/sesion-07/autoevaluacion.md)
+* [Práctica IA-fix](../02-dotnet/test/sesion-07/practica-ia-fix.md)
 
-### Sesión 5 — Servicios y acceso a Oracle
+### Sesión 8 — Servicios y acceso a Oracle
 
-* [Preguntas](../02-dotnet/test/sesion-05/preguntas.md)
-* [Respuestas](../02-dotnet/test/sesion-05/respuestas.md)
-* [Autoevaluación](../02-dotnet/test/sesion-05/autoevaluacion.md)
-* [Práctica IA-fix](../02-dotnet/test/sesion-05/practica-ia-fix.md)
+* [Preguntas](../02-dotnet/test/sesion-08/preguntas.md)
+* [Respuestas](../02-dotnet/test/sesion-08/respuestas.md)
+* [Autoevaluación](../02-dotnet/test/sesion-08/autoevaluacion.md)
+* [Práctica IA-fix](../02-dotnet/test/sesion-08/practica-ia-fix.md)
 
 ## Bloque Integración — Sesiones 14 a 17
 

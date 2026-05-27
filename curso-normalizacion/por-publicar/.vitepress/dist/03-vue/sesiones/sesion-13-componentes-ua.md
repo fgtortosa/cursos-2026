@@ -25,7 +25,7 @@ En las sesiones anteriores construimos componentes y composables a mano para ent
 | **Teoría guiada** | 45 min | 10.1 a 10.7 (árbol de decisión + componentes uno a uno + Teleport) |
 | **Práctica en aula** | 25 min | Demo integradora CRUD mock (`Sesion10CrudRecursos.vue`) |
 | **Test de sesión** | 15 min | Preguntas rápidas en formato desplegable y corrección grupal |
-| **Cierre** | 5 min | Dudas y enlace con sesiones de integración (11-14) |
+| **Cierre** | 5 min | Dudas y enlace con sesiones de integración (14-17) |
 
 ::: tip ENFOQUE DIDÁCTICO
 Cada componente se presenta junto con su demo abrible en `uareservas/sesiones-vue/sesion-10/...`. Abre el código y modifica valores: es la forma más rápida de fijar la API.

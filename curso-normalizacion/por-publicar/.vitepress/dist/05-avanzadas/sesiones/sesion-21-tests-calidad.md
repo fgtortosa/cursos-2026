@@ -364,7 +364,7 @@ Los tests reales son **lentos**. Cada uno abre una conexión a Oracle y ejecuta 
    :::
 
 ::: info → Continuación práctica del patrón
-El ejercicio §5.6 de la **[sesión 5](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/#_5-6-ejercicio-cerrar-observaciones-con-servicio-tests)** te pide replicar este patrón (fake + test simulado + test real con `SkippableFact`) sobre `Observaciones`. La solución completa con los siete ficheros está en [solucion-ejercicio-observaciones.md](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/solucion-ejercicio-observaciones.md).
+El ejercicio §5.6 de la **[sesión 8](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/#_5-6-ejercicio-cerrar-observaciones-con-servicio-tests)** te pide replicar este patrón (fake + test simulado + test real con `SkippableFact`) sobre `Observaciones`. La solución completa con los siete ficheros está en [solucion-ejercicio-observaciones.md](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/solucion-ejercicio-observaciones.md).
 :::
 
 ## 21.2 Tests de integración con `WebApplicationFactory` {#tests-integracion}

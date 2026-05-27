@@ -46,28 +46,28 @@ Material de evaluación para todas las sesiones del curso, agrupado por bloque. 
 * [Autoevaluación](../01-oracle/test/sesion-05/autoevaluacion.md)
 * [Práctica IA-fix](../01-oracle/test/sesion-05/practica-ia-fix.md)
 
-## Bloque .NET — Sesiones 3 a 5
+## Bloque .NET — Sesiones 6 a 8
 
-### Sesión 3 — Introducción a .NET
+### Sesión 6 — Introducción a .NET
 
-* [Preguntas](../02-dotnet/test/sesion-03/preguntas.md)
-* [Respuestas](../02-dotnet/test/sesion-03/respuestas.md)
-* [Autoevaluación](../02-dotnet/test/sesion-03/autoevaluacion.md)
-* [Práctica IA-fix](../02-dotnet/test/sesion-03/practica-ia-fix.md)
+* [Preguntas](../02-dotnet/test/sesion-06/preguntas.md)
+* [Respuestas](../02-dotnet/test/sesion-06/respuestas.md)
+* [Autoevaluación](../02-dotnet/test/sesion-06/autoevaluacion.md)
+* [Práctica IA-fix](../02-dotnet/test/sesion-06/practica-ia-fix.md)
 
-### Sesión 4 — Modelos y primer API
+### Sesión 7 — Modelos y primer API
 
-* [Preguntas](../02-dotnet/test/sesion-04/preguntas.md)
-* [Respuestas](../02-dotnet/test/sesion-04/respuestas.md)
-* [Autoevaluación](../02-dotnet/test/sesion-04/autoevaluacion.md)
-* [Práctica IA-fix](../02-dotnet/test/sesion-04/practica-ia-fix.md)
+* [Preguntas](../02-dotnet/test/sesion-07/preguntas.md)
+* [Respuestas](../02-dotnet/test/sesion-07/respuestas.md)
+* [Autoevaluación](../02-dotnet/test/sesion-07/autoevaluacion.md)
+* [Práctica IA-fix](../02-dotnet/test/sesion-07/practica-ia-fix.md)
 
-### Sesión 5 — Servicios y acceso a Oracle
+### Sesión 8 — Servicios y acceso a Oracle
 
-* [Preguntas](../02-dotnet/test/sesion-05/preguntas.md)
-* [Respuestas](../02-dotnet/test/sesion-05/respuestas.md)
-* [Autoevaluación](../02-dotnet/test/sesion-05/autoevaluacion.md)
-* [Práctica IA-fix](../02-dotnet/test/sesion-05/practica-ia-fix.md)
+* [Preguntas](../02-dotnet/test/sesion-08/preguntas.md)
+* [Respuestas](../02-dotnet/test/sesion-08/respuestas.md)
+* [Autoevaluación](../02-dotnet/test/sesion-08/autoevaluacion.md)
+* [Práctica IA-fix](../02-dotnet/test/sesion-08/practica-ia-fix.md)
 
 ## Bloque Integración — Sesiones 14 a 17
 

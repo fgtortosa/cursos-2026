@@ -20,7 +20,7 @@ Esta sesión sienta las bases para el resto del módulo. Si ya conoces Vue 3, si
 | **9** | Arquitectura y servicios | Composables, servicios, Vista → Composable → Servicio |
 | **10** | Componentes internos UA | `vueua-autocomplete`, `vueua-dialogmodal`, Teleport |
 
-Los temas de `useAxios`, validación y Pinia se cubren en las sesiones de **Integración full-stack** (11-14).
+Los temas de `useAxios`, validación y Pinia se cubren en las sesiones de **Integración full-stack** (14-17).
 :::
 
 ## Plan de sesión (90 min) {#plan-90}
@@ -942,4 +942,4 @@ const activo = ref<boolean>(true)
 
 | Anterior | Inicio | Siguiente |
 |---|---|---|
-| [← Sesión 5: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 10: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-10-directivas-eventos/) |
+| [← Sesión 8: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 10: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-10-directivas-eventos/) |

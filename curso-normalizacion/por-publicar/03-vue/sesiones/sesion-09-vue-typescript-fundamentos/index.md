@@ -5,6 +5,7 @@ outline: deep
 ---
 
 # Sesión 9: Vue 3, TypeScript y tu primer componente
+
 <!-- [[toc]] -->
 
 ::: info CONTEXTO
@@ -12,25 +13,25 @@ Esta sesión sienta las bases para el resto del módulo. Si ya conoces Vue 3, si
 
 **Sesiones de Vue en este curso:**
 
-| Sesión | Tema | Qué aprenderás |
-|--------|------|-----------------|
-| **6 (esta)** | Fundamentos | Estructura `.vue`, TypeScript básico, reactividad, interpolación |
-| **7** | Datos e interactividad | Interfaces, funciones, `v-if`, `v-for`, `v-model`, eventos, métodos de arrays |
-| **8** | Componentes y comunicación | Props, Emits, `defineModel`, `computed`, `watch`, slots |
-| **9** | Arquitectura y servicios | Composables, servicios, Vista → Composable → Servicio |
-| **10** | Componentes internos UA | `vueua-autocomplete`, `vueua-dialogmodal`, Teleport |
+| Sesión       | Tema                       | Qué aprenderás                                                                |
+| ------------ | -------------------------- | ----------------------------------------------------------------------------- |
+| **6 (esta)** | Fundamentos                | Estructura `.vue`, TypeScript básico, reactividad, interpolación              |
+| **7**        | Datos e interactividad     | Interfaces, funciones, `v-if`, `v-for`, `v-model`, eventos, métodos de arrays |
+| **8**        | Componentes y comunicación | Props, Emits, `defineModel`, `computed`, `watch`, slots                       |
+| **9**        | Arquitectura y servicios   | Composables, servicios, Vista → Composable → Servicio                         |
+| **10**       | Componentes internos UA    | `vueua-autocomplete`, `vueua-dialogmodal`, Teleport                           |
 
-Los temas de `useAxios`, validación y Pinia se cubren en las sesiones de **Integración full-stack** (11-14).
+Los temas de `useAxios`, validación y Pinia se cubren en las sesiones de **Integración full-stack** (14-17).
 :::
 
 ## Plan de sesión (90 min) {#plan-90}
 
-| Bloque | Tiempo | Contenido |
-|--------|--------|-----------|
-| **Teoría guiada** | 45 min | 1.1 a 1.6 (fundamentos, TS, reactividad, interpolación y depuración básica) |
-| **Práctica en aula** | 25 min | Ejercicio de tarjeta personal + revisión en directo |
-| **Test de sesión** | 15 min | Preguntas rápidas en formato desplegable y corrección grupal |
-| **Cierre** | 5 min | Dudas, errores frecuentes y preparación de la sesión 10 |
+| Bloque               | Tiempo | Contenido                                                                   |
+| -------------------- | ------ | --------------------------------------------------------------------------- |
+| **Teoría guiada**    | 45 min | 1.1 a 1.6 (fundamentos, TS, reactividad, interpolación y depuración básica) |
+| **Práctica en aula** | 25 min | Ejercicio de tarjeta personal + revisión en directo                         |
+| **Test de sesión**   | 15 min | Preguntas rápidas en formato desplegable y corrección grupal                |
+| **Cierre**           | 5 min  | Dudas, errores frecuentes y preparación de la sesión 10                     |
 
 ::: tip ENFOQUE DIDÁCTICO
 Con 90 minutos buscamos no solo explicar sintaxis, sino también consolidar hábitos: leer errores, comprobar tipos y validar que cada alumno pueda crear y entender un componente básico sin ayuda.
@@ -40,14 +41,14 @@ Con 90 minutos buscamos no solo explicar sintaxis, sino también consolidar háb
 
 Vue 3 es el framework seleccionado para el desarrollo de la parte cliente en el Servicio de Informática de la UA por:
 
-| Ventaja | Descripción |
-|---------|-------------|
+| Ventaja                        | Descripción                                                                                                       |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | **Curva de aprendizaje suave** | Principal razón frente a Angular o React. Especialmente asequible para desarrolladores con HTML, CSS y JavaScript |
-| **Estructura clara** | Separación en `<script>`, `<template>` y `<style>` que mejora legibilidad y mantenimiento |
-| **Reactividad** | Actualización automática de la interfaz cuando cambian los datos |
-| **TypeScript integrado** | Tipado estático, autocompletado inteligente y detección temprana de errores |
-| **Composition API** | Código reutilizable, organizado y escalable |
-| **Vue Devtools** | Depuración directa en el navegador con inspección de componentes y estado |
+| **Estructura clara**           | Separación en `<script>`, `<template>` y `<style>` que mejora legibilidad y mantenimiento                         |
+| **Reactividad**                | Actualización automática de la interfaz cuando cambian los datos                                                  |
+| **TypeScript integrado**       | Tipado estático, autocompletado inteligente y detección temprana de errores                                       |
+| **Composition API**            | Código reutilizable, organizado y escalable                                                                       |
+| **Vue Devtools**               | Depuración directa en el navegador con inspección de componentes y estado                                         |
 
 ::: tip BUENA PRÁCTICA
 Usamos **Composition API** (`<script setup>`) en el curso, no la Options API de Vue 2. Es más moderna, más flexible y tiene mejor soporte de TypeScript.
@@ -59,7 +60,7 @@ Un archivo `.vue` se divide en tres secciones:
 
 ```html
 <script setup lang="ts">
-// 1. SCRIPT: Lógica del componente (TypeScript)
+  // 1. SCRIPT: Lógica del componente (TypeScript)
 </script>
 
 <template>
@@ -67,7 +68,7 @@ Un archivo `.vue` se divide en tres secciones:
 </template>
 
 <style lang="scss" scoped>
-/* 3. STYLE: CSS específico de este componente */
+  /* 3. STYLE: CSS específico de este componente */
 </style>
 ```
 
@@ -92,21 +93,21 @@ Un archivo `.vue` se divide en tres secciones:
 
 <!-- diagram id="s6-anatomia-vue" caption: "Las tres secciones de un componente .vue" -->
 
-| Sección | Qué contiene | Notas |
-|---------|-------------|-------|
-| `<script setup lang="ts">` | Imports, variables, funciones, lógica | `setup` activa Composition API, `lang="ts"` activa TypeScript |
-| `<template>` | HTML con directivas Vue | Todo lo declarado en script está disponible automáticamente |
-| `<style scoped>` | CSS/SCSS del componente | `scoped` asegura que los estilos no afecten a otros componentes |
+| Sección                    | Qué contiene                          | Notas                                                           |
+| -------------------------- | ------------------------------------- | --------------------------------------------------------------- |
+| `<script setup lang="ts">` | Imports, variables, funciones, lógica | `setup` activa Composition API, `lang="ts"` activa TypeScript   |
+| `<template>`               | HTML con directivas Vue               | Todo lo declarado en script está disponible automáticamente     |
+| `<style scoped>`           | CSS/SCSS del componente               | `scoped` asegura que los estilos no afecten a otros componentes |
 
 ### Diferencia entre Vista y Componente
 
-| Aspecto | Vista | Componente |
-|---------|-------|------------|
-| **Ubicación** | `src/views/` | `src/components/` |
-| **Propósito** | Página completa (asociada a ruta URL) | Pieza reutilizable de la interfaz |
-| **Router** | ✅ Tiene ruta asociada | ❌ No tiene ruta |
-| **Uso** | Se carga desde el router | Se importa en vistas u otros componentes |
-| **Nomenclatura** | `PascalCase` (`Home.vue`) | `PascalCase` (`SelectorFechas.vue`) |
+| Aspecto          | Vista                                 | Componente                               |
+| ---------------- | ------------------------------------- | ---------------------------------------- |
+| **Ubicación**    | `src/views/`                          | `src/components/`                        |
+| **Propósito**    | Página completa (asociada a ruta URL) | Pieza reutilizable de la interfaz        |
+| **Router**       | ✅ Tiene ruta asociada                | ❌ No tiene ruta                         |
+| **Uso**          | Se carga desde el router              | Se importa en vistas u otros componentes |
+| **Nomenclatura** | `PascalCase` (`Home.vue`)             | `PascalCase` (`SelectorFechas.vue`)      |
 
 ::: tip REGLA PRÁCTICA
 Si el usuario puede navegar directamente a ello con una URL → es una **Vista**. Si se usa como pieza dentro de otras partes → es un **Componente**.
@@ -116,28 +117,33 @@ Si el usuario puede navegar directamente a ello con una URL → es una **Vista**
 
 ```html
 <script setup lang="ts">
-// 1. Imports
-import { ref, computed } from 'vue'
-import MiComponente from '@/components/MiComponente.vue'
+  // 1. Imports
+  import { ref, computed } from "vue";
+  import MiComponente from "@/components/MiComponente.vue";
 
-// 2. Interfaces locales
-interface IDatos { id: number; nombre: string }
+  // 2. Interfaces locales
+  interface IDatos {
+    id: number;
+    nombre: string;
+  }
 
-// 3. Props / Emits (si es componente)
-const props = defineProps<{ titulo: string }>()
+  // 3. Props / Emits (si es componente)
+  const props = defineProps<{ titulo: string }>();
 
-// 4. Variables reactivas
-const contador = ref<number>(0)
+  // 4. Variables reactivas
+  const contador = ref<number>(0);
 
-// 5. Computed
-const doble = computed(() => contador.value * 2)
+  // 5. Computed
+  const doble = computed(() => contador.value * 2);
 
-// 6. Watchers
+  // 6. Watchers
 
-// 7. Lifecycle hooks
+  // 7. Lifecycle hooks
 
-// 8. Funciones
-function incrementar() { contador.value++ }
+  // 8. Funciones
+  function incrementar() {
+    contador.value++;
+  }
 </script>
 ```
 
@@ -149,13 +155,13 @@ TypeScript es un **superset de JavaScript** que añade tipado estático. Esto si
 
 ```typescript
 // Tipo explícito
-const nombre: string = 'Juan'
-const edad: number = 25
-const activo: boolean = true
+const nombre: string = "Juan";
+const edad: number = 25;
+const activo: boolean = true;
 
 // Inferencia de tipos (TypeScript deduce el tipo automáticamente)
-const ciudad = 'Alicante'     // TypeScript sabe que es string
-const contador = 0            // TypeScript sabe que es number
+const ciudad = "Alicante"; // TypeScript sabe que es string
+const contador = 0; // TypeScript sabe que es number
 ```
 
 ### `let`, `const` y `var`: qué usar y cuándo
@@ -167,9 +173,9 @@ En esta sesión conviene fijar una regla clara:
 - **`var` no se usa en código actual** (comportamiento más confuso por alcance de función).
 
 ```typescript
-const curso = 'Vue 3'   // ✅ no se reasigna
-let pagina = 1          // ✅ puede cambiar
-pagina = 2
+const curso = "Vue 3"; // ✅ no se reasigna
+let pagina = 1; // ✅ puede cambiar
+pagina = 2;
 
 // curso = 'React'      // ❌ error: no puedes reasignar un const
 ```
@@ -177,19 +183,19 @@ pagina = 2
 Diferencia importante con objetos:
 
 ```typescript
-const usuario = { nombre: 'Ana', edad: 25 }
-usuario.edad = 26          // ✅ permitido (cambia propiedad interna)
+const usuario = { nombre: "Ana", edad: 25 };
+usuario.edad = 26; // ✅ permitido (cambia propiedad interna)
 
 // usuario = { nombre: 'Luis', edad: 30 }   // ❌ no permitido (reasignar referencia)
 ```
 
 Comparación rápida:
 
-| Declaración | Reasignable | Alcance | Recomendación |
-|-------------|-------------|---------|---------------|
-| `const` | ❌ | bloque (`{}`) | ✅ opción por defecto |
-| `let` | ✅ | bloque (`{}`) | ✅ cuando debe cambiar |
-| `var` | ✅ | función | ❌ evitar en código moderno |
+| Declaración | Reasignable | Alcance       | Recomendación               |
+| ----------- | ----------- | ------------- | --------------------------- |
+| `const`     | ❌          | bloque (`{}`) | ✅ opción por defecto       |
+| `let`       | ✅          | bloque (`{}`) | ✅ cuando debe cambiar      |
+| `var`       | ✅          | función       | ❌ evitar en código moderno |
 
 ::: tip REGLA PRÁCTICA
 Si dudas entre `let` y `const`, empieza por `const`. Solo cambia a `let` cuando realmente necesites reasignar.
@@ -201,20 +207,20 @@ No es imprescindible dominarlas hoy, pero conviene conocerlas:
 
 ```typescript
 // as const: convierte literales en valores inmutables y más específicos
-const estado = 'activo' as const
+const estado = "activo" as const;
 // estado = 'inactivo'   // ❌ error
 
 interface IConfig {
-  readonly apiBase: string
-  timeout: number
+  readonly apiBase: string;
+  timeout: number;
 }
 
 const config: IConfig = {
-  apiBase: '/api',
-  timeout: 5000
-}
+  apiBase: "/api",
+  timeout: 5000,
+};
 
-config.timeout = 7000       // ✅ permitido
+config.timeout = 7000; // ✅ permitido
 // config.apiBase = '/v2'   // ❌ error (readonly)
 ```
 
@@ -225,26 +231,26 @@ En esta sesión basta con recordar:
 
 ### Resumen rápido de tipos más usados
 
-| Tipo | Ejemplo | Descripción |
-|------|---------|-------------|
-| `string` | `"Hola"` | Texto |
-| `number` | `42`, `3.14` | Números enteros y decimales |
-| `boolean` | `true`, `false` | Verdadero / Falso |
-| `string[]` | `["a", "b"]` | Array de strings |
-| `number[]` | `[1, 2, 3]` | Array de números |
-| `any` | Cualquier valor | ❌ Evitar: desactiva la verificación de tipos |
-| `unknown` | Cualquier valor | Como `any` pero más seguro (obliga a comprobar tipo) |
-| `null` | `null` | Valor nulo |
-| `undefined` | `undefined` | Valor indefinido |
+| Tipo        | Ejemplo         | Descripción                                          |
+| ----------- | --------------- | ---------------------------------------------------- |
+| `string`    | `"Hola"`        | Texto                                                |
+| `number`    | `42`, `3.14`    | Números enteros y decimales                          |
+| `boolean`   | `true`, `false` | Verdadero / Falso                                    |
+| `string[]`  | `["a", "b"]`    | Array de strings                                     |
+| `number[]`  | `[1, 2, 3]`     | Array de números                                     |
+| `any`       | Cualquier valor | ❌ Evitar: desactiva la verificación de tipos        |
+| `unknown`   | Cualquier valor | Como `any` pero más seguro (obliga a comprobar tipo) |
+| `null`      | `null`          | Valor nulo                                           |
+| `undefined` | `undefined`     | Valor indefinido                                     |
 
 ### Union Types: varios tipos posibles
 
 ```typescript
-let resultado: string | number
+let resultado: string | number;
 
-resultado = "éxito"  // ✅ válido
-resultado = 200      // ✅ válido
-resultado = true     // ❌ error de compilación
+resultado = "éxito"; // ✅ válido
+resultado = 200; // ✅ válido
+resultado = true; // ❌ error de compilación
 ```
 
 ### Tipos especiales: `null`, `undefined`, `any` y `unknown`
@@ -255,30 +261,30 @@ Los cuatro existen para casos muy concretos. La regla general: **elige siempre e
 // ── null y undefined ──────────────────────────────────────────────
 // Úsalos en uniones para indicar "puede no haber valor todavía".
 // Es lo habitual cuando una variable se rellena tras una llamada async.
-let usuarioCargado: string | null = null            // luego: "Ana Garcia"
-let idSeleccionado: number | undefined = undefined  // luego: 42
+let usuarioCargado: string | null = null; // luego: "Ana Garcia"
+let idSeleccionado: number | undefined = undefined; // luego: 42
 
 // ── any → desactiva TypeScript (EVITAR) ───────────────────────────
-let valor: any = "texto"
-valor = 42          // No hay error... pero pierdes la red de seguridad
-valor.noExiste()    // No hay error en compilación; revienta en ejecución
+let valor: any = "texto";
+valor = 42; // No hay error... pero pierdes la red de seguridad
+valor.noExiste(); // No hay error en compilación; revienta en ejecución
 
 // ── unknown → la versión segura de any ────────────────────────────
 // Útil cuando recibes un dato del exterior y aún no sabes su forma
 // (respuesta de fetch, mensaje de postMessage, contenido de localStorage).
-let dato: unknown = JSON.parse(localStorage.getItem("config") ?? "{}")
+let dato: unknown = JSON.parse(localStorage.getItem("config") ?? "{}");
 // dato.toUpperCase()  // ❌ Error: TS te obliga a comprobar primero
 if (typeof dato === "string") {
-  dato.toUpperCase()   // ✅ Dentro del if, TS sabe que es string
+  dato.toUpperCase(); // ✅ Dentro del if, TS sabe que es string
 }
 ```
 
 ::: tip BUENA PRÁCTICA — qué tipo real poner en el ejemplo de arriba
-| En el ejemplo... | El tipo "de juguete"  | El tipo real que pondrías en código de producción |
+| En el ejemplo... | El tipo "de juguete" | El tipo real que pondrías en código de producción |
 | ---------------- | --------------------- | ------------------------------------------------- |
-| `valor: any`     | `any` (no escribir)   | `string \| number` si admite los dos, o crear una *union type* concreta |
-| `dato: unknown`  | `unknown` (genérico)  | Una **interface** que describa la forma esperada (`interface Config { ... }`) y un *type guard* que la valide |
-| `usuarioCargado` | `string \| null`      | `Usuario \| null` con `interface Usuario { id: number; nombre: string }` |
+| `valor: any` | `any` (no escribir) | `string \| number` si admite los dos, o crear una _union type_ concreta |
+| `dato: unknown` | `unknown` (genérico) | Una **interface** que describa la forma esperada (`interface Config { ... }`) y un _type guard_ que la valide |
+| `usuarioCargado` | `string \| null` | `Usuario \| null` con `interface Usuario { id: number; nombre: string }` |
 | `idSeleccionado` | `number \| undefined` | Mejor `number \| null` para distinguir "aún no elegido" (lo idiomático en formularios UA) |
 
 La idea: `any`/`unknown` son **comodines de paso**. En cuanto sepas la forma, define una `interface` o un `type` y úsalo.
@@ -294,7 +300,7 @@ La reactividad es la capacidad de Vue de **actualizar automáticamente** el DOM 
 
 ```typescript
 // 1) Declaras una variable reactiva con ref(...).
-const contador = ref<number>(0)
+const contador = ref<number>(0);
 
 // 2) La usas en el template: {{ contador }}.
 //    Vue "anota" que ese nodo del DOM depende de 'contador'.
@@ -311,15 +317,15 @@ Lo importante: **tú no escribes ningún `document.getElementById` ni ningún `i
 Al principio resulta raro ver esto:
 
 ```typescript
-const contador = ref(0)
+const contador = ref(0);
 ```
 
 Usamos `const` porque lo que protegemos es la **referencia reactiva**, no su contenido interno:
 
 ```typescript
-const contador = ref(0)
-contador.value = 10     // ✅ correcto
-contador.value++        // ✅ correcto
+const contador = ref(0);
+contador.value = 10; // ✅ correcto
+contador.value++; // ✅ correcto
 
 // contador = ref(20)   // ❌ error: estarías reasignando la referencia
 ```
@@ -327,8 +333,8 @@ contador.value++        // ✅ correcto
 Con `reactive` ocurre lo mismo:
 
 ```typescript
-const usuario = reactive({ nombre: 'Ana' })
-usuario.nombre = 'Juan'   // ✅ correcto
+const usuario = reactive({ nombre: "Ana" });
+usuario.nombre = "Juan"; // ✅ correcto
 
 // usuario = reactive({ nombre: 'María' })  // ❌ error
 ```
@@ -343,24 +349,28 @@ Con `const` no decimos "el dato no cambia". Decimos "esta referencia reactiva no
 
 ```html
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+  import { ref, computed } from "vue";
 
-// 'nombre' es una "caja" que Vue vigila. Cuando cambia el valor
-// interno, el template se vuelve a pintar solo.
-const nombre = ref<string>('Mundo')
+  // 'nombre' es una "caja" que Vue vigila. Cuando cambia el valor
+  // interno, el template se vuelve a pintar solo.
+  const nombre = ref<string>("Mundo");
 
-function saludarALola()  { nombre.value = 'Lola, mi perro' }       // .value en el script
-function saludarATiger() { nombre.value = 'Tiger, mi super gato' }
+  function saludarALola() {
+    nombre.value = "Lola, mi perro";
+  } // .value en el script
+  function saludarATiger() {
+    nombre.value = "Tiger, mi super gato";
+  }
 
-// 'computed' recalcula automaticamente la URL cada vez que cambia 'nombre'.
-// Las fotos viven en ClientApp/public/ (lola.jpg, tiger.jpg). Vite las sirve
-// bajo import.meta.env.BASE_URL → en producción "/uareservas/lola.jpg".
-const fotoMascota = computed<string | null>(() => {
-  const base = import.meta.env.BASE_URL
-  if (nombre.value === 'Lola, mi perro')       return `${base}lola.jpg`
-  if (nombre.value === 'Tiger, mi super gato') return `${base}tiger.jpg`
-  return null
-})
+  // 'computed' recalcula automaticamente la URL cada vez que cambia 'nombre'.
+  // Las fotos viven en ClientApp/public/ (lola.jpg, tiger.jpg). Vite las sirve
+  // bajo import.meta.env.BASE_URL → en producción "/uareservas/lola.jpg".
+  const fotoMascota = computed<string | null>(() => {
+    const base = import.meta.env.BASE_URL;
+    if (nombre.value === "Lola, mi perro") return `${base}lola.jpg`;
+    if (nombre.value === "Tiger, mi super gato") return `${base}tiger.jpg`;
+    return null;
+  });
 </script>
 
 <template>
@@ -369,13 +379,22 @@ const fotoMascota = computed<string | null>(() => {
 
   <!-- v-if monta/desmonta el bloque segun la computed.
        Sin foto cuando 'nombre' no coincide con ninguna mascota. -->
-  <img v-if="fotoMascota" :src="fotoMascota" :alt="nombre" style="max-height: 240px" />
+  <img
+    v-if="fotoMascota"
+    :src="fotoMascota"
+    :alt="nombre"
+    style="max-height: 240px"
+  />
 
   <!-- v-model: enlace bidireccional con el input -->
   <input v-model="nombre" type="text" class="form-control" />
 
-  <button class="btn btn-primary" @click="saludarALola">Saluda a Lola, mi perro</button>
-  <button class="btn btn-primary" @click="saludarATiger">Saluda a Tiger, mi super gato</button>
+  <button class="btn btn-primary" @click="saludarALola">
+    Saluda a Lola, mi perro
+  </button>
+  <button class="btn btn-primary" @click="saludarATiger">
+    Saluda a Tiger, mi super gato
+  </button>
 </template>
 ```
 
@@ -386,6 +405,7 @@ Todo lo que metes en `ClientApp/public/` se sirve **tal cual** bajo la URL base 
 :::
 
 ::: warning IMPORTANTE
+
 - En el `<script>`: usa `contador.value`
 - En el `<template>`: usa `contador` (sin `.value`)
 
@@ -398,27 +418,32 @@ Para **objetos** existe `reactive`. La demo `Sesion6RefVsReactive.vue` coloca un
 
 ```html
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+  import { ref, reactive } from "vue";
 
-// ---- Izquierda: ref<number> ----
-const contadorA = ref<number>(0)
-function incrementarA() { contadorA.value++ }
+  // ---- Izquierda: ref<number> ----
+  const contadorA = ref<number>(0);
+  function incrementarA() {
+    contadorA.value++;
+  }
 
-// ---- Derecha: reactive({ ... }) ----
-const estadoB = reactive({
-  count: 0,
-  ultimaAccion: 'ninguna',
-})
-function incrementarB() {
-  estadoB.count++                       // ✓ modifica propiedad → reactivo
-  estadoB.ultimaAccion = 'increment'
-  // estadoB = { count: 0, ... }        // ✗ NO reasignar: rompe la reactividad
-}
+  // ---- Derecha: reactive({ ... }) ----
+  const estadoB = reactive({
+    count: 0,
+    ultimaAccion: "ninguna",
+  });
+  function incrementarB() {
+    estadoB.count++; // ✓ modifica propiedad → reactivo
+    estadoB.ultimaAccion = "increment";
+    // estadoB = { count: 0, ... }        // ✗ NO reasignar: rompe la reactividad
+  }
 </script>
 
 <template>
   <div>Contador A (ref): {{ contadorA }}</div>
-  <div>Contador B (reactive): {{ estadoB.count }} — última acción: {{ estadoB.ultimaAccion }}</div>
+  <div>
+    Contador B (reactive): {{ estadoB.count }} — última acción: {{
+    estadoB.ultimaAccion }}
+  </div>
 </template>
 ```
 
@@ -426,12 +451,12 @@ function incrementarB() {
 
 ### `ref` vs `reactive` — Cuándo usar cada uno
 
-| Aspecto | `ref` | `reactive` |
-|---------|-------|-----------|
-| **Uso** | Valores simples, arrays, cualquier cosa | Objetos complejos |
-| **Sintaxis en script** | `.value` | Acceso directo |
-| **Sintaxis en template** | Sin `.value` | Sin `.value` |
-| **Tipado TypeScript** | `ref<Tipo>(valor)` | `reactive<Tipo>({...})` |
+| Aspecto                  | `ref`                                   | `reactive`              |
+| ------------------------ | --------------------------------------- | ----------------------- |
+| **Uso**                  | Valores simples, arrays, cualquier cosa | Objetos complejos       |
+| **Sintaxis en script**   | `.value`                                | Acceso directo          |
+| **Sintaxis en template** | Sin `.value`                            | Sin `.value`            |
+| **Tipado TypeScript**    | `ref<Tipo>(valor)`                      | `reactive<Tipo>({...})` |
 
 ::: tip BUENA PRÁCTICA
 Prefiere **`ref`** en la mayoría de casos. Es más clara, funciona con todo y tiene mejor soporte TypeScript. Usa `reactive` solo para objetos donde te resulte más cómodo.
@@ -443,19 +468,19 @@ Usa llaves dobles <code v-pre>{{ }}</code> para mostrar valores reactivos en el 
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from "vue";
 
-const persona = ref({
-  nombre: 'Ana Garcia',
-  edad: 27,
-  email: 'ana@ua.es',
-  notas: [7.5, 8.2, 9.0, 6.5],
-  rol: 'PDI' as 'PDI' | 'PTGAS' | 'Alumno',
-})
+  const persona = ref({
+    nombre: "Ana Garcia",
+    edad: 27,
+    email: "ana@ua.es",
+    notas: [7.5, 8.2, 9.0, 6.5],
+    rol: "PDI" as "PDI" | "PTGAS" | "Alumno",
+  });
 
-function aniosDesdeNacimiento(edad: number): number {
-  return new Date().getFullYear() - edad
-}
+  function aniosDesdeNacimiento(edad: number): number {
+    return new Date().getFullYear() - edad;
+  }
 </script>
 
 <template>
@@ -475,7 +500,10 @@ function aniosDesdeNacimiento(edad: number): number {
   <p>Año aproximado: {{ aniosDesdeNacimiento(persona.edad) }}</p>
 
   <!-- 6. Métodos de arrays/strings -->
-  <p>Media: {{ (persona.notas.reduce((a, b) => a + b, 0) / persona.notas.length).toFixed(2) }}</p>
+  <p>
+    Media: {{ (persona.notas.reduce((a, b) => a + b, 0) /
+    persona.notas.length).toFixed(2) }}
+  </p>
 
   <!-- 7. Atributos: ':' (alias de v-bind), no llaves -->
   <a :href="`mailto:${persona.email}`">Escribir a {{ persona.nombre }}</a>
@@ -491,6 +519,12 @@ La interpolación solo acepta **expresiones** (que devuelven un valor). No acept
 ## 1.6 Depuración básica {#debug-basico}
 
 Antes de avanzar a directivas y comunicación entre componentes, conviene establecer una rutina corta de depuración. La idea es simple: cuando algo falla, no adivinar; comprobar.
+
+::: info PUNTO DE PARTIDA PARA DESARROLLADORES DE VISUAL STUDIO
+Si vienes de depurar aplicaciones .NET con **F5 en Visual Studio**, el rol del depurador aquí lo tiene el **navegador** — no el IDE. La aplicación Vue corre en Chrome o Edge, así que abre `F12` → pestaña **Sources** para poner breakpoints y usa la **Console** para ejecutar expresiones.
+
+Lo bueno: los atajos principales son los **mismos** (`F10`, `F11`, `Shift+F11`). El panel **Scope** sustituye a *Autos/Locals*, y la **Console** mientras el código está pausado actúa como la *Ventana inmediata*. Todo esto se desarrolla en el apartado [1.6.3](#debugger).
+:::
 
 ### 1.6.1 Preparación mínima (navegador + extensión)
 
@@ -516,16 +550,16 @@ Si no aparece la pestaña Vue:
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from "vue";
 
-const contador = ref<number>(0)
+  const contador = ref<number>(0);
 
-function incrementar() {
-  console.log('[click] incrementar')
-  console.log('Antes:', contador.value)
-  contador.value++
-  console.log('Despues:', contador.value)
-}
+  function incrementar() {
+    console.log("[click] incrementar");
+    console.log("Antes:", contador.value);
+    contador.value++;
+    console.log("Despues:", contador.value);
+  }
 </script>
 
 <template>
@@ -546,37 +580,77 @@ Si falla alguno de los tres puntos, ya tienes una pista de dónde está el probl
 
 `console.log` no es la única. DevTools agrupa, colorea y formatea distinto según la variante que uses:
 
-| Variante                        | Cuándo usarla                                                                                    |
-| ------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `console.log(...)`              | Información general. Sale en negro.                                                              |
-| `console.info(...)`             | Información destacada (icono azul ℹ). Útil para hitos del flujo.                                |
-| `console.warn(...)`             | Aviso amarillo. Algo no está bien pero no rompe — perfecto para "estás usando una API obsoleta". |
-| `console.error(...)`            | Rojo + stack trace. Para errores que has detectado tú (en un `catch`, por ejemplo).              |
-| `console.table(arrayDeObjetos)` | Pinta un array de objetos como tabla con columnas ordenables. Ideal para arrays de DTOs.         |
-| `console.dir(obj)`              | Imprime el objeto como árbol explorable (mejor que `log` para objetos profundos / proxies Vue).  |
-| `console.group('etiqueta')` + `console.groupEnd()` | Agrupa logs entre las dos llamadas → árbol plegable en la consola.            |
-| `console.time('t')` + `console.timeEnd('t')`       | Mide milisegundos entre las dos llamadas. Útil para detectar bucles lentos.   |
-| `console.count('clave')`        | Cuenta cuántas veces se ha invocado. Útil para detectar renders duplicados o handlers que se disparan más veces de la cuenta. |
-| `console.assert(cond, 'msg')`   | Solo imprime si `cond` es falsa. Más limpio que un `if (!cond) console.error(...)`.              |
-| `console.trace('etiqueta')`     | Imprime la pila completa de llamadas hasta este punto. Brutal para "¿quién está llamando a esta función?". |
+| Variante                                           | Cuándo usarla                                                                                                                 |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `console.log(...)`                                 | Información general. Sale en negro.                                                                                           |
+| `console.info(...)`                                | Información destacada (icono azul ℹ). Útil para hitos del flujo.                                                              |
+| `console.warn(...)`                                | Aviso amarillo. Algo no está bien pero no rompe — perfecto para "estás usando una API obsoleta".                              |
+| `console.error(...)`                               | Rojo + stack trace. Para errores que has detectado tú (en un `catch`, por ejemplo).                                           |
+| `console.table(arrayDeObjetos)`                    | Pinta un array de objetos como tabla con columnas ordenables. Ideal para arrays de DTOs.                                      |
+| `console.dir(obj)`                                 | Imprime el objeto como árbol explorable (mejor que `log` para objetos profundos / proxies Vue).                               |
+| `console.group('etiqueta')` + `console.groupEnd()` | Agrupa logs entre las dos llamadas → árbol plegable en la consola.                                                            |
+| `console.time('t')` + `console.timeEnd('t')`       | Mide milisegundos entre las dos llamadas. Útil para detectar bucles lentos.                                                   |
+| `console.count('clave')`                           | Cuenta cuántas veces se ha invocado. Útil para detectar renders duplicados o handlers que se disparan más veces de la cuenta. |
+| `console.assert(cond, 'msg')`                      | Solo imprime si `cond` es falsa. Más limpio que un `if (!cond) console.error(...)`.                                           |
+| `console.trace('etiqueta')`                        | Imprime la pila completa de llamadas hasta este punto. Brutal para "¿quién está llamando a esta función?".                    |
 
 Ejemplo aplicado a la demo:
 
 ```typescript
 function incrementar() {
-  console.group('[click] incrementar')
-  console.count('renders del botón')      // 1, 2, 3...
-  console.table([{ estado: 'antes', valor: contador.value }])
-  console.time('tiempoIncremento')
-  contador.value++
-  console.timeEnd('tiempoIncremento')     // "tiempoIncremento: 0.12 ms"
-  console.groupEnd()
+  console.group("[click] incrementar");
+  console.count("renders del botón"); // 1, 2, 3...
+  console.table([{ estado: "antes", valor: contador.value }]);
+  console.time("tiempoIncremento");
+  contador.value++;
+  console.timeEnd("tiempoIncremento"); // "tiempoIncremento: 0.12 ms"
+  console.groupEnd();
 }
 ```
+
+::: warning TRUCO — qué ves en consola cuando logueas un `ref` o `reactive`
+Si haces `console.log(contador)` sin `.value` vers `RefImpl { value: 0, ... }` en lugar del número. Si logueas un `reactive`, vers `Proxy { ... }`. Esto sorprende a quien viene de depurar variables C# donde siempre ves el valor directamente.
+
+Para obtener el valor limpio:
+
+```typescript
+// ref
+console.log(contador.value)          // ✅ 0  (el número puro)
+console.log(contador)                // ⚠️ RefImpl { value: 0, ... }
+
+// reactive
+console.log(JSON.stringify(estado))  // ✅ '{"count":0,"ultimaAccion":"ninguna"}'
+console.dir(estado)                  // ✅ árbol explorable (el más cómodo para objetos profundos)
+```
+
+**Vue Devtools** muestra los valores directamente, sin el envoltorio Proxy — úsala siempre que quieras ver el estado reactivo de un vistazo.
+:::
 
 ### 1.6.3 Parar el código con el `debugger` y los breakpoints {#debugger}
 
 El `console.log` te dice **qué** valor hay; el **debugger** te deja inspeccionar **todo** el estado en ese instante (variables locales, refs, scope, pila de llamadas) y avanzar paso a paso.
+
+#### Equivalencias con Visual Studio
+
+Para quienes estéis acostumbrados al depurador de VS, el contexto cambia (navegador en lugar del IDE) pero la experiencia es muy parecida:
+
+| Visual Studio | Browser DevTools | Notas |
+| ------------- | ---------------- | ----- |
+| F9 — poner / quitar breakpoint | Clic en número de línea en **Sources** | Aparece un punto azul en el margen |
+| F5 — Continuar | F8 — **Resume** (o botón ▶) | |
+| F10 — Step over | F10 — **Step over** | Mismo atajo |
+| F11 — Step into | F11 — **Step into** | Mismo atajo |
+| Shift+F11 — Step out | Shift+F11 — **Step out** | Mismo atajo |
+| Ventana *Locals / Autos* | Panel **Scope** | Variables locales del frame actual |
+| Ventana *Watch* | Panel **Watch** | Añade expresiones tipo `contador.value` |
+| *Ventana inmediata* | **Console** mientras está pausado | Ejecuta cualquier expresión con el scope actual |
+| Pila de llamadas | Panel **Call Stack** | Clic en un frame para inspeccionar su scope |
+| `Debugger.Break()` en C# | Sentencia `debugger` en TS | Solo pausa si DevTools está abierto |
+| Hover sobre variable | Hover sobre variable en Sources | Muestra un tooltip con el valor actual |
+
+::: tip VS Code también puede depurar TypeScript
+Para quienes prefieran no salir del IDE: VS Code incluye un **JavaScript Debugger** integrado que puede conectarse a Chrome/Edge con un `launch.json` de tipo `"type": "chrome"`. En esta sesión usamos las DevTools del navegador porque son inmediatas y no requieren configuración, pero la alternativa existe.
+:::
 
 #### Opción A — La sentencia `debugger`
 
@@ -584,9 +658,9 @@ Inserta la palabra `debugger` en tu código. Cuando el navegador llega a esa lí
 
 ```typescript
 function incrementar() {
-  console.log('Antes:', contador.value)
-  debugger          // ← Vue para aquí; puedes inspeccionar contador.value, scope local...
-  contador.value++
+  console.log("Antes:", contador.value);
+  debugger; // ← Vue para aquí; puedes inspeccionar contador.value, scope local...
+  contador.value++;
 }
 ```
 
@@ -603,13 +677,13 @@ Si te queda un `debugger` en una rama del código y un compañero abre DevTools,
 
 Botones útiles una vez parado:
 
-| Botón                      | Atajo  | Qué hace                                                  |
-| -------------------------- | ------ | --------------------------------------------------------- |
-| **Resume** (▶)             | F8     | Continúa hasta el siguiente breakpoint.                   |
-| **Step over** (↷)          | F10    | Ejecuta la línea actual sin entrar en las funciones que llame. |
-| **Step into** (↓)          | F11    | Entra dentro de la función llamada en esta línea.         |
-| **Step out** (↑)           | Shift+F11 | Sale de la función actual y vuelve al llamador.        |
-| **Deactivate breakpoints** | Ctrl+F8 | Desactiva todos sin perderlos.                           |
+| Botón                      | Atajo     | Qué hace                                                       |
+| -------------------------- | --------- | -------------------------------------------------------------- |
+| **Resume** (▶)             | F8        | Continúa hasta el siguiente breakpoint.                        |
+| **Step over** (↷)          | F10       | Ejecuta la línea actual sin entrar en las funciones que llame. |
+| **Step into** (↓)          | F11       | Entra dentro de la función llamada en esta línea.              |
+| **Step out** (↑)           | Shift+F11 | Sale de la función actual y vuelve al llamador.                |
+| **Deactivate breakpoints** | Ctrl+F8   | Desactiva todos sin perderlos.                                 |
 
 Mientras estás parado puedes:
 
@@ -632,12 +706,12 @@ Correcto. El navegador **solo ejecuta JavaScript**. Vite (el bundler que usa el 
 
 Esto importa para entender lo siguiente:
 
-| Lo que ves en DevTools                             | Lo que ocurre por debajo                                                                       |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Tu `Sesion6HolaVue.vue` línea 24 en **Sources**    | Es una "vista" del source map. El fichero que ejecuta el navegador es un `.js` compilado.      |
-| El breakpoint funciona en una línea TypeScript     | Vite añade source maps en `dev` por defecto → el breakpoint se traduce a la línea JS correcta. |
-| A veces el breakpoint salta a una línea "cercana"  | El compilador puede haber fusionado líneas. Si te pasa, pon `debugger` en la línea exacta.     |
-| Una variable se llama distinto en *Scope*          | TypeScript usa anotaciones de tipo (`: string`) que el JS no tiene; pero la lógica es la misma.|
+| Lo que ves en DevTools                            | Lo que ocurre por debajo                                                                        |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Tu `Sesion6HolaVue.vue` línea 24 en **Sources**   | Es una "vista" del source map. El fichero que ejecuta el navegador es un `.js` compilado.       |
+| El breakpoint funciona en una línea TypeScript    | Vite añade source maps en `dev` por defecto → el breakpoint se traduce a la línea JS correcta.  |
+| A veces el breakpoint salta a una línea "cercana" | El compilador puede haber fusionado líneas. Si te pasa, pon `debugger` en la línea exacta.      |
+| Una variable se llama distinto en _Scope_         | TypeScript usa anotaciones de tipo (`: string`) que el JS no tiene; pero la lógica es la misma. |
 
 ::: tip BUENA PRÁCTICA — qué explicar antes de un debugger en TypeScript
 Cuando enseñes el debugger a otro programador junior, deja claro tres cosas:
@@ -645,17 +719,17 @@ Cuando enseñes el debugger a otro programador junior, deja claro tres cosas:
 1. **El navegador ejecuta JavaScript**, no TypeScript.
 2. **Los source maps** son los que permiten parar en tu `.ts`/`.vue` "como si fuera el código real".
 3. Si DevTools de pronto te muestra **JavaScript ofuscado** en vez de tu fuente, es que falta o se ha perdido el source map (compilación en producción sin maps, recurso cacheado antiguo, etc.).
-:::
+   :::
 
 ### 1.6.5 Qué mirar en DevTools (resumen de pestañas)
 
-| Pestaña            | Qué revisar                                       | Para qué sirve                                                |
-| ------------------ | ------------------------------------------------- | ------------------------------------------------------------- |
-| **Console**        | Errores, warnings y `console.*`                   | Detectar fallos de ejecución y trazar el flujo.               |
-| **Elements**       | Si el DOM refleja los cambios esperados           | Confirmar que la UI se está renderizando.                     |
-| **Sources**        | Tu código `.vue`/`.ts`, breakpoints, scope, watch | Pausar el código y leer el estado real en ese instante.       |
+| Pestaña            | Qué revisar                                       | Para qué sirve                                                 |
+| ------------------ | ------------------------------------------------- | -------------------------------------------------------------- |
+| **Console**        | Errores, warnings y `console.*`                   | Detectar fallos de ejecución y trazar el flujo.                |
+| **Elements**       | Si el DOM refleja los cambios esperados           | Confirmar que la UI se está renderizando.                      |
+| **Sources**        | Tu código `.vue`/`.ts`, breakpoints, scope, watch | Pausar el código y leer el estado real en ese instante.        |
 | **Network**        | Llamadas HTTP (`/api/...`), status, payload       | Ver qué pide la app y qué responde el backend. Imprescindible. |
-| **Vue (Devtools)** | Árbol de componentes, props, `ref`, eventos       | Verificar valores reactivos y eventos sin tocar el código.    |
+| **Vue (Devtools)** | Árbol de componentes, props, `ref`, eventos       | Verificar valores reactivos y eventos sin tocar el código.     |
 
 ::: tip Truco rápido — `$0` en la consola
 Selecciona un elemento en la pestaña **Elements**; en la **Console**, `$0` te lo devuelve como variable. Combinado con `console.dir($0)` ves todas sus propiedades. `$_` es el resultado de la última expresión evaluada.
@@ -672,16 +746,16 @@ Selecciona un elemento en la pestaña **Elements**; en la **Console**, `$0` te l
 
 ### 1.6.7 Qué revisar cuando algo "no aparece"
 
-| Síntoma                         | Comprobación rápida                                                                |
-| ------------------------------- | ---------------------------------------------------------------------------------- |
-| El valor no se actualiza        | ¿La variable es reactiva (`ref` o `reactive`)?                                     |
-| El valor no cambia en script    | ¿Estás usando `.value` en `ref` dentro de `<script setup>`?                        |
-| Error de tipo en editor         | ¿Coincide el tipo declarado con el valor asignado?                                 |
-| En template sale vacío          | ¿La variable existe en `<script setup>` y tiene valor inicial?                     |
-| El botón no hace nada           | ¿El `@click` apunta a una función existente? ¿Hay un `console.log` que confirme que entra? |
-| Vue Devtools no muestra estado  | ¿Extensión instalada, habilitada y app recargada?                                  |
-| El breakpoint no se dispara     | ¿DevTools está abierto antes de hacer la acción? ¿La pestaña Sources tiene puntos azules activos? |
-| DevTools muestra JS ofuscado    | Falta el source map. Recarga sin caché (`Ctrl+Shift+R`) o vuelve a `dotnet watch`. |
+| Síntoma                        | Comprobación rápida                                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| El valor no se actualiza       | ¿La variable es reactiva (`ref` o `reactive`)?                                                    |
+| El valor no cambia en script   | ¿Estás usando `.value` en `ref` dentro de `<script setup>`?                                       |
+| Error de tipo en editor        | ¿Coincide el tipo declarado con el valor asignado?                                                |
+| En template sale vacío         | ¿La variable existe en `<script setup>` y tiene valor inicial?                                    |
+| El botón no hace nada          | ¿El `@click` apunta a una función existente? ¿Hay un `console.log` que confirme que entra?        |
+| Vue Devtools no muestra estado | ¿Extensión instalada, habilitada y app recargada?                                                 |
+| El breakpoint no se dispara    | ¿DevTools está abierto antes de hacer la acción? ¿La pestaña Sources tiene puntos azules activos? |
+| DevTools muestra JS ofuscado   | Falta el source map. Recarga sin caché (`Ctrl+Shift+R`) o vuelve a `dotnet watch`.                |
 
 ::: tip BUENA PRÁCTICA — orden de búsqueda
 En esta sesión no necesitas una depuración avanzada. Sigue siempre el mismo orden: **Console → Vue Devtools → breakpoint en Sources**. El 80 % de los fallos se diagnostican antes de llegar al breakpoint.
@@ -691,13 +765,13 @@ En esta sesión no necesitas una depuración avanzada. Sigue siempre el mismo or
 
 En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-6/` viven cinco demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-6`:
 
-| Demo | Concepto que ilustra | Fichero |
-|------|----------------------|---------|
-| `Sesion6HolaVue.vue` | Estructura `.vue` mínima, `ref<string>`, `v-model` | `sesion-6/Sesion6HolaVue.vue` |
-| `Sesion6TypeScriptBasico.vue` | Primitivos, arrays, `const`/`let`, union types, `any` vs `unknown` | `sesion-6/Sesion6TypeScriptBasico.vue` |
-| `Sesion6RefVsReactive.vue` | Dos contadores lado a lado: `ref<number>` vs `reactive({...})` | `sesion-6/Sesion6RefVsReactive.vue` |
-| `Sesion6Interpolacion.vue` | Los siete usos típicos de <code v-pre>{{ ... }}</code> sobre un objeto `persona` | `sesion-6/Sesion6Interpolacion.vue` |
-| `Sesion6DemoTipoRecurso.vue` | Demo integradora con un `TipoRecursoLectura[]` mock y navegación | `sesion-6/Sesion6DemoTipoRecurso.vue` |
+| Demo                          | Concepto que ilustra                                                             | Fichero                                |
+| ----------------------------- | -------------------------------------------------------------------------------- | -------------------------------------- |
+| `Sesion6HolaVue.vue`          | Estructura `.vue` mínima, `ref<string>`, `v-model`                               | `sesion-6/Sesion6HolaVue.vue`          |
+| `Sesion6TypeScriptBasico.vue` | Primitivos, arrays, `const`/`let`, union types, `any` vs `unknown`               | `sesion-6/Sesion6TypeScriptBasico.vue` |
+| `Sesion6RefVsReactive.vue`    | Dos contadores lado a lado: `ref<number>` vs `reactive({...})`                   | `sesion-6/Sesion6RefVsReactive.vue`    |
+| `Sesion6Interpolacion.vue`    | Los siete usos típicos de <code v-pre>{{ ... }}</code> sobre un objeto `persona` | `sesion-6/Sesion6Interpolacion.vue`    |
+| `Sesion6DemoTipoRecurso.vue`  | Demo integradora con un `TipoRecursoLectura[]` mock y navegación                 | `sesion-6/Sesion6DemoTipoRecurso.vue`  |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
 Abre cada fichero en VS Code, lee el `<script setup>` y luego el `<template>`. Modifica un valor, guarda y observa cómo Vue redibuja **solo** lo que ha cambiado. La integradora `Sesion6DemoTipoRecurso.vue` ya usa el mismo DTO (`TipoRecursoLectura`) que devolverá la API real en la sesión 9; cambiar el mock por una llamada axios no toca el template.
@@ -753,14 +827,14 @@ En esta sesión todavía **no** usamos interfaces. Primero asentamos `ref`, `.va
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from "vue";
 
-const nombre = ref<string>('Juan García López')
-const edad = ref<number>(28)
-const ciudad = ref<string>('Alicante')
-const profesion = ref<string>('Desarrollador Frontend')
-const hobbies = ref<string[]>(['Programación', 'Fotografía', 'Senderismo'])
-const activo = ref<boolean>(true)
+  const nombre = ref<string>("Juan García López");
+  const edad = ref<number>(28);
+  const ciudad = ref<string>("Alicante");
+  const profesion = ref<string>("Desarrollador Frontend");
+  const hobbies = ref<string[]>(["Programación", "Fotografía", "Senderismo"]);
+  const activo = ref<boolean>(true);
 </script>
 
 <template>
@@ -782,6 +856,7 @@ const activo = ref<boolean>(true)
   </div>
 </template>
 ```
+
 :::
 
 ## Test Sesión 9 {#test}
@@ -789,142 +864,78 @@ const activo = ref<boolean>(true)
 ### Preguntas (desplegables)
 
 ::: details 1. ¿Qué bloque concentra la lógica principal en un componente Vue con Composition API?
+
 - a) template
 - b) style scoped
 - c) script setup
 - d) router-view
-:::
+  :::
 
 ::: details 2. ¿Qué bloque se encarga del marcado que se renderiza en pantalla?
+
 - a) template
 - b) script setup
 - c) composable
 - d) interface
-:::
+  :::
 
 ::: details 3. En script, ¿cómo accedes al valor interno de un ref llamado contador?
+
 - a) contador
 - b) contador.value
 - c) value(contador)
 - d) contador.current
-:::
+  :::
 
 ::: details 4. En el template, ¿cómo se usa normalmente un ref?
+
 - a) Siempre con .value
 - b) Sin .value
 - c) Solo con .value si es number
 - d) No se puede usar en template
-:::
+  :::
 
 ::: details 5. ¿Qué describe mejor la reactividad en Vue?
+
 - a) El DOM se actualiza manualmente con JavaScript puro
 - b) La interfaz responde cuando cambia el estado reactivo
 - c) El CSS se recompila al cambiar una variable
 - d) Las props se convierten en rutas
-:::
+  :::
 
 ::: details 6. ¿Por qué const contador = ref(0) sigue siendo correcto si el contador cambia?
+
 - a) Porque const hace inmutable tambien contador.value
 - b) Porque cambia el valor interno, no la referencia
 - c) Porque Vue ignora const
 - d) Porque ref solo funciona con const por sintaxis
-:::
+  :::
 
 ::: details 7. ¿Cuál es la opción más segura entre any y unknown?
+
 - a) any
 - b) unknown
 - c) Son equivalentes
 - d) Ninguna de las dos se puede usar
-:::
+  :::
 
 ::: details 8. ¿Qué es un union type en TypeScript?
+
 - a) Un tipo exclusivo de Vue
 - b) Un tipo que admite varios tipos válidos
 - c) Un tipo reservado para arrays
 - d) Una versión corta de interface
-:::
+  :::
 
 ::: details 9. ¿Qué significa que TypeScript infiera un tipo?
+
 - a) Que desactiva el tipado para esa variable
 - b) Que deduce el tipo a partir del valor inicial
 - c) Que obliga a importar una interface
 - d) Que convierte automáticamente todo en string
-:::
+  :::
 
 ::: details 10. En TypeScript moderno, ¿qué regla práctica es más recomendable?
+
 - a) Usar var para evitar errores de bloque
-- b) Usar let siempre, incluso si no reasignas
-- c) Usar const por defecto y let solo si reasignas
-- d) Evitar const cuando trabajas con Vue
-:::
-
-::: details 11. ¿Qué efecto tiene style scoped en un componente?
-- a) Aplica estilos a toda la aplicación
-- b) Limita los estilos al componente actual
-- c) Desactiva CSS en Vue
-- d) Obliga a usar Bootstrap
-:::
-
-::: details 12. ¿Qué opción encaja mejor con ref al empezar?
-- a) Valores simples como string, number o boolean
-- b) Solo arrays grandes
-- c) Solo props del hijo
-- d) Exclusivamente llamadas HTTP
-:::
-
-::: details 13. ¿Cuándo puede resultar más cómodo reactive?
-- a) Cuando trabajas con un objeto con varias propiedades
-- b) Cuando solo tienes un número
-- c) Cuando quieres evitar toda reactividad
-- d) Cuando defines estilos CSS
-:::
-
-::: details 14. ¿Qué permite la interpolación de dobles llaves en el template?
-- a) Sentencias for completas
-- b) Expresiones que devuelven un valor
-- c) Declarar interfaces
-- d) Ejecutar varias líneas de lógica compleja
-:::
-
-::: details 15. ¿Qué debería evitarse dentro de una interpolación?
-- a) Mostrar un dato simple
-- b) Concatenar texto corto
-- c) Meter lógica de negocio compleja
-- d) Usar un ternario sencillo
-:::
-
-::: details 16. ¿Qué ventaja principal aporta TypeScript en un proyecto de equipo?
-- a) Elimina por completo la necesidad de probar
-- b) Detecta errores antes y mejora el autocompletado
-- c) Hace que Vue no necesite reactividad
-- d) Sustituye las interfaces visuales
-:::
-
-### Respuestas (Autoevaluación)
-
-::: details Ver respuestas
-1. c) script setup.
-2. a) template.
-3. b) contador.value.
-4. b) Sin .value.
-5. b) La interfaz responde cuando cambia el estado reactivo.
-6. b) Cambia el valor interno, no la referencia.
-7. b) unknown.
-8. b) Un tipo que admite varios tipos válidos.
-9. b) TypeScript deduce el tipo desde el valor inicial.
-10. c) Usar const por defecto y let solo si reasignas.
-11. b) Limita los estilos al componente actual.
-12. a) Valores simples como string, number o boolean.
-13. a) Cuando trabajas con un objeto con varias propiedades.
-14. b) Permite expresiones que devuelven valor.
-15. c) Debe evitarse meter lógica de negocio compleja.
-16. b) Detecta errores antes y mejora el autocompletado.
-:::
-
----
-
-<!-- NAV:START -->
-| Anterior | Inicio | Siguiente |
-|---|---|---|
-| [← Sesión 5: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 10: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-10-directivas-eventos/) |
-<!-- NAV:END -->
+- b)

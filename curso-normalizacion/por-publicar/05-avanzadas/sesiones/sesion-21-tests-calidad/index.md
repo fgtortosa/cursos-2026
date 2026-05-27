@@ -17,7 +17,7 @@ Al finalizar esta sesión, el alumno será capaz de:
 - Crear tests de integración con `WebApplicationFactory`.
 - Probar APIs con httpRepl.
 - Entender `ActionFilters` y aplicar el naming JSON camelCase vs PascalCase.
-:::
+  :::
 
 ## 21.1 Tests unitarios con xUnit {#tests-unitarios-xunit}
 
@@ -146,7 +146,7 @@ En el curso **no usamos Moq, NSubstitute ni FakeItEasy**: los fakes son clases C
 2. Si la interfaz cambia, el compilador te lo dice.
 3. Las "huellas" (`IdiomasPedidos`, `CreadosRecibidos`) son `List` corrientes: el test las asserta con `Assert.Single`/`Assert.Equal`, no con `.Verify(x => x.Method())` de Moq.
 4. Cero NuGets adicionales en `uaReservas.Tests.csproj`.
-:::
+   :::
 
 ### 21.1.3 Test simulado: `TipoRecursosControllerSimuladoTests` real
 
@@ -361,10 +361,10 @@ Los tests reales son **lentos**. Cada uno abre una conexión a Oracle y ejecuta 
 1. **Prueba el contrato con la BD**, no la lógica del servicio: que la vista existe, que las columnas se mapean, que el id inexistente devuelve `NotFound`. La lógica fina (¿el filtro funciona si hay 5 elementos?) va en tests simulados.
 2. **No asumas datos concretos en la BD** (`Assert.Equal("Sala de reuniones", x.Nombre)`). Asserta **forma**: hay al menos un registro, el id es positivo, el nombre no es null.
 3. **No escribas en la BD**. Si un test `Crear...` se ejecuta dos veces, deja basura. Para tests de escritura: o haces `Eliminar` al final, o trabajas dentro de una transacción que haces rollback.
-:::
+   :::
 
 ::: info → Continuación práctica del patrón
-El ejercicio §5.6 de la **[sesión 5](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/#_5-6-ejercicio-cerrar-observaciones-con-servicio-tests)** te pide replicar este patrón (fake + test simulado + test real con `SkippableFact`) sobre `Observaciones`. La solución completa con los siete ficheros está en [solucion-ejercicio-observaciones.md](../../../02-dotnet/sesiones/sesion-05-servicios-oracle/solucion-ejercicio-observaciones.md).
+El ejercicio §5.6 de la **[sesión 8](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/#_5-6-ejercicio-cerrar-observaciones-con-servicio-tests)** te pide replicar este patrón (fake + test simulado + test real con `SkippableFact`) sobre `Observaciones`. La solución completa con los siete ficheros está en [solucion-ejercicio-observaciones.md](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/solucion-ejercicio-observaciones.md).
 :::
 
 ## 21.2 Tests de integración con `WebApplicationFactory` {#tests-integracion}
@@ -394,7 +394,9 @@ El contenido detallado de esta sección está pendiente de publicación.
 ---
 
 <!-- NAV:START -->
-| Anterior | Inicio | Siguiente |
-|---|---|---|
+
+| Anterior                                                                                                   | Inicio                        | Siguiente                                                                               |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------- |
 | [← Sesión 20: Estado global y persistencia](../../../05-avanzadas/sesiones/sesion-20-estado-persistencia/) | [Índice del curso](../../../) | [Sesión 22: Trabajo con ficheros →](../../../05-avanzadas/sesiones/sesion-22-ficheros/) |
+
 <!-- NAV:END -->
