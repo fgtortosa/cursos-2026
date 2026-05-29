@@ -564,7 +564,7 @@ Tres piezas que merece la pena fijarse:
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | **`peticion<T>(url, verbosAxios.GET)`**    | Hace `GET /api/{url}`, espera 2xx, devuelve directamente el `T`. Si no es 2xx, lanza excepción → cae al `catch`.    |
 | **`gestionarError(err, título, detalle)`** | Mira `err.response.data` (un `ProblemDetails` / `ValidationProblemDetails` si lo hay) y dispara el toast adecuado.  |
-| **`<pre>{{ salida }}</pre>`**              | Vuelca el JSON **crudo** para que se vea exactamente lo que devuelve .NET, sin envolturas.                          |
+| **<code v-pre>&lt;pre&gt;{{ salida }}&lt;/pre&gt;</code>**              | Vuelca el JSON **crudo** para que se vea exactamente lo que devuelve .NET, sin envolturas.                          |
 
 ::: tip BUENA PRÁCTICA — recorrido guiado en 5 pasos
 Cuando arranques en clase (o ante un bug), el recorrido es siempre el mismo:

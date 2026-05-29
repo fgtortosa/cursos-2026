@@ -23,7 +23,7 @@ En la sesión anterior vimos la estructura de un componente, TypeScript básico,
 | Bloque | Tiempo | Contenido |
 |--------|--------|-----------|
 | **Teoría guiada** | 45 min | 2.1 a 2.10 (interfaces, directivas, eventos, arrays y objetos) |
-| **Práctica en aula** | 25 min | Lista de tareas tipada con filtros y eventos |
+| **Práctica en aula** | 25 min | Lista de reservas tipada con filtros y eventos |
 | **Test de sesión** | 15 min | Preguntas de comprensión y corrección inmediata |
 | **Cierre** | 5 min | Dudas frecuentes y transición a componentes/comunicación |
 
@@ -45,17 +45,22 @@ import { ref } from 'vue'
 // y de qué tipo es cada una. No genera código en runtime, sólo le sirve
 // a TypeScript para avisarte si te equivocas (autocompletado + errores
 // en tiempo de compilación).
-interface IClaseTarea {
+//
+// Esta es la misma forma que el DTO ReservaLectura del backend .NET
+// (sesión 7). Cuando en la sesión 12 llamemos a /api/Reservas, el
+// JSON que vuelva cumplirá este contrato.
+interface IReserva {
   id: number          // identificador único — usado luego en :key
-  texto: string       // descripción visible de la tarea
-  completada: boolean // bandera para tachar / contar pendientes
+  recurso: string     // nombre del recurso reservado (Aula 12, Proyector...)
+  horas: number       // duración de la reserva
+  confirmada: boolean // bandera de estado
 }
 
-// ref<IClaseTarea[]> declara una caja reactiva que SÓLO admite arrays
-// de IClaseTarea. Si intentas { id: '1' } o falta una propiedad, TS falla.
-const tareas = ref<IClaseTarea[]>([
-  { id: 1, texto: 'Preparar demo', completada: false },
-  { id: 2, texto: 'Revisar documentación', completada: true }
+// ref<IReserva[]> declara una caja reactiva que SÓLO admite arrays
+// de IReserva. Si intentas { id: '1' } o falta una propiedad, TS falla.
+const reservas = ref<IReserva[]>([
+  { id: 1, recurso: 'Aula 12',          horas: 2, confirmada: true  },
+  { id: 2, recurso: 'Sala reuniones A', horas: 1, confirmada: false },
 ])
 </script>
 ```
@@ -65,77 +70,111 @@ const tareas = ref<IClaseTarea[]>([
 | Ubicación | Cuándo usar | Ventaja |
 |-----------|-------------|---------|
 | Dentro del `.vue` | Solo se usa en ese componente | Más simple para empezar |
-| `src/interfaces/IClaseNombre.ts` | Se reutiliza en varias vistas/componentes | Centraliza el contrato |
+| `src/interfaces/INombre.ts` | Se reutiliza en varias vistas/componentes | Centraliza el contrato |
 
-::: tip BUENA PRÁCTICA
-En la UA usamos `IClase<Nombre>` para contratos reutilizables y los guardamos en `src/interfaces/` cuando dejan de ser locales.
+::: tip CONVENCIÓN
+Prefijo `I` para las interfaces (`ITipoRecurso`, `IRecurso`, `IReserva`); cuando son DTOs de API añadimos sufijo según el rol (`IRecursoLectura`, `IRecursoCrear`). Las que se reutilizan viven en `src/interfaces/`.
 :::
 
 ## 2.2 Funciones en TypeScript aplicadas a Vue {#funciones}
 
-En Vue declaramos funciones dentro de `<script setup>` para responder a eventos, transformar datos o encapsular pequeñas reglas de negocio.
+En Vue declaramos funciones dentro de `<script setup>` para responder a eventos, transformar datos o encapsular pequeñas reglas de negocio. La gran mayoría son **handlers** enganchados a `@click`, `@submit` o `@input`.
 
-### Funciones tipadas
+### Tipos de retorno habituales
 
 ```typescript
-// Cada parámetro lleva su tipo (a: number) y la función su tipo de retorno
-// (: number). Si llamas sumar('1', 2) o asignas el resultado a un string,
-// TypeScript se queja en el editor — antes de que el código llegue a correr.
-const sumar = (a: number, b: number): number => a + b
-
-// void = "esta función no devuelve nada útil". Sirve para handlers, side effects
-// (alert, console.log, mutar un ref) y para que el llamador no espere un valor.
-const mostrarAlerta = (mensaje: string): void => {
-  alert(mensaje)
+// 1) ': void' = handler / side effect. El llamador (el evento del DOM) NO espera
+//    un valor de vuelta. Es lo más común en un .vue.
+const eliminarReserva = (id: number): void => {
+  reservas.value = reservas.value.filter(r => r.id !== id)
 }
 
-// El retorno declarado (: string) y el operador ternario garantizan que SIEMPRE
-// salga un string, nunca undefined.
-const obtenerEtiqueta = (completada: boolean): string => {
-  return completada ? 'Hecha' : 'Pendiente'
+// 2) ': boolean' = función que decide. Útil para habilitar/deshabilitar botones,
+//    validar formularios, o como condición en un v-if.
+const esRecursoValido = (nombre: string): boolean => {
+  return nombre.trim().length > 0
+}
+
+// 3) ': string' (u otro tipo concreto) = transformación / etiqueta para pintar.
+//    Garantiza que NUNCA devuelves undefined por error.
+const etiquetaEstado = (confirmada: boolean): string => {
+  return confirmada ? 'Confirmada' : 'Pendiente'
 }
 ```
 
-### Parámetros opcionales y valores por defecto
+::: tip POR QUÉ TIPAR EL RETORNO
+Aunque TypeScript puede inferir el retorno, declararlo (`: void`, `: boolean`, `: string`) actúa de **contrato**: si alguien edita la función y empieza a devolver otra cosa, TS te avisa en el editor. En handlers de una línea no aporta — en lógica de negocio sí.
+:::
 
-```typescript
-// El '?' marca apellido como OPCIONAL: puede no pasarse al llamar.
-// Dentro de la función, su tipo real es 'string | undefined'.
-const saludar = (nombre: string, apellido?: string): string => {
-  return apellido ? `Hola ${nombre} ${apellido}` : `Hola ${nombre}`
-}
+### Handlers reales dentro de un componente
 
-// 'prefijo: string = "INFO"' = parámetro con valor por defecto. Si no se pasa,
-// vale 'INFO'. A diferencia de '?', NUNCA es undefined dentro de la función.
-const crearMensaje = (texto: string, prefijo: string = 'INFO'): string => {
-  return `[${prefijo}] ${texto}`
-}
-```
-
-### Funciones dentro de un componente Vue
+Estos tres patrones aparecen en casi todos los `.vue` del proyecto. Aplicados al dominio del curso (reservas):
 
 ```html
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// Estado reactivo para lo que teclea el usuario.
-const nuevaTarea = ref<string>('')
+interface IReserva {
+  id: number
+  recurso: string
+  horas: number
+  confirmada: boolean
+}
 
-// Helper puro: una entrada, una salida, sin tocar ningún ref.
-// Mejor que repetir .trim() en cinco sitios.
-const limpiarTexto = (texto: string): string => texto.trim()
+const reservas = ref<IReserva[]>([/* … */])
+const nuevoRecurso = ref('')
 
-// Handler que vamos a enganchar a un botón. Devuelve void = side effect.
-const agregarTarea = (): void => {
-  const textoLimpio = limpiarTexto(nuevaTarea.value)
-  if (!textoLimpio) return                       // early return: nada que añadir
-  console.log('Tarea válida:', textoLimpio)
+// PATRÓN 1: handler sin argumentos enganchado con @click="anadirReserva" (sin paréntesis).
+// Devuelve void porque no le interesa al @click qué devuelve.
+const anadirReserva = (): void => {
+  const limpio = nuevoRecurso.value.trim()
+  if (!limpio) return                                            // early return
+  reservas.value.push({ id: Date.now(), recurso: limpio, horas: 1, confirmada: false })
+  nuevoRecurso.value = ''
+}
+
+// PATRÓN 2: handler con argumento enganchado con @click="eliminar(reserva.id)".
+// Recibe el id para saber qué fila quitar.
+const eliminar = (id: number): void => {
+  reservas.value = reservas.value.filter(r => r.id !== id)
+}
+
+// PATRÓN 3: función pura (no muta nada) que el template usa para etiquetar.
+// Devuelve un valor (number), no void — porque su resultado se interpola en el template.
+const contarPendientes = (): number => {
+  return reservas.value.filter(r => !r.confirmada).length
 }
 </script>
+
+<template>
+  <button @click="anadirReserva">Añadir</button>                <!-- sin paréntesis -->
+  <button @click="eliminar(reserva.id)">Eliminar</button>       <!-- con paréntesis -->
+  <p>{{ contarPendientes() }} pendientes</p>                    <!-- se llama en cada render -->
+</template>
 ```
 
-::: tip IDEA CLAVE
-Tipa siempre parámetros y retorno cuando la función tenga cierta importancia. En handlers pequeños como `@click="contador++"` no hace falta extraer función si no aporta claridad.
+> Demo equivalente en el repo: `Sesion7ListaReservas.vue` aplica los patrones 1 y 2 (`anadirReserva`, `eliminar`) sobre `IClaseReserva` —la misma forma que `IReserva`—. El recuento de pendientes (patrón 3) lo resuelve con un objeto `resumen` que veremos en §2.5.
+
+::: tip REGLA PRÁCTICA
+- Handler que **no recibe nada del template** → engancha sin paréntesis: `@click="fn"`.
+- Handler que **necesita un dato del item iterado** (id, índice, etc.) → con paréntesis: `@click="fn(item.id)"`.
+- En la sesión 11 muchas de estas funciones se convertirán en `computed` para evitar recalcular en cada render.
+:::
+
+::: details Parámetros opcionales y valores por defecto (uso minoritario)
+Aparecen poco en componentes `.vue` pero sí en composables y servicios. Léelo cuando los necesites:
+
+```typescript
+// '?' marca el parámetro como OPCIONAL → su tipo interno es 'string | undefined'.
+const saludar = (nombre: string, apellido?: string): string => {
+  return apellido ? `Hola ${nombre} ${apellido}` : `Hola ${nombre}`
+}
+
+// Valor por defecto: si no se pasa, vale 'INFO'. Nunca es undefined dentro de la función.
+const crearMensaje = (texto: string, prefijo: string = 'INFO'): string => {
+  return `[${prefijo}] ${texto}`
+}
+```
 :::
 
 ## 2.3 Directivas: tabla resumen {#directivas-resumen}
@@ -175,30 +214,56 @@ const edad = ref<number>(20)
 </template>
 ```
 
-### `v-show`
+### `v-show` y comparación lado a lado
 
-El elemento **siempre está en el DOM**, solo se oculta con CSS:
+El elemento **siempre está en el DOM**, solo se oculta con CSS. La demo `Sesion7VifVshow.vue` pone los dos comportamientos uno al lado del otro para inspeccionarlos con F12:
 
 ```html
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const mostrarModal = ref<boolean>(false)
+// Un único booleano que dispara los dos bloques a la vez. Así, al alternar
+// el checkbox, ves cómo v-if RETIRA el nodo del DOM y v-show solo le añade
+// style="display: none".
+const mostrar = ref(true)
 </script>
 
 <template>
-  <!-- Toggle: invierte el booleano. El texto del botón cambia con el ternario. -->
-  <button @click="mostrarModal = !mostrarModal">
-    {{ mostrarModal ? 'Ocultar' : 'Mostrar' }} Modal
-  </button>
+  <div class="form-check form-switch mb-3">
+    <input v-model="mostrar" id="chkMostrar" class="form-check-input" type="checkbox" />
+    <label for="chkMostrar" class="form-check-label">Mostrar bloques</label>
+  </div>
 
-  <!-- v-show: el <div> SIEMPRE está en el DOM. Vue sólo cambia su
-       atributo style="display: none". Inspecciónalo con F12 para verlo. -->
-  <div v-show="mostrarModal" class="modal">
-    <h2>Contenido del Modal</h2>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><code>v-if</code></div>
+        <div class="card-body">
+          <!-- Si mostrar es false, Vue DESTRUYE este <p>. Pulsa F12 y verás
+               que el nodo desaparece y vuelve a crearse al activar. -->
+          <p v-if="mostrar" class="alert alert-success mb-0">
+            Yo aparezco/desaparezco del DOM.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><code>v-show</code></div>
+        <div class="card-body">
+          <!-- v-show conserva el nodo y solo le cambia el display CSS. -->
+          <p v-show="mostrar" class="alert alert-primary mb-0">
+            Yo me quedo en el DOM y solo cambio mi <code>display</code>.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 ```
+
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7VifVshow.vue`. Abre la demo con F12 en el panel **Elements**: el bloque con `v-if` aparece y desaparece del árbol, el de `v-show` permanece con `style="display: none"`.
 
 ### ¿Cuándo usar cada uno?
 
@@ -237,39 +302,40 @@ Itera sobre arrays, objetos o rangos numéricos:
 
 ### Arrays
 
+`v-for` sobre el contrato `IReserva` que ya vimos en §2.1:
+
 ```html
 <script setup lang="ts">
 import { ref } from 'vue'
 
-interface IClaseUsuario {
+interface IReserva {
   id: number
-  nombre: string
-  edad: number
+  recurso: string
+  horas: number
+  confirmada: boolean
 }
 
-const usuarios = ref<IClaseUsuario[]>([
-  { id: 1, nombre: 'Ana',   edad: 25 },
-  { id: 2, nombre: 'Juan',  edad: 30 },
-  { id: 3, nombre: 'María', edad: 28 }
+const reservas = ref<IReserva[]>([
+  { id: 1, recurso: 'Aula 12',          horas: 2, confirmada: true  },
+  { id: 2, recurso: 'Sala reuniones A', horas: 1, confirmada: false },
+  { id: 3, recurso: 'Proyector',        horas: 1, confirmada: true  },
 ])
 </script>
 
 <template>
-  <table>
-    <tbody>
-      <!-- v-for="usuario in usuarios" → genera un <tr> por cada elemento.
-           :key="usuario.id" → identificador ÚNICO y ESTABLE de cada fila.
-           Vue lo usa para saber qué fila actualizar, mover o eliminar
-           cuando el array cambia, en lugar de redibujar todo. -->
-      <tr v-for="usuario in usuarios" :key="usuario.id">
-        <td>{{ usuario.id }}</td>
-        <td>{{ usuario.nombre }}</td>
-        <td>{{ usuario.edad }}</td>
-      </tr>
-    </tbody>
-  </table>
+  <ul class="list-group">
+    <!-- v-for="reserva in reservas" → genera un <li> por cada elemento.
+         :key="reserva.id" → identificador ÚNICO y ESTABLE de cada fila.
+         Vue lo usa para saber qué fila actualizar, mover o eliminar
+         cuando el array cambia, en lugar de redibujar toda la lista. -->
+    <li v-for="reserva in reservas" :key="reserva.id" class="list-group-item">
+      {{ reserva.recurso }} ({{ reserva.horas }}h) — {{ reserva.confirmada ? 'confirmada' : 'pendiente' }}
+    </li>
+  </ul>
 </template>
 ```
+
+> Demo equivalente en el repo: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7ListaReservas.vue` itera este mismo bucle sobre `IClaseReserva` — los input/checkbox/botón eliminar de la demo los veremos a continuación en §2.7 y §2.8.
 
 ### Objetos y rangos
 
@@ -278,7 +344,7 @@ const usuarios = ref<IClaseUsuario[]>([
   <!-- Sobre un objeto, v-for entrega (valor, clave). El orden de los pares
        es el de inserción en el objeto. -->
   <ul>
-    <li v-for="(valor, clave) in persona" :key="clave">
+    <li v-for="(valor, clave) in tipoRecurso" :key="clave">
       {{ clave }}: {{ valor }}
     </li>
   </ul>
@@ -290,14 +356,20 @@ const usuarios = ref<IClaseUsuario[]>([
 </template>
 ```
 
+::: warning EL ORDEN CAMBIA SEGÚN LO QUE RECORRES
+Sobre un **array** `v-for` entrega `(elemento, índice)`; sobre un **objeto** entrega `(valor, clave)` — el valor **primero**, la clave después. Es un error clásico asumir que la clave va delante.
+:::
+
+> Demo equivalente en el repo: `Sesion7ListaReservas.vue` incluye un bloque **Resumen** con `v-for="(valor, clave) in resumen"` sobre un objeto `computed` (`{ pendientes, confirmadas }`). Al confirmar o eliminar reservas, los recuentos se recalculan solos — el objeto que recorre `v-for` es reactivo.
+
 ### El atributo `:key`
 
 `:key` es **obligatorio** con `v-for`. Ayuda a Vue a identificar cada elemento de forma única:
 
 | Tipo de datos | `:key` recomendado | Ejemplo |
 |---------------|-------------------|---------|
-| Array de objetos | `:key="obj.id"` | `:key="usuario.id"` |
-| Array de strings únicos | `:key="item"` | `:key="fruta"` |
+| Array de objetos | `:key="obj.id"` | `:key="reserva.id"` |
+| Array de strings únicos | `:key="item"` | `:key="codigo"` |
 | Objeto | `:key="clave"` | `:key="clave"` |
 | Rango numérico | `:key="n"` | `:key="n"` |
 
@@ -306,13 +378,13 @@ No uses `:key="index"` en listas que se reordenan o eliminan elementos. Vue reut
 
 ```html
 <!-- ❌ Si eliminas un elemento, los estados se mezclan -->
-<div v-for="(tarea, index) in tareas" :key="index">
-  <input type="checkbox" /> {{ tarea }}
+<div v-for="(reserva, index) in reservas" :key="index">
+  <input type="checkbox" /> {{ reserva.recurso }}
 </div>
 
 <!-- ✅ Usa un ID único -->
-<div v-for="tarea in tareas" :key="tarea.id">
-  <input type="checkbox" /> {{ tarea.texto }}
+<div v-for="reserva in reservas" :key="reserva.id">
+  <input type="checkbox" /> {{ reserva.recurso }}
 </div>
 ```
 :::
@@ -344,14 +416,14 @@ Con `:key="item.id"` no pasa: Vue ve que la id de B ya no esta y monta un nodo n
 
 ```html
 <!-- ❌ INCORRECTO: en Vue 3, v-if tiene PRIORIDAD sobre v-for en el mismo
-     elemento. La condición se evalúa antes de que exista 'u', así que
-     u.activo es undefined y aparece warning en consola. -->
-<li v-for="u in usuarios" v-if="u.activo" :key="u.id">{{ u.nombre }}</li>
+     elemento. La condición se evalúa antes de que exista 'r', así que
+     r.confirmada es undefined y aparece warning en consola. -->
+<li v-for="r in reservas" v-if="r.confirmada" :key="r.id">{{ r.recurso }}</li>
 
 <!-- ✅ CORRECTO: <template> envuelve el v-for sin generar nodo extra en el DOM.
-     El v-if se evalúa POR CADA u, ya con la variable disponible. -->
-<template v-for="u in usuarios" :key="u.id">
-  <li v-if="u.activo">{{ u.nombre }}</li>
+     El v-if se evalúa POR CADA r, ya con la variable disponible. -->
+<template v-for="r in reservas" :key="r.id">
+  <li v-if="r.confirmada">{{ r.recurso }}</li>
 </template>
 ```
 
@@ -361,29 +433,49 @@ La mejor solución es usar una propiedad `computed` que filtre antes de renderiz
 
 ## 2.6 Vincular atributos: `v-bind` (`:`) {#v-bind}
 
-Vincula dinámicamente atributos HTML a valores reactivos:
+Vincula dinámicamente atributos HTML a valores reactivos. Recuperamos a **Lola, la perra** y a **Tiger, el gato** para ver `:src`, `:alt`, `:title` y `:disabled` en acción. Empezamos con lo mínimo: tres `ref` sencillos y un único handler que los actualiza — sin `computed` ni union types, para ver **solo** la idea de `v-bind`:
 
 ```html
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const imagenUrl = ref<string>('https://example.com/logo.png')
-const esActivo  = ref<boolean>(true)
+// Vite sirve los assets de public/ bajo import.meta.env.BASE_URL
+// (en dev "/", en producción "/uareservas/").
+const base = import.meta.env.BASE_URL
+
+// Tres datos que vamos a "enganchar" a atributos del HTML.
+const foto = ref<string>(`${base}lola.jpg`)
+const descripcion = ref<string>('Lola, mi perra')
+const actual = ref<string>('lola')                  // qué mascota mostramos
+
+// Un único handler actualiza los tres refs. Al cambiarlos, la imagen y
+// los botones se repintan solos.
+function mostrar(mascota: string): void {
+  actual.value = mascota
+  foto.value = `${base}${mascota}.jpg`
+  descripcion.value = mascota === 'lola' ? 'Lola, mi perra' : 'Tiger, mi super gato'
+}
 </script>
 
 <template>
-  <!-- src="imagenUrl" → pinta literalmente la cadena "imagenUrl".
-       :src="imagenUrl" → evalúa la expresión y usa el valor del ref. -->
-  <img :src="imagenUrl" alt="Logo">
+  <!-- src="foto" pintaría literalmente la cadena "foto".
+       :src="foto" evalúa la expresión y usa la URL guardada en el ref. -->
+  <img :src="foto" :alt="descripcion" :title="descripcion" style="max-height: 180px" />
 
-  <!-- Cualquier atributo HTML acepta el ':'. Las expresiones pueden ser
-       ternarios, llamadas a función, concatenaciones... siempre que devuelvan
-       el tipo esperado (boolean para :disabled, string para :title). -->
-  <button :disabled="!esActivo" :title="esActivo ? 'Activo' : 'Inactivo'">
-    Botón
+  <p>Mascota actual: <strong>{{ descripcion }}</strong></p>
+
+  <!-- :disabled acepta cualquier expresión booleana.
+       Cada botón se deshabilita cuando ya estamos mostrando esa mascota. -->
+  <button class="btn btn-primary" :disabled="actual === 'lola'" @click="mostrar('lola')">
+    Saluda a Lola
+  </button>
+  <button class="btn btn-primary" :disabled="actual === 'tiger'" @click="mostrar('tiger')">
+    Saluda a Tiger
   </button>
 </template>
 ```
+
+> Demo equivalente en el repo: `Sesion7VBind.vue`. Las fotos viven en `ClientApp/public/lola.jpg` y `ClientApp/public/tiger.jpg`. Lo que estrenamos es `v-bind` (`:`) sobre **varios atributos a la vez** (`:src`, `:alt`, `:title`, `:disabled`) y el caso clásico de **botón deshabilitado** cuando ya estás en ese estado — patrón que reutilizaremos en formularios.
 
 ### Vincular clases CSS (muy común)
 
@@ -471,6 +563,39 @@ const opcion = ref<string>('a')
 
 Soporta: `<input>` (text, checkbox, radio), `<select>`, `<textarea>`. El valor de la variable se actualiza automáticamente al cambiar el input y viceversa.
 
+### `v-model` dentro de un `v-for` (caso real)
+
+Cada checkbox enlaza directamente con `reserva.confirmada` del objeto que itera el `v-for`. No hace falta `@change` ni un handler intermedio: al pulsar el checkbox, Vue muta la propiedad del objeto dentro del array y eso dispara el re-render:
+
+```html
+<li
+  v-for="reserva in reservas"
+  :key="reserva.id"
+  class="list-group-item d-flex justify-content-between align-items-center"
+>
+  <div class="form-check flex-grow-1">
+    <!-- v-model directamente sobre la propiedad del objeto del array.
+         Al hacer click, reserva.confirmada pasa de false a true (o al revés). -->
+    <input
+      v-model="reserva.confirmada"
+      :id="`reserva-${reserva.id}`"
+      class="form-check-input"
+      type="checkbox"
+    />
+    <!-- :class con objeto: aplica color verde SOLO cuando confirmada === true. -->
+    <label
+      :for="`reserva-${reserva.id}`"
+      class="form-check-label"
+      :class="{ 'text-success fw-bold': reserva.confirmada }"
+    >
+      {{ reserva.recurso }} ({{ reserva.horas }}h)
+    </label>
+  </div>
+</li>
+```
+
+> Demo equivalente en el repo: `Sesion7ListaReservas.vue`. Observa que `:id` y `:for` se construyen con template literal (`` `reserva-${reserva.id}` ``) para que cada `<label>` apunte a su propio checkbox.
+
 ## 2.8 Eventos del DOM {#eventos}
 
 Se usa `v-on` (atajo `@`) para escuchar eventos:
@@ -550,6 +675,66 @@ function enviarFormulario() {
 <!-- Otros: .tab, .delete, .esc, .space, .up, .down, .left, .right -->
 ```
 
+### Eventos en una demo real
+
+Combinamos `@keyup.enter` para añadir reservas sin tocar el ratón y `@click` con argumento para identificar qué fila eliminar:
+
+```html
+<script setup lang="ts">
+import { ref } from 'vue'
+
+interface IReserva {
+  id: number
+  recurso: string
+  horas: number
+  confirmada: boolean
+}
+
+const reservas = ref<IReserva[]>([/* … */])
+const nuevoRecurso = ref('')
+let proximoId = 100
+
+// Handler sin paréntesis en el template → no recibe Event, no le hace falta.
+function anadirReserva(): void {
+  const limpio = nuevoRecurso.value.trim()
+  if (!limpio) return                                                       // descarta vacíos
+  reservas.value.push({ id: proximoId++, recurso: limpio, horas: 1, confirmada: false })
+  nuevoRecurso.value = ''                                                   // limpia el input
+}
+
+// Handler CON argumento: en el template se llama eliminar(reserva.id).
+function eliminar(id: number): void {
+  reservas.value = reservas.value.filter(r => r.id !== id)                  // .filter no muta
+}
+</script>
+
+<template>
+  <div class="input-group mb-3">
+    <!-- @keyup.enter sustituye un if (event.key === 'Enter'): Vue ya filtra. -->
+    <input
+      v-model="nuevoRecurso"
+      class="form-control"
+      placeholder="Nombre del recurso a reservar (pulsa Enter)"
+      @keyup.enter="anadirReserva"
+    />
+    <!-- @click sin argumento: el handler ignora el Event que recibiría. -->
+    <button class="btn btn-primary" @click="anadirReserva">Añadir</button>
+  </div>
+
+  <ul class="list-group">
+    <li v-for="reserva in reservas" :key="reserva.id" class="list-group-item">
+      {{ reserva.recurso }} ({{ reserva.horas }}h)
+      <!-- @click CON argumento: paréntesis para pasar el id de esta fila. -->
+      <button class="btn btn-sm btn-outline-danger" @click="eliminar(reserva.id)">
+        Eliminar
+      </button>
+    </li>
+  </ul>
+</template>
+```
+
+> Demo equivalente en el repo: `Sesion7ListaReservas.vue` (mismos handlers sobre `IClaseReserva`). Regla práctica: enganchar `@click="fn"` (sin paréntesis) si el handler no necesita argumentos, y `@click="fn(arg)"` cuando sí.
+
 ## 2.9 Métodos de arrays {#metodos-arrays}
 
 Los métodos de arrays son fundamentales en Vue para transformar, filtrar y agregar datos. Todos son **inmutables** (no modifican el array original, excepto `.sort()`).
@@ -557,14 +742,14 @@ Los métodos de arrays son fundamentales en Vue para transformar, filtrar y agre
 La demo `Sesion7MetodosArrays.vue` muestra los cuatro métodos clave sobre el mismo array de reservas y todos como `computed`:
 
 ```typescript
-interface IClaseReserva {
+interface IReserva {
   id: number
   recurso: string
   horas: number
   confirmada: boolean
 }
 
-const reservas = ref<IClaseReserva[]>([
+const reservas = ref<IReserva[]>([
   { id: 1, recurso: 'Aula 12',          horas: 2, confirmada: true },
   { id: 2, recurso: 'Sala reuniones A', horas: 1, confirmada: false },
   { id: 3, recurso: 'Aula 12',          horas: 3, confirmada: true },
@@ -601,17 +786,17 @@ const horasConfirmadas = computed(() =>
 ```typescript
 // .some  → true en cuanto encuentra UN elemento que cumple. Corta búsqueda.
 // .every → true sólo si TODOS cumplen. Corta al primer false.
-const hayCaros     = productos.some (p => p.precio > 500)   // ¿alguno > 500?
-const todosBaratos = productos.every(p => p.precio < 100)   // ¿todos < 100?
+const hayLargas        = reservas.some (r => r.horas > 4)     // ¿alguna reserva > 4h?
+const todasConfirmadas = reservas.every(r => r.confirmada)    // ¿todas confirmadas?
 ```
 
 ### `.sort()` — Ordenar
 
 ```typescript
-// ⚠️ .sort() es la EXCEPCIÓN: muta el array original. Si pasaras 'productos'
-// directo, cambiarías la fuente y, si es reactiva, dispararías renders no deseados.
-// El truco: clonar con spread ([...productos]) y ordenar la copia.
-const ordenados = [...productos].sort((a, b) => a.precio - b.precio)
+// ⚠️ .sort() es la EXCEPCIÓN: muta el array original. Si pasaras 'reservas'
+// directo, cambiarías la fuente reactiva y dispararías renders no deseados.
+// El truco: clonar con spread ([...reservas]) y ordenar la copia.
+const ordenadas = [...reservas].sort((a, b) => a.horas - b.horas)
 // Comparator: número negativo → a antes que b. Por eso (a-b) = ascendente,
 // (b-a) = descendente.
 ```
@@ -619,145 +804,156 @@ const ordenados = [...productos].sort((a, b) => a.precio - b.precio)
 ### Encadenamiento de métodos
 
 ```typescript
-interface IClaseEstudiante {
-  nombre: string
-  nota: number
-}
-
-const estudiantes: IClaseEstudiante[] = [
-  { nombre: 'Ana',   nota: 8 },
-  { nombre: 'Juan',  nota: 4 },
-  { nombre: 'María', nota: 9 },
-  { nombre: 'Pedro', nota: 6 }
-]
-
-// Pipeline en 3 pasos. Cada método devuelve un array NUEVO, por eso se pueden
-// encadenar con el punto. Se lee de arriba a abajo como una receta:
-const mejoresAprobados = estudiantes
-  .filter(e => e.nota >= 5)         // 1) quita los suspensos
-  .sort((a, b) => b.nota - a.nota)  // 2) ordena de mayor a menor nota
-  .map(e => e.nombre)               // 3) quédate sólo con los nombres
-// → ['María', 'Ana', 'Pedro']
+// Pipeline en 3 pasos sobre IReserva. Cada método devuelve un array NUEVO,
+// por eso se pueden encadenar con el punto. Se lee de arriba a abajo como una receta:
+const recursosConfirmadosLargos = reservas
+  .filter(r => r.confirmada)              // 1) quita las pendientes
+  .sort((a, b) => b.horas - a.horas)      // 2) ordena de más horas a menos
+  .map(r => r.recurso)                    // 3) quédate sólo con los nombres de recurso
+// → ['Aula 12', 'Proyector', ...]
 ```
 
 ### Tabla resumen
 
 | Método | Retorna | Propósito | Ejemplo típico |
 |--------|---------|-----------|----------------|
-| `.map()` | Array mismo tamaño | Transformar | Extraer nombres, añadir IVA |
-| `.filter()` | Array menor o igual | Filtrar | Solo activos, buscar por texto |
-| `.find()` | 1 elemento o `undefined` | Buscar uno | Buscar por ID |
-| `.reduce()` | Cualquier valor | Acumular | Sumar, contar, agrupar |
-| `.some()` | `boolean` | ¿Alguno cumple? | ¿Hay errores? |
-| `.every()` | `boolean` | ¿Todos cumplen? | ¿Todo validado? |
-| `.sort()` | Array (mutado) | Ordenar | Ordenar por precio |
+| `.map()` | Array mismo tamaño | Transformar | Extraer nombres de recurso de un listado |
+| `.filter()` | Array menor o igual | Filtrar | Solo confirmadas, buscar recurso por nombre |
+| `.find()` | 1 elemento o `undefined` | Buscar uno | Buscar reserva por id |
+| `.reduce()` | Cualquier valor | Acumular | Sumar horas totales, agrupar por tipo |
+| `.some()` | `boolean` | ¿Alguno cumple? | ¿Hay alguna reserva pendiente? |
+| `.every()` | `boolean` | ¿Todos cumplen? | ¿Están todas confirmadas? |
+| `.sort()` | Array (mutado) | Ordenar | Ordenar reservas por horas o fecha |
 
-## 2.10 Objetos y acceso seguro a datos {#metodos-objetos}
+## 2.10 Acceso seguro a datos: `?.` y `??` {#metodos-objetos}
 
-### Spread operator (`...`) y clonación superficial
-
-La demo `Sesion7SpreadDestructuring.vue` recorre los cuatro patrones (spread, destructuring, `?.` y `??`) sobre un mismo `IClaseUsuario`:
-
-```typescript
-interface IClaseUsuario {
-  nombre: string
-  email?: string
-  direccion?: { ciudad: string; codigoPostal?: string }
-}
-
-const usuario = ref<IClaseUsuario>({
-  nombre: 'Ada Lovelace',
-  email: 'ada@uacloud.ua.es',
-  direccion: { ciudad: 'Alicante' },
-})
-
-// 1) Spread para clonar y modificar SIN mutar el original.
-const usuarioRenombrado = { ...usuario.value, nombre: 'Ada L.' }
-
-// 2) Spread con arrays.
-const numeros = [1, 2, 3]
-const numerosAmpliados = [0, ...numeros, 4]
-```
-
-::: warning IMPORTANTE
-El spread operator es **superficial** (shallow). Para objetos con propiedades anidadas, los cambios en la copia afectan al original:
-
-```typescript
-const copia = { ...usuario }
-copia.direccion.ciudad = 'Valencia'  // ⚠️ Modifica también el original
-
-// Para copia profunda (deep copy):
-const copiaReal = structuredClone(usuario)
-```
+::: tip POR QUÉ ESTOS DOS OPERADORES ABREN LA SECCIÓN
+Son los dos operadores que **más vas a usar al consumir APIs**. Cualquier respuesta JSON del backend tiene campos opcionales que pueden venir `undefined` (porque la BD permite `NULL`, porque la versión del DTO ha cambiado, porque el usuario aún no lo ha rellenado…). Sin `?.` y `??`, cada acceso es un fallo en producción esperando a ocurrir.
 :::
 
-### Destructuring
-
-Extrae propiedades de un objeto en variables individuales. Continuando con el mismo `usuario` de la demo:
+Tipo de partida para los ejemplos — la forma real del DTO `RecursoLectura` del backend .NET (sesión 7):
 
 ```typescript
-// Destructuring con renombrado y default.
-const { nombre: nombreUsuario, email = '(sin correo)' } = usuario.value
-
-// Acceso seguro a campos opcionales anidados.
-const codigoPostal = usuario.value.direccion?.codigoPostal
-
-// Nullish: '' es válido, solo cae al fallback con null/undefined.
-const cpVisible = codigoPostal ?? 'sin CP'
-```
-
-### Optional chaining (`?.`) y Nullish coalescing (`??`)
-
-Dos operadores fundamentales para trabajar con datos de APIs que pueden tener propiedades opcionales:
-
-```typescript
-interface IClaseUsuario {
+interface IRecursoLectura {
+  idRecurso: number
   nombre: string
-  direccion?: {
-    ciudad: string
-    codigoPostal?: string
+  descripcion?: string | null                     // opcional → puede ser undefined o null
+  idTipoRecurso: number | null                    // nullable explícitamente en BD
+  tipo?: {                                        // ↳ navegación opcional al tipo
+    codigo: string
+    nombre: string
   }
 }
-
-const usuario: IClaseUsuario = { nombre: 'Ana' }
-
-// ?.  → Acceso seguro (retorna undefined si no existe, sin error)
-const ciudad = usuario.direccion?.ciudad          // undefined (no da error)
-const cp = usuario.direccion?.codigoPostal        // undefined
-
-// ??  → Valor por defecto SOLO si es null o undefined
-const ciudadFinal = usuario.direccion?.ciudad ?? 'Sin ciudad'  // 'Sin ciudad'
 ```
 
-**Diferencia entre `??` y `||`:**
+### Optional chaining (`?.`) — acceso seguro
 
-| Expresión | `\|\|` (OR) | `??` (Nullish) |
-|-----------|------------|----------------|
-| `0 \|\| 10` | `10` (0 es falsy) | `0` |
-| `'' \|\| 'default'` | `'default'` ('' es falsy) | `''` |
-| `false \|\| true` | `true` (false es falsy) | `false` |
+`?.` corta la cadena de accesos en cuanto encuentra `null` o `undefined`, sin lanzar error:
+
+```typescript
+const r: IRecursoLectura = {
+  idRecurso: 12, nombre: 'Aula 12', idTipoRecurso: null,
+}                                                  // tipo ni siquiera existe
+
+// Sin ?.: TS no compila ('tipo' is possibly undefined).
+// Si lo forzaras en runtime, lanzaría: Cannot read property 'codigo' of undefined.
+// const codigo = r.tipo.codigo                    // ❌
+
+// Con ?.: cuando tipo es undefined, la expresión entera devuelve undefined.
+const codigoTipo = r.tipo?.codigo                  // ✅ undefined (sin error)
+const nombreTipo = r.tipo?.nombre                  // ✅ undefined
+
+// También funciona en llamadas a métodos y accesos por índice:
+const primeraLetra = r.descripcion?.[0]            // undefined si descripcion es null/undefined
+respuesta?.reservas?.forEach(...)                  // no peta si respuesta o reservas faltan
+```
+
+### Nullish coalescing (`??`) — valor por defecto
+
+`??` devuelve el valor de la izquierda **salvo** que sea `null` o `undefined`. En ese caso, devuelve el de la derecha:
+
+```typescript
+const tipoFinal = r.tipo?.nombre ?? 'Sin tipo asignado'   // 'Sin tipo asignado'
+const descripcion = r.descripcion ?? '(sin descripción)'  // '(sin descripción)'
+
+// Combinado con ?.: el patrón "leer campo opcional con fallback" en una línea.
+const codigoVisible = r.tipo?.codigo ?? '—'
+```
+
+### `??` vs `||` — la diferencia que más sorprende
+
+`||` también ofrece un valor por defecto, pero cae con **cualquier valor falsy**: `0`, `''`, `false`, `NaN`, además de `null`/`undefined`. Esto rompe formularios y contadores:
+
+| Expresión | `||` (OR) | `??` (Nullish) |
+|---|---|---|
+| `0 \|\| 10` | `10` ⚠️ (0 cuenta como falsy) | `0` ✅ |
+| `'' \|\| 'X'` | `'X'` ⚠️ (cadena vacía cae) | `''` ✅ |
+| `false \|\| true` | `true` ⚠️ | `false` ✅ |
 | `null \|\| 10` | `10` | `10` |
 | `undefined \|\| 10` | `10` | `10` |
 
-::: tip BUENA PRÁCTICA
-Usa `??` en lugar de `||` cuando quieras distinguir entre "valor vacío pero válido" (0, '', false) y "valor ausente" (null, undefined). Es el patrón estándar con datos de API.
+::: warning EL BUG CLÁSICO
+```ts
+const horas = reserva.horas || 1   // ❌ si horas es 0, asume 1
+const horas = reserva.horas ?? 1   // ✅ 0 horas sigue siendo 0
+```
+Usa `??` siempre que `0`, `''` o `false` sean valores **válidos** del dominio. Es lo normal con datos de API.
 :::
 
-::: info PUENTE A LA SESIÓN 3
+### Spread (`...`) y destructuring
+
+Dos patrones más de uso diario, aplicados sobre un `IRecursoLectura`:
+
+```typescript
+const recurso = ref<IRecursoLectura>({
+  idRecurso: 12,
+  nombre: 'Aula 12',
+  idTipoRecurso: 1,
+  tipo: { codigo: 'SALA', nombre: 'Sala de reuniones' },
+})
+
+// SPREAD para clonar y modificar SIN mutar el original.
+// Patrón típico antes de un PUT: parte de la copia, cambia un campo, envía.
+const recursoRenombrado = { ...recurso.value, nombre: 'Aula 12 (reformada)' }
+
+// SPREAD con arrays (insertar al inicio/final, concatenar).
+const ids = [1, 2, 3]
+const ampliados = [0, ...ids, 4]                  // [0, 1, 2, 3, 4]
+
+// DESTRUCTURING con renombrado y default — útil al leer DTOs en handlers.
+const { nombre: nombreRecurso, descripcion = '(sin descripción)' } = recurso.value
+```
+
+::: warning SPREAD ES SUPERFICIAL
+Si el objeto tiene propiedades anidadas, la copia comparte la referencia interna:
+
+```typescript
+const copia = { ...recurso.value }
+copia.tipo.codigo = 'EQUIPO'                      // ⚠️ Modifica también el original
+
+// Para copia profunda real:
+const copiaReal = structuredClone(recurso.value)
+```
+:::
+
+> Demo equivalente en el repo: `Sesion7SpreadDestructuring.vue` (con `IUsuario { nombre, email, direccion }` como dominio de juguete). Los cuatro patrones (`...`, destructuring, `?.`, `??`) son idénticos sobre `IRecursoLectura`.
+
+::: info PUENTE A LA SESIÓN 11
 En esta sesión trabajamos `v-model`, handlers y validaciones básicas. En la sesión 11 verás el patrón completo de formulario con **estado derivado** usando `computed`: normalización de entrada, habilitar/deshabilitar acciones y criterio `computed` vs método.
 :::
 
 ## 2.11 Pruébalo en el proyecto {#sandbox}
 
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-7/` hay seis demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-7`:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-7/` hay siete demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-7`:
 
 | Demo | Concepto que ilustra | Fichero |
 |------|----------------------|---------|
 | `Sesion7Semaforo.vue` | `:class` con objeto + union type (`'rojo' \| 'ambar' \| 'verde'`) | `sesion-7/Sesion7Semaforo.vue` |
 | `Sesion7VifVshow.vue` | `v-if` destruye/crea nodo; `v-show` solo cambia `display` | `sesion-7/Sesion7VifVshow.vue` |
-| `Sesion7ListaTareas.vue` | `v-for`, `:key` estable, `v-model` en checkbox, `@keyup.enter` | `sesion-7/Sesion7ListaTareas.vue` |
+| `Sesion7VBind.vue` | `v-bind` sobre atributos: `:src`, `:alt`, `:title`, `:disabled` | `sesion-7/Sesion7VBind.vue` |
+| `Sesion7ListaReservas.vue` | `v-for`, `:key` estable, `v-model` en checkbox, `@keyup.enter` y `v-for` sobre objeto | `sesion-7/Sesion7ListaReservas.vue` |
 | `Sesion7MetodosArrays.vue` | `.map / .filter / .find / .reduce` sobre reservas, todos como `computed` | `sesion-7/Sesion7MetodosArrays.vue` |
-| `Sesion7SpreadDestructuring.vue` | Spread, destructuring, `?.`, `??` sobre `IClaseUsuario` | `sesion-7/Sesion7SpreadDestructuring.vue` |
+| `Sesion7SpreadDestructuring.vue` | Spread, destructuring, `?.`, `??` sobre `IUsuario` | `sesion-7/Sesion7SpreadDestructuring.vue` |
 | `Sesion7TablaRecursos.vue` | Demo integradora: filtro + checkbox + tabla con clases dinámicas | `sesion-7/Sesion7TablaRecursos.vue` |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
@@ -769,25 +965,25 @@ Abre `Sesion7TablaRecursos.vue` con F12 abierto y mira cómo Vue solo redibuja l
 ## Ejercicio Sesión 10 {#ejercicio}
 
 ::: info ENUNCIADO
-Debes implementar una mini lista de tareas para validar que dominas el flujo completo de esta sesión: tipado de datos con interface, renderizado de listas, formulario con `v-model`, eventos de usuario y transformación de arrays para actualizar estado.
+Vas a implementar una mini lista de reservas para validar que dominas el flujo completo de la sesión: tipado de datos con interface, renderizado de listas, formulario con `v-model`, eventos y transformación de arrays. La forma de `IReserva` es la misma que devuelve `/api/Reservas` en el backend .NET (sesión 7).
 
-**Resultado esperado:** un componente `ListaTareas.vue` donde el usuario pueda crear, marcar y eliminar tareas, y vea el estado de la lista actualizado en tiempo real.
+**Resultado esperado:** un componente `ListaReservas.vue` donde el usuario pueda crear, confirmar y eliminar reservas, y vea el estado de la lista actualizado en tiempo real.
 :::
 
-**Objetivo:** Practicar interfaces, funciones tipadas, directivas (`v-for`, `v-if`, `v-model`), eventos y métodos de arrays creando una lista de tareas interactiva.
+**Objetivo:** Practicar interfaces, funciones tipadas, directivas (`v-for`, `v-if`, `v-model`), eventos y métodos de arrays creando una lista de reservas interactiva.
 
-Crea un componente `ListaTareas.vue` con:
+Crea un componente `ListaReservas.vue` con:
 
-1. Una interface `IClaseTarea` con: `id` (number), `texto` (string), `completada` (boolean)
-2. Un array reactivo `tareas` con 2-3 tareas iniciales
-3. Un `<input>` con `v-model` para escribir nuevas tareas
-4. Un botón "Añadir" que cree una tarea nueva (genera `id` con `Date.now()`)
-5. Renderiza cada tarea con `v-for` mostrando:
-   - Un checkbox (`v-model` con `tarea.completada`)
-   - El texto de la tarea (con estilo tachado si está completada usando `:class` o `:style`)
-   - Un botón "Eliminar" que quite la tarea del array (`.filter()`)
-6. Muestra un contador: "X tareas pendientes" usando `.filter()` para contar las no completadas
-7. Un mensaje con `v-if`: si no hay tareas, muestra "¡No hay tareas! 🎉"
+1. Una interface `IReserva` con: `id` (number), `recurso` (string), `horas` (number), `confirmada` (boolean).
+2. Un array reactivo `reservas` con 2-3 reservas iniciales (Aula 12, Sala A…).
+3. Un `<input>` con `v-model` para escribir el nombre de un nuevo recurso y otro para las horas.
+4. Un botón "Añadir" que cree una reserva nueva (genera `id` con `Date.now()`).
+5. Renderiza cada reserva con `v-for` mostrando:
+   - Un checkbox (`v-model` con `reserva.confirmada`).
+   - El nombre del recurso y las horas (<code v-pre>{{ reserva.recurso }} ({{ reserva.horas }}h)</code>), con `:class` que aplica `text-success fw-bold` cuando está confirmada.
+   - Un botón "Eliminar" que quite la reserva del array (`.filter()`).
+6. Muestra un contador: `"X reservas pendientes"` con `.filter(r => !r.confirmada).length`.
+7. Un mensaje con `v-if`: si no hay reservas, muestra "No hay reservas. Añade una con el formulario.".
 
 ::: details Solución
 
@@ -795,45 +991,48 @@ Crea un componente `ListaTareas.vue` con:
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// Contrato de cada tarea. La interface vive dentro del componente porque
-// no se reutiliza fuera. Si la usaras en dos vistas, la moverías a
-// src/interfaces/IClaseTarea.ts (ver §2.1).
-interface IClaseTarea {
+// Contrato local. Cuando esta lista la consumamos desde la API
+// (sesión 12), moveremos IReserva a src/interfaces/IReserva.ts.
+interface IReserva {
   id: number
-  texto: string
-  completada: boolean
+  recurso: string
+  horas: number
+  confirmada: boolean
 }
 
-// Estado principal: array reactivo de tareas, con datos iniciales.
-const tareas = ref<IClaseTarea[]>([
-  { id: 1, texto: 'Aprender Vue 3',             completada: false },
-  { id: 2, texto: 'Practicar TypeScript',       completada: true  },
-  { id: 3, texto: 'Crear mi primer componente', completada: false }
+// Estado principal: array reactivo de reservas, con datos iniciales.
+const reservas = ref<IReserva[]>([
+  { id: 1, recurso: 'Aula 12',          horas: 2, confirmada: false },
+  { id: 2, recurso: 'Sala reuniones A', horas: 1, confirmada: true  },
+  { id: 3, recurso: 'Proyector',        horas: 1, confirmada: false },
 ])
 
-// Estado secundario: lo que teclea el usuario en el input.
-const nuevaTarea = ref<string>('')
+// Estado del formulario: lo que teclea el usuario.
+const nuevoRecurso = ref<string>('')
+const nuevasHoras = ref<number>(1)
 
-// ── Añadir tarea ─────────────────────────────────────────────────────────
-const agregarTarea = (): void => {
-  const textoLimpio = nuevaTarea.value.trim()
-  if (!textoLimpio) return                     // descarta espacios en blanco
+// ── Añadir reserva ───────────────────────────────────────────────────────
+const agregarReserva = (): void => {
+  const limpio = nuevoRecurso.value.trim()
+  if (!limpio) return                          // descarta espacios en blanco
 
   // push muta el array, y Vue lo detecta porque ref<T[]> envuelve el array
   // en un Proxy reactivo. Date.now() devuelve un timestamp único como id.
-  tareas.value.push({
+  reservas.value.push({
     id: Date.now(),
-    texto: textoLimpio,
-    completada: false
+    recurso: limpio,
+    horas: nuevasHoras.value,
+    confirmada: false,
   })
-  nuevaTarea.value = ''                        // limpia el input para la siguiente
+  nuevoRecurso.value = ''                      // limpia el input para la siguiente
+  nuevasHoras.value = 1
 }
 
-// ── Eliminar tarea ───────────────────────────────────────────────────────
+// ── Eliminar reserva ─────────────────────────────────────────────────────
 // .filter devuelve un ARRAY NUEVO sin el id indicado. Reasignamos a .value
 // para que el reactivity system de Vue lo detecte y redibuje la lista.
-const eliminarTarea = (id: number): void => {
-  tareas.value = tareas.value.filter(t => t.id !== id)
+const eliminarReserva = (id: number): void => {
+  reservas.value = reservas.value.filter(r => r.id !== id)
 }
 
 // ── Pendientes (función, no computed) ────────────────────────────────────
@@ -841,50 +1040,56 @@ const eliminarTarea = (id: number): void => {
 // como función. En la sesión 11 lo refactorizaremos a computed para que
 // el resultado se cachee entre renders.
 const pendientes = (): number => {
-  return tareas.value.filter(t => !t.completada).length
+  return reservas.value.filter(r => !r.confirmada).length
 }
 </script>
 
 <template>
-  <div class="p-4" style="max-width: 500px">
-    <h2>Lista de Tareas</h2>
+  <div class="p-4" style="max-width: 600px">
+    <h2>Lista de Reservas</h2>
 
     <div class="d-flex gap-2 mb-3">
-      <!-- v-model: input ↔ ref bidireccional.
-           @keyup.enter: enviar con la tecla Enter, sin tocar el ratón. -->
+      <!-- v-model + @keyup.enter para añadir con teclado. -->
       <input
-        v-model="nuevaTarea"
-        @keyup.enter="agregarTarea"
-        placeholder="Nueva tarea..."
+        v-model="nuevoRecurso"
+        @keyup.enter="agregarReserva"
+        placeholder="Recurso (Aula 12, Sala A...)"
         class="form-control"
       />
-      <button @click="agregarTarea" class="btn btn-primary">Añadir</button>
+      <input
+        v-model.number="nuevasHoras"
+        type="number"
+        min="1"
+        class="form-control"
+        style="max-width: 90px"
+      />
+      <button @click="agregarReserva" class="btn btn-primary">Añadir</button>
     </div>
 
     <!-- v-if/v-else: o se ve el mensaje vacío o la lista, nunca los dos. -->
-    <p v-if="tareas.length === 0">¡No hay tareas! 🎉</p>
+    <p v-if="reservas.length === 0">No hay reservas. Añade una con el formulario.</p>
 
     <ul class="list-group" v-else>
-      <!-- :key="tarea.id" es CRÍTICO: si usáramos :key="index", al eliminar
-           una tarea los checkboxes se mezclarían (ver §2.5 - zona peligrosa). -->
+      <!-- :key="reserva.id" es CRÍTICO: si usáramos :key="index", al eliminar
+           una reserva los checkboxes se mezclarían (ver §2.5 - zona peligrosa). -->
       <li
-        v-for="tarea in tareas"
-        :key="tarea.id"
+        v-for="reserva in reservas"
+        :key="reserva.id"
         class="list-group-item d-flex align-items-center gap-2"
       >
-        <!-- v-model directo sobre la propiedad del objeto: cambia la tarea
+        <!-- v-model directo sobre la propiedad del objeto: cambia la reserva
              dentro del array y dispara el re-render correspondiente. -->
-        <input type="checkbox" v-model="tarea.completada" />
+        <input type="checkbox" v-model="reserva.confirmada" />
 
-        <!-- :style con objeto: aplica line-through sólo cuando completada=true. -->
-        <span :style="{ textDecoration: tarea.completada ? 'line-through' : 'none' }">
-          {{ tarea.texto }}
+        <!-- :class con objeto: resalta SOLO cuando confirmada === true. -->
+        <span :class="{ 'text-success fw-bold': reserva.confirmada }">
+          {{ reserva.recurso }} ({{ reserva.horas }}h)
         </span>
 
         <!-- Pasar argumento al handler: usar paréntesis. ms-auto empuja
              el botón al borde derecho con flexbox. -->
         <button
-          @click="eliminarTarea(tarea.id)"
+          @click="eliminarReserva(reserva.id)"
           class="btn btn-sm btn-danger ms-auto"
         >
           Eliminar
@@ -894,144 +1099,13 @@ const pendientes = (): number => {
 
     <!-- pendientes() se llama en CADA render del template (todavía no usamos
          computed). Como la lista es corta, no importa. -->
-    <p class="mt-2" v-if="tareas.length > 0">
-      {{ pendientes() }} tareas pendientes
+    <p class="mt-2" v-if="reservas.length > 0">
+      {{ pendientes() }} reservas pendientes
     </p>
   </div>
 </template>
 ```
 :::
-
-## Test Sesión 10 {#test}
-
-### Preguntas (desplegables)
-
-::: details 1. ¿Qué describe una interface en TypeScript?
-- a) Un componente visual
-- b) La forma o contrato de un objeto
-- c) Un evento del DOM
-- d) Un tipo de directiva
-:::
-
-::: details 2. ¿Dónde suele colocarse una interface reutilizable según la convención explicada?
-- a) src/assets
-- b) src/interfaces
-- c) src/styles
-- d) src/router
-:::
-
-::: details 3. ¿Qué significa que una función esté tipada como void?
-- a) Que devuelve siempre null
-- b) Que no devuelve un valor útil
-- c) Que no puede recibir parámetros
-- d) Que solo se usa en Vue
-:::
-
-::: details 4. ¿Por qué conviene tipar un handler o una función de negocio sencilla?
-- a) Porque Vue deja de ser reactivo si no la tipas
-- b) Porque mejora legibilidad y evita errores de uso
-- c) Porque sustituye a v-model
-- d) Porque elimina la necesidad de probar
-:::
-
-::: details 5. ¿Qué directiva elimina o crea nodos del DOM según una condición?
-- a) v-show
-- b) v-if
-- c) v-bind
-- d) v-model
-:::
-
-::: details 6. ¿Qué directiva encaja mejor cuando una zona se muestra y oculta con mucha frecuencia?
-- a) v-for
-- b) v-show
-- c) v-slot
-- d) v-pre
-:::
-
-::: details 7. ¿Qué directiva se usa para iterar una lista?
-- a) v-for
-- b) v-repeat
-- c) v-list
-- d) v-map
-:::
-
-::: details 8. ¿Cuál es la mejor key en un v-for si cada objeto tiene id?
-- a) El índice del array
-- b) Math.random()
-- c) objeto.id
-- d) El texto visible
-:::
-
-::: details 9. ¿Qué atajo representa v-bind?
-- a) @
-- b) :
-- c) #
-- d) $
-:::
-
-::: details 10. ¿Qué directiva conecta un input con una variable reactiva de forma bidireccional?
-- a) v-if
-- b) v-model
-- c) v-html
-- d) v-once
-:::
-
-::: details 11. ¿Qué modificador evita el comportamiento por defecto de un formulario al enviarlo?
-- a) .stop
-- b) .once
-- c) .prevent
-- d) .capture
-:::
-
-::: details 12. ¿Qué método devuelve un nuevo array con solo los elementos que cumplen una condición?
-- a) find
-- b) filter
-- c) reduce
-- d) some
-:::
-
-::: details 13. ¿Qué método devuelve el primer elemento que cumple una condición?
-- a) map
-- b) filter
-- c) find
-- d) every
-:::
-
-::: details 14. ¿Qué método modifica el array original?
-- a) filter
-- b) map
-- c) sort
-- d) find
-:::
-
-::: details 15. ¿Qué operador usa un valor por defecto solo cuando el de la izquierda es null o undefined?
-- a) ||
-- b) &&
-- c) ??
-- d) ?.
-:::
-
-### Respuestas (Autoevaluación)
-
-::: details Ver respuestas
-1. b) La forma o contrato de un objeto.
-2. b) src/interfaces.
-3. b) No devuelve un valor útil.
-4. b) Mejora legibilidad y evita errores de uso.
-5. b) v-if. Crea o elimina nodos según la condición.
-6. b) v-show. Encaja mejor en cambios frecuentes de visibilidad.
-7. a) v-for.
-8. c) objeto.id. Es una key estable y única.
-9. b) :
-10. b) v-model.
-11. c) .prevent.
-12. b) filter.
-13. c) find.
-14. c) sort. Muta el array original.
-15. c) ??.
-:::
-
----
 
 <!-- NAV:START -->
 | Anterior | Inicio | Siguiente |

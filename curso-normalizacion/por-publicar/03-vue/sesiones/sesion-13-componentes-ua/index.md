@@ -288,7 +288,7 @@ async function enviar() {
 Mientras `guardando = true`, el botón está deshabilitado. **No** olvides el `try/finally`: si el `await` lanza una excepción y no vuelves a poner `false`, el botón queda inservible hasta recargar la página.
 :::
 
-[Demo abrible: `/uareservas/sesiones-vue/sesion-10/boton-loading`](/uareservas/sesiones-vue/sesion-10/boton-loading)
+[Demo abrible: `/uareservas/sesiones-vue/sesion-9/boton-loading`](/uareservas/sesiones-vue/sesion-9/boton-loading) (introducido en la sesión 12)
 
 ## 10.6 `useToast` · avisos transitorios {#use-toast}
 
@@ -322,7 +322,7 @@ cerrarToastsPorGrupo("reservas");
 El contenedor `<ToastContainer />` debe estar en `App.vue` (o se monta solo en el primer aviso). En `uaReservas` ya está montado explícitamente.
 :::
 
-[Demo abrible: `/uareservas/sesiones-vue/sesion-9/use-toast`](/uareservas/sesiones-vue/sesion-9/use-toast) (introducido en la sesión 9)
+[Demo abrible: `/uareservas/sesiones-vue/sesion-9/use-toast`](/uareservas/sesiones-vue/sesion-9/use-toast) (introducido en la sesión 12)
 
 ## 10.7 `Checkbox3estados` · filtros con `boolean | null` {#checkbox3estados}
 
@@ -390,6 +390,23 @@ Un modal técnicamente vive como hijo de tu componente. Pero visualmente debe ap
 </template>
 ```
 
+```mermaid
+flowchart TB
+    subgraph logico["Árbol LÓGICO de componentes (Vue)"]
+        APP[App] --> CARD["Componente .card<br/>(overflow:hidden, z-index…)"]
+        CARD --> MODAL["Modal<br/>reactividad, eventos y<br/>lifecycle siguen AQUÍ"]
+    end
+    subgraph dom["DOM REAL (lo que monta el navegador)"]
+        BODY["&lt;body&gt;"] --> CARD2[".card"]
+        BODY --> MODAL2["Modal teletransportado<br/>(por encima de todo)"]
+    end
+    MODAL -.->|"Teleport to='body'"| MODAL2
+    style logico fill:#e3f2fd,stroke:#1976d2
+    style dom fill:#e8f5e9,stroke:#388e3c
+```
+
+<!-- diagram id="s10-teleport" caption: "Teleport: el modal sigue en el arbol logico del componente, pero se monta fisicamente bajo body" -->
+
 ::: info QUE HACE EXACTAMENTE
 Vue sigue tratando el contenido teletransportado como parte del componente (reactividad, eventos, lifecycle), pero lo monta físicamente en otro punto del DOM. `PopUpModal`, `DialogModal`, `SpinnerModal` y `ToastContainer` lo usan internamente — no tienes que escribir `Teleport` tú al usarlos.
 :::
@@ -408,7 +425,7 @@ Combina en un único flujo los componentes vistos: listar recursos, filtro tries
 
 ## 10.10 Pruébalo en el proyecto {#sandbox}
 
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-10/` hay siete demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-10`:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-10/` hay seis demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-10`:
 
 | Demo                           | Concepto que ilustra                                                                        | Fichero                                  |
 | ------------------------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------- |

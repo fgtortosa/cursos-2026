@@ -423,6 +423,10 @@ La validación se realiza en **dos niveles**:
 1. **Cliente** (HTML5 + Bootstrap): inmediata, mejora UX
 2. **Servidor** (HTTP 400): reglas de negocio, seguridad
 
+::: warning VISTA PREVIA — EL DETALLE ESTÁ EN LA SESIÓN 15
+Este apartado es solo una **introducción** para entender dónde encaja la validación dentro de la arquitectura. El pipeline definitivo (cliente → .NET → Oracle) con la API actual de `useGestionFormularios` —`adaptarProblemDetails` sobre `ValidationProblemDetails`— se desarrolla en la **sesión 15**. Toma el ejemplo de abajo como esquema mental, no como la API final.
+:::
+
 ### useGestionFormularios
 
 ```bash
@@ -671,6 +675,30 @@ Cuándo encaja:
 - No quieres arrastrar datos entre días o sesiones futuras
 
 ### Ejemplo 3: Estado compartido con Pinia
+
+Cuando varios componentes **sin relación padre/hijo** necesitan el mismo dato (el usuario en sesión, por ejemplo), pasarlo con props/emits obliga a encadenarlo por niveles intermedios que ni lo usan (_prop-drilling_). Pinia actúa como un **bus central**: un único store que cualquier componente lee y escribe directamente.
+
+```mermaid
+flowchart TB
+    subgraph drill["Sin store — prop-drilling"]
+        A1[App] -->|prop| B1[Vista]
+        B1 -->|prop| C1[Componente]
+        C1 -->|prop| D1[Nieto que SÍ lo usa]
+        D1 -.->|emit| C1
+        C1 -.->|emit| B1
+        B1 -.->|emit| A1
+    end
+    subgraph bus["Con Pinia — store como bus central"]
+        S[("useAuthStore<br/>nombre · token · autenticado")]
+        V1[Cabecera] <-->|lee/escribe| S
+        V2[Vista perfil] <-->|lee/escribe| S
+        V3[Menú lateral] <-->|lee/escribe| S
+    end
+    style drill fill:#ffebee,stroke:#c62828
+    style bus fill:#e3f2fd,stroke:#1976d2
+```
+
+<!-- diagram id="s9-pinia-bus" caption: "Pinia como bus central: componentes sin relacion padre/hijo leen y escriben el mismo store, evitando el prop-drilling" -->
 
 ```typescript
 // src/stores/useAuthStore.ts

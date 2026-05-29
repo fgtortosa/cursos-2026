@@ -18,15 +18,13 @@ Material de autoevaluación y práctica de "fix con IA" para las cinco sesiones 
 
 ## Sesión 10 — Directivas, eventos y datos
 
-::: info PENDIENTE
-Banco de preguntas por desarrollar.
-:::
+- [Preguntas de test](./sesion-10/preguntas.md)
+- [Respuestas](./sesion-10/respuestas.md)
 
 ## Sesión 11 — Componentes y comunicación
 
-::: info PENDIENTE
-Banco de preguntas por desarrollar.
-:::
+- [Preguntas de test](./sesion-11/preguntas.md)
+- [Respuestas](./sesion-11/respuestas.md)
 
 ## Sesión 12 — Arquitectura de componentes y servicios
 
