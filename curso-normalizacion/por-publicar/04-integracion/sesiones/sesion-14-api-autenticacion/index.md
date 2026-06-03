@@ -159,65 +159,183 @@ Tanto `ControladorBase.CodPer` como `store.usuario.Nombre` salen del **mismo JWT
 
 El paquete `@vueua/components/composables/use-axios` ofrece **tres niveles** sobre `axios`. Elegir el correcto evita reinventar plumbing.
 
-### 11.3.1 Tabla resumen
+### 11.3.1 El recorrido completo de una petición
+
+Una llamada no va de la vista a la API "en línea recta": pasa por el **servicio** de la vista y por el **interceptor** de `useAxios`, que adjunta la cookie, normaliza la URL y gestiona el 401. A la vuelta, lo mismo en orden inverso hasta que la vista pinta:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant V as Vista (.vue)
+    participant S as Servicio<br/>apiRecursos
+    participant UA as useAxios<br/>(peticion / HttpApi)
+    participant I as Interceptor
+    participant API as API .NET
+
+    V->>S: apiRecursos.listar()
+    S->>UA: peticion<T>('Recursos', GET)
+    UA->>I: request
+    Note over I: añade cookie + Content-Language<br/>normaliza la URL
+    I->>API: GET /uareservas/api/Recursos
+    API-->>I: 200 + JSON
+    Note over I: si 401 → refresca token<br/>y reintenta (§11.4)
+    I-->>UA: response
+    UA-->>S: T (response.data ya desenvuelto)
+    S-->>V: recursos.value = …
+```
+
+<!-- diagram id="s11-flujo-peticion-e2e" caption: "Vista → Servicio → useAxios → interceptor → API .NET, y de vuelta hasta la vista" -->
+
+### 11.3.2 Instalación e importación
+
+`useAxios` viene **dentro de `@vueua/components`** (no es un paquete aparte). Se configura una sola vez al arrancar la app — la plantilla UA ya lo hace por ti:
+
+```ts
+// main.ts — configuración única
+import { setUrl, setToken, setRouter, setIdioma } from '@vueua/components/composables/use-axios'
+
+setUrl(import.meta.env.VITE_URL_API + '/api')  // baseURL (es el valor por defecto)
+setRouter(router)                               // para redirigir a ErrorPage
+setToken(tokenActual)                           // Authorization / cookie
+setIdioma('es')                                 // cabecera Content-Language
+```
+
+En cada servicio se importan solo las funciones que se usen:
+
+```ts
+import { peticion, llamadaAxios, HttpApi, verbosAxios } from '@vueua/components/composables/use-axios'
+```
+
+### 11.3.3 Los tres niveles
 
 | Nivel | Cuándo usarlo | Devuelve |
 |-------|---------------|----------|
-| `peticion<T>(url, verbo, params?)` | Llamada **puntual** dentro de una función `async`. El 90 % del código. | `Promise<T>` |
-| `llamadaAxios(url, verbo, params?)` | Necesitas **refs reactivas** (`data`, `isLoading`, `error`) para usar directamente en el template. | `UseAxiosReturn<T>` (refs) |
-| `HttpApi` | Acceso directo a la instancia axios. Solo cuando ninguna de las anteriores encaja (config custom, requests paralelas, cancelación). | `AxiosInstance` |
+| `peticion<T>(url, verbo, params?)` | Llamada **puntual** dentro de una función `async`. El 90 % del código. | `Promise<T>` (el dato directo) |
+| `llamadaAxios(url, verbo, params?)` | Necesitas **refs reactivas** (`data`, `isLoading`, `error`) para el template. | `{ data, isLoading, error, execute }` (refs) |
+| `HttpApi` | Instancia axios directa. Cuando necesitas el status exacto (201), cabeceras (`Location`) o config avanzada. | `Promise<AxiosResponse<T>>` |
 
 ::: tip REGLA PRÁCTICA
-Empieza siempre con `peticion`. Si descubres que estás creando manualmente `ref(false)` para `cargando`, `ref(null)` para `error` y similares, plantea pasar a `llamadaAxios`.
+Empieza siempre con `peticion`. Pasa a `llamadaAxios` solo si te ves creando a mano `ref(false)` para `cargando` y `ref(null)` para `error`. Reserva `HttpApi` para cuando necesites la respuesta HTTP completa.
 :::
 
-### 11.3.2 `peticion<T>` con `async/await`
+### 11.3.4 Interfaces de lectura y de escritura (DTOs)
 
-Es la forma idiomática para cargas únicas (listas, detalles, guardados). Esta es la forma del servicio real que reemplaza al mock de la sesión 9:
+Antes del código, una decisión de diseño importante: **no se usa la misma interfaz para leer que para escribir**. Igual que en .NET hay un DTO por operación ([sesión 7 — DTOs y APIs](../../../02-dotnet/sesiones/sesion-07-dtos-apis/)), en Vue declaramos:
+
+- una interfaz de **lectura** con lo que la API **devuelve** (en `camelCase`, ya resuelto al idioma del usuario);
+- una o varias interfaces de **escritura (DTO)** con lo que la API **espera** al crear o actualizar (en `PascalCase`, como las propiedades del DTO en .NET).
 
 ```ts
-// src/services/recursosServicio.ts (real, sustituye a recursosServicioMock)
+// src/services/apiRecursos.ts — el servicio real que sustituye al mock de la sesión 9
 import { peticion, verbosAxios } from '@vueua/components/composables/use-axios'
 
-export interface IClaseRecursoDto {
-  Id: number; Nombre: string; Tipo: string; Activo: boolean
+// LECTURA: lo que DEVUELVE la API (camelCase). La usa la vista para pintar.
+export interface RecursoLectura {
+  idRecurso:   number
+  nombre:      string        // ya resuelto al idioma del usuario
+  tipoNombre?: string | null
+  visible:     boolean
 }
 
-export function useRecursosServicio() {
-  async function listar(): Promise<IClaseRecursoDto[]> {
-    return await peticion<IClaseRecursoDto[]>('Recursos', verbosAxios.GET)
-  }
+// ESCRITURA (DTO de crear): lo que ESPERA la API (PascalCase, como en .NET).
+export interface RecursoCrearDto {
+  NombreEs:      string
+  NombreCa:      string
+  NombreEn:      string
+  IdTipoRecurso: number | null
+  Visible:       boolean
+}
 
-  async function obtenerPorId(id: number): Promise<IClaseRecursoDto | null> {
-    return await peticion<IClaseRecursoDto | null>(`Recursos/${id}`, verbosAxios.GET)
-  }
-
-  async function crear(dto: Omit<IClaseRecursoDto, 'Id'>): Promise<number> {
-    return await peticion<number>('Recursos', verbosAxios.POST, dto)
-  }
-
-  async function actualizar(id: number, dto: IClaseRecursoDto): Promise<void> {
-    await peticion<void>(`Recursos/${id}`, verbosAxios.PUT, dto)
-  }
-
-  async function eliminar(id: number): Promise<void> {
-    await peticion<void>(`Recursos/${id}`, verbosAxios.DELETE)
-  }
-
-  return { listar, obtenerPorId, crear, actualizar, eliminar }
+// Al actualizar viaja además el id.
+export interface RecursoActualizarDto extends RecursoCrearDto {
+  IdRecurso: number
 }
 ```
 
-El composable `useRecursos` de la sesión 9 solo cambia la línea del servicio:
+::: tip POR QUÉ SEPARARLAS
+Lo que pintas (`RecursoLectura`: un nombre ya traducido, el nombre del tipo…) **no** es lo que envías (`RecursoCrearDto`: los tres idiomas, el id del tipo…). Mezclarlas en una sola interfaz obliga a campos opcionales por todas partes y a enviar datos que el servidor ignora. Una interfaz por operación mantiene cliente y servidor sincronizados.
+:::
+
+### 11.3.5 `peticion<T>`: las operaciones CRUD
+
+`peticion<T>` devuelve directamente `response.data` ya tipado (sin `.value`, sin `.data`). Agrupamos las operaciones de la entidad en un objeto servicio; **la vista nunca llama a `peticion` directamente, pasa por aquí**:
 
 ```ts
-// import { useRecursosServicioMock } from '@/services/recursosServicioMock'
-import { useRecursosServicio as useRecursosServicioMock } from '@/services/recursosServicio'
+// continúa src/services/apiRecursos.ts
+export const apiRecursos = {
+  listar: () =>
+    peticion<RecursoLectura[]>('Recursos', verbosAxios.GET),
+
+  obtenerPorId: (id: number) =>
+    peticion<RecursoLectura>(`Recursos/${id}`, verbosAxios.GET),
+
+  crear: (dto: RecursoCrearDto) =>
+    peticion<number>('Recursos', verbosAxios.POST, dto),         // devuelve el id nuevo
+
+  actualizar: (id: number, dto: RecursoActualizarDto) =>
+    peticion<void>(`Recursos/${id}`, verbosAxios.PUT, dto),
+
+  eliminar: (id: number) =>
+    peticion<void>(`Recursos/${id}`, verbosAxios.DELETE),
+}
 ```
 
-La vista no se toca.
+::: tip DE LA SESIÓN 9 A AQUÍ
+El servicio de la sesión 9 (el del mock) solo cambia **la línea de la llamada**: donde había un `setTimeout`, ahora hay un `peticion('Recursos', GET)`. La vista no se toca.
+:::
 
-### 11.3.3 Mensajes integrados (`MensajesAxios`)
+### 11.3.6 `peticion`: con `await` o con `.then().catch()`
+
+`peticion` devuelve una **Promesa**, así que se consume de las dos formas habituales. Son equivalentes; elige la que se lea mejor:
+
+```ts
+// Forma 1 — async/await (la recomendada: se lee como código secuencial)
+async function cargar(): Promise<void> {
+  cargando.value = true
+  try {
+    recursos.value = await apiRecursos.listar()
+  } catch (e) {
+    console.error('No se pudo cargar', e)
+  } finally {
+    cargando.value = false          // baja el spinner pase lo que pase
+  }
+}
+
+// Forma 2 — then().catch().finally() (mismo resultado, estilo promesa encadenada)
+function cargarConThen(): void {
+  cargando.value = true
+  apiRecursos.listar()
+    .then(lista => { recursos.value = lista })
+    .catch(e => { console.error('No se pudo cargar', e) })
+    .finally(() => { cargando.value = false })
+}
+```
+
+::: warning `peticion` NO DEVUELVE REFS
+Esto **no** funciona con `peticion`: `const { data, isLoading, error } = peticion(...)`. `peticion` devuelve el **dato** (`Promise<T>`), no refs reactivas. Ese destructuring es **exclusivo de `llamadaAxios`** (§11.3.9).
+:::
+
+### 11.3.7 Escribir con el objeto axios (`HttpApi`)
+
+`peticion` desenvuelve la respuesta y te da solo el dato. Cuando necesites el **status exacto** (un `201 Created`) o **cabeceras** (la `Location` con la URL del recurso creado), usa el objeto axios `HttpApi`, que devuelve la `AxiosResponse` completa:
+
+```ts
+import { HttpApi } from '@vueua/components/composables/use-axios'
+
+// POST leyendo status y cabecera Location
+const res = await HttpApi.post<number>('Recursos', dto)
+console.log(res.status)               // 201
+console.log(res.headers['location'])  // /api/Recursos/42
+const nuevoId = res.data
+
+// PUT y DELETE con el mismo objeto
+await HttpApi.put(`Recursos/${id}`, dto)
+await HttpApi.delete(`Recursos/${id}`)
+```
+
+Para el CRUD de negocio normal, `peticion` es más conciso. Usa `HttpApi` solo cuando de verdad necesites la respuesta HTTP completa.
+
+### 11.3.8 Mensajes integrados (`MensajesAxios`)
 
 `peticion` admite un objeto opcional `mensajes` con cuatro slots: `pre`, `loading`, `ok`, `error`. Cada uno se traduce a un toast automáticamente:
 
@@ -231,33 +349,36 @@ await peticion<void>(`Reservas/${id}`, verbosAxios.DELETE, null, {
 
 El toast de `loading` se cierra **solo** cuando la respuesta llega (200, 400 o 500) — lo veremos al hablar de los interceptores.
 
-### 11.3.4 `llamadaAxios` (reactivo)
+### 11.3.9 `llamadaAxios` (reactivo)
 
-Construido sobre `useAxios` de **VueUse**. Devuelve refs que ya puedes usar en el template:
+Construido sobre `useAxios` de **VueUse**. Es el **único** de los tres niveles que devuelve refs reactivas (`data`, `isLoading`, `error`, `execute`) listas para el template, sin escribir `cargando` a mano:
 
 ```html
 <script setup lang="ts">
 import { llamadaAxios, verbosAxios } from '@vueua/components/composables/use-axios'
+import type { RecursoLectura } from '@/services/apiRecursos'
 
-const { data: recursos, isLoading, error, execute } = llamadaAxios(
-  'Recursos', verbosAxios.GET, null, null, false,
+// Aquí SÍ funciona el destructuring reactivo.
+const { data: recursos, isLoading, error, execute } = llamadaAxios<RecursoLectura[]>(
+  'Recursos', verbosAxios.GET,
 )
 </script>
 
 <template>
-  <button class="btn btn-primary" :disabled="isLoading" @click="execute">Recargar</button>
+  <button class="btn btn-primary" :disabled="isLoading" @click="execute()">Recargar</button>
 
   <p v-if="isLoading">Cargando…</p>
   <p v-else-if="error" class="alert alert-danger">{{ error.message }}</p>
   <ul v-else class="list-group">
-    <li v-for="r in recursos" :key="r.Id" class="list-group-item">{{ r.Nombre }}</li>
+    <li v-for="r in recursos" :key="r.idRecurso" class="list-group-item">{{ r.nombre }}</li>
   </ul>
 </template>
 ```
 
 ::: tip CUÁNDO USAR CADA UNO
-- `peticion` cuando el dato pasa por **lógica intermedia** (transformación, validación, encadenar varias llamadas) antes de pintarse.
+- `peticion` cuando el dato pasa por **lógica intermedia** (transformación, validación, encadenar varias llamadas) antes de pintarse. Es lo normal cuando hay un servicio de por medio.
 - `llamadaAxios` cuando el flujo es **directo**: cargo y muestro. Menos código boilerplate.
+- `HttpApi` cuando necesitas el status o las cabeceras de la respuesta.
 :::
 
 ## 11.4 Interceptores de `HttpApi`: el secreto del 401 y los toasts {#interceptores}

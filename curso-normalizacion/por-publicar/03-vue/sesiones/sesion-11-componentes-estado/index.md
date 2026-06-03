@@ -1,6 +1,6 @@
 ---
 title: "Sesión 11: Componentes y comunicación"
-description: Computed, Props, Emits, defineModel, watch, onMounted y slots para construir componentes reutilizables
+description: Computed para derivar datos, Props y Emits para comunicar componentes, defineModel, watch y onMounted — explicados paso a paso para iniciación.
 outline: deep
 ---
 
@@ -8,35 +8,90 @@ outline: deep
 <!-- [[toc]] -->
 
 ::: info CONTEXTO
-En las sesiones anteriores trabajamos con componentes individuales, directivas, eventos y listas. Ahora damos el salto a **componentes que colaboran entre sí** y a **estado derivado** con `computed` y `watch`, dos herramientas que usarás constantemente en aplicaciones reales.
+Hasta ahora hemos trabajado con componentes sueltos, directivas y listas. En esta sesión damos dos saltos:
+1. **Derivar datos** con `computed` en lugar de repetir cálculos a mano.
+2. **Partir una vista en varios componentes** que colaboran entre sí.
+
+Vamos a ir **de menos a más**, con un concepto por apartado y su demo en la aplicación. No hace falta memorizar APIs: basta con entender *cuándo* usar cada herramienta.
 
 **Al terminar esta sesión sabrás:**
-- Calcular valores derivados con `computed` sin duplicar estado
-- Aplicar el patrón entrada -> derivado -> acción en formularios reactivos
-- Pasar datos de padre a hijo con Props (`defineProps`)
-- Enviar eventos de hijo a padre con Emits (`defineEmits`)
-- Simplificar la comunicación bidireccional con `defineModel`
-- Reaccionar a cambios con `watch` y `watchEffect`
-- Usar `onMounted` y `async/await` para carga inicial
-- Crear componentes visuales reutilizables con slots
+- Calcular valores derivados con `computed` (y por qué es mejor que un método).
+- Pasar datos de padre a hijo con **Props**.
+- Enviar eventos de hijo a padre con **Emits** — la regla *"los datos bajan, los eventos suben"*.
+- Simplificar el `v-model` de un componente con **`defineModel`**.
+- Reaccionar a un cambio con **`watch`** (efectos secundarios).
+- Cargar datos al montar con **`onMounted` + `async/await`**.
+- Reutilizar estructura visual con **slots**.
 :::
 
 ## Plan de sesión (90 min) {#plan-90}
 
 | Bloque | Tiempo | Contenido |
 |--------|--------|-----------|
-| **Teoría guiada** | 45 min | 3.1 a 3.9 (computed, comunicación entre componentes, watch, lifecycle y slots) |
-| **Práctica en aula** | 25 min | Ejercicio 1 (tras 3.4) + Ejercicio 2 (cierre de sesión) |
-| **Test de sesión** | 15 min | Preguntas de consolidación con debate de respuestas |
-| **Cierre** | 5 min | Conclusiones y puente a arquitectura/composables |
+| **Teoría guiada** | 50 min | 3.1 a 3.9 (computed, props/emits, defineModel, watch, onMounted, slots) |
+| **Práctica en aula** | 25 min | Ejercicio 1 (tras Emits) + Ejercicio 2 (cierre) |
+| **Test de sesión** | 10 min | Preguntas de consolidación |
+| **Cierre** | 5 min | Conclusiones y puente a la sesión 12 |
 
 ::: tip ENFOQUE DIDÁCTICO
-En esta sesión no buscamos memorizar APIs, sino decidir bien el patrón: `computed` para derivar, props/emits para comunicar, `watch` para efectos y slots para composición visual.
+La meta no es ver "todo lo que existe", sino **decidir bien**: `computed` para derivar, props/emits para comunicar, `watch` para efectos y slots para estructura. Lo avanzado de cada tema queda recogido en bloques `Ver más` plegables, para quien quiera profundizar.
 :::
 
-## 3.1 Propiedades Computadas (`computed`) {#computed}
+## 3.1 El punto de partida: de una función a un `computed` {#arranque}
 
-Una `computed` es un valor que se **calcula automáticamente** a partir de otras propiedades reactivas. Vue la cachea y solo la recalcula cuando cambian sus dependencias. La demo `Sesion8Computed.vue` lo ilustra con el cálculo del IVA:
+En la [sesión especial del TODO](../sesion-10b-especial-todo/) terminamos con un contador de pendientes resuelto como **función**:
+
+```html
+<script setup lang="ts">
+import { ref } from 'vue'
+
+interface ITarea { id: number; texto: string; hecha: boolean }
+
+const tareas = ref<ITarea[]>([/* … */])
+
+// Función: se ejecuta CADA vez que el template la invoca.
+function pendientes(): number {
+  return tareas.value.filter(t => !t.hecha).length
+}
+</script>
+
+<template>
+  <p>{{ pendientes() }} tareas pendientes</p>
+</template>
+```
+
+Funciona, pero tiene un detalle: `pendientes()` se **vuelve a ejecutar en cada render**, aunque las tareas no hayan cambiado. La herramienta correcta para "un valor que se calcula a partir de otros datos reactivos" es **`computed`**:
+
+```html
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface ITarea { id: number; texto: string; hecha: boolean }
+
+const tareas = ref<ITarea[]>([/* … */])
+
+// computed: Vue lo recalcula SOLO cuando cambia 'tareas', y entre
+// medias devuelve el valor cacheado. Además, se usa SIN paréntesis.
+const pendientes = computed(() => tareas.value.filter(t => !t.hecha).length)
+</script>
+
+<template>
+  <!-- Sin paréntesis: pendientes es un valor, no una llamada. -->
+  <p>{{ pendientes }} tareas pendientes</p>
+</template>
+```
+
+::: tip QUÉ HA CAMBIADO
+- `function pendientes()` → `const pendientes = computed(() => …)`.
+- En el template, `pendientes()` → `pendientes` (sin paréntesis).
+- Vue ahora **cachea** el resultado y solo lo recalcula cuando cambian las tareas.
+
+Este es el patrón que vamos a generalizar en toda la sesión: **si un valor se muestra en pantalla y depende de datos reactivos, casi siempre es un `computed`**.
+:::
+
+## 3.2 Propiedades computadas (`computed`) {#computed}
+
+Una `computed` es un valor que se **calcula automáticamente** a partir de otros datos reactivos. La demo `Sesion8Computed.vue` lo ilustra con el cálculo del IVA:
 
 ```html
 <script setup lang="ts">
@@ -45,45 +100,62 @@ import { ref, computed } from 'vue'
 const precioBase = ref<number>(100)
 const tipoIva = ref<number>(21)
 
-// computed: nuevo valor derivado, reactivo y cacheado.
+// computed: valor derivado, reactivo y cacheado. Cuando cambia
+// 'precioBase' o 'tipoIva', Vue recalcula solo lo afectado.
 const ivaImporte  = computed(() => (precioBase.value * tipoIva.value) / 100)
 const precioTotal = computed(() => precioBase.value + ivaImporte.value)
-
-// Computed con setter: util cuando queremos un v-model bidireccional
-// que escriba en otra variable.
-const precioRedondeado = computed({
-  get: () => Math.round(precioTotal.value * 100) / 100,
-  set: nuevo => {
-    // Quitar IVA al fijar el redondeado para recuperar la base.
-    precioBase.value = nuevo / (1 + tipoIva.value / 100)
-  },
-})
 </script>
 
 <template>
   <input v-model.number="precioBase" type="number" />
   <input v-model.number="tipoIva"    type="number" />
+  <!-- Las computed se interpolan sin paréntesis. -->
   <p>IVA: {{ ivaImporte.toFixed(2) }} € · Total: {{ precioTotal.toFixed(2) }} €</p>
-  <input v-model.number="precioRedondeado" type="number" step="0.01" />
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Computed.vue`. Si pones el mismo cálculo en un método y lo invocas dos veces en el template, se ejecuta dos veces; el `computed` se ejecuta una sola.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Computed.vue`. Fíjate en que `precioTotal` depende de `ivaImporte`, que a su vez es otra `computed`: **encadenar computed es válido y eficiente**, Vue solo recalcula las afectadas por el cambio.
 
 ### `computed` vs método
 
 | Aspecto | `computed` | Método |
 |---------|-----------|--------|
-| **Cacheo** | Sí, según dependencias | No |
-| **Cuándo usar** | Valores derivados | Acciones o cálculos con parámetros |
-| **Ejemplo** | Total de horas reservadas, filtro de recursos | `guardarReserva()`, `eliminar(id)` |
+| **Cacheo** | Sí, según dependencias | No (se ejecuta en cada llamada) |
+| **Cuándo usar** | Valores derivados que se muestran | Acciones del usuario o cálculos con parámetros |
+| **Ejemplo** | Total de horas, filtro de recursos, nº de pendientes | `guardar()`, `eliminar(id)` |
 
-### Estado derivado en un formulario simple
+::: tip CRITERIO RÁPIDO
+- ¿Produce un **valor** que se pinta y no tiene efectos secundarios? → `computed`.
+- ¿Dispara una **acción** (guardar, borrar, enviar)? → método.
+:::
 
-`computed` aparece sobre todo en formularios: para **derivar** si el botón puede pulsarse, normalizar lo que escribe el usuario o mostrar un mensaje de validación. Tres roles que conviene separar:
+::: details Ver más · `computed` con setter (avanzado)
+Una `computed` normal es de solo lectura. Si necesitas que también sea **escribible** (por ejemplo, un `v-model` que al cambiar actualice otra variable), se le añade un `get` y un `set`:
+
+```html
+<script setup lang="ts">
+import { computed } from 'vue'
+// … precioBase, tipoIva, precioTotal como arriba
+
+const precioRedondeado = computed({
+  get: () => Math.round(precioTotal.value * 100) / 100,
+  set: nuevo => {
+    // Operación inversa: al fijar el redondeado, recalcula la base.
+    precioBase.value = nuevo / (1 + tipoIva.value / 100)
+  },
+})
+</script>
+```
+
+Está en `Sesion8Computed.vue`. Úsalo solo cuando tengas una "operación inversa" clara; en la mayoría de casos basta con la `computed` de solo lectura.
+:::
+
+## 3.3 `computed` en formularios: entrada → derivado → acción {#formularios}
+
+Donde más se usa `computed` es en **formularios**: para decidir si el botón puede pulsarse, normalizar lo que escribe el usuario o mostrar un mensaje de validación. Conviene separar tres papeles:
 
 1. **Entrada** (`ref`) — lo que escribe el usuario.
-2. **Derivado** (`computed`) — lo que sale de esa entrada (válido/no válido, normalizado, contador).
+2. **Derivado** (`computed`) — lo que sale de esa entrada (válido/no válido, normalizado…).
 3. **Acción** (función) — lo que se ejecuta al pulsar enviar.
 
 ```html
@@ -97,9 +169,9 @@ const texto = ref<string>('')
 const textoNormalizado = computed(() => texto.value.trim())
 const puedeEnviar      = computed(() => textoNormalizado.value.length >= 3)
 
-// 3) Acción: se invoca al pulsar el botón / Enter.
+// 3) Acción: se invoca al pulsar el botón o Enter.
 const guardar = (): void => {
-  if (!puedeEnviar.value) return                // protección por si el botón se pulsa de otra forma
+  if (!puedeEnviar.value) return            // protección extra
   console.log('Guardado:', textoNormalizado.value)
   texto.value = ''
 }
@@ -107,75 +179,19 @@ const guardar = (): void => {
 
 <template>
   <input v-model="texto" @keyup.enter="guardar" placeholder="Mínimo 3 caracteres" />
+  <!-- El botón se deshabilita solo, sin escribir lógica en el template. -->
   <button :disabled="!puedeEnviar" @click="guardar">Guardar</button>
   <small v-if="!puedeEnviar">Escribe al menos 3 caracteres (sin contar espacios).</small>
 </template>
 ```
 
 ::: info ESTE ES EL ESCALÓN, NO EL DESTINO
-Este patrón funciona para un formulario aislado. En cuanto el formulario llama a una API real (crear/editar/eliminar), la entrada y los derivados siguen aquí, pero **la acción se mueve a un servicio HTTP** y el estado compartido (`cargando`, `error`, lista) a un **composable**. Esa arquitectura se desarrolla en la **sesión 12**. La transición visual está al final de esta sesión (§3.10).
+Este patrón vale para un formulario aislado. Cuando el formulario llame a una **API real**, la entrada y los derivados se quedan aquí, pero la acción se moverá a un **servicio HTTP** y el estado compartido a un **composable**. Esa arquitectura es la [sesión 12](../sesion-12-arquitectura-apis/).
 :::
 
-### Errores frecuentes en formularios reactivos
+## 3.4 Comunicación padre → hijo: Props {#props}
 
-| Error | Consecuencia | Alternativa recomendada |
-|------|--------------|-------------------------|
-| Validar solo al enviar | Feedback tardío al usuario | Reglas simples en `computed` y mensaje reactivo |
-| Repetir lógica en varios handlers | Código duplicado | Extraer función pura (`.trim()`, `.toLowerCase()`…) |
-| Mezclar mutaciones y lógica compleja en template | Difícil de depurar | Mover la lógica a `computed` o a un método |
-
-::: tip CRITERIO RÁPIDO
-Si produce un valor derivado sin efectos secundarios, piensa en `computed`. Si dispara una acción de usuario (guardar, borrar, enviar), método.
-:::
-
-### `computed` con arrays
-
-Sobre el dominio del proyecto (`IRecurso`): filtrar por nombre y contar los visibles.
-
-```html
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-
-// Misma forma que el DTO RecursoLectura del backend .NET (sesión 7).
-interface IRecurso {
-  idRecurso: number
-  nombre: string
-  tipo: 'Aula' | 'Sala' | 'Equipo'
-  visible: boolean
-}
-
-const recursos = ref<IRecurso[]>([
-  { idRecurso: 1, nombre: 'Aula 12',          tipo: 'Aula',   visible: true  },
-  { idRecurso: 2, nombre: 'Sala reuniones A', tipo: 'Sala',   visible: true  },
-  { idRecurso: 3, nombre: 'Proyector',        tipo: 'Equipo', visible: false },
-])
-
-const busqueda = ref<string>('')
-
-// computed #1: filtro de texto. Se recalcula automáticamente cuando cambia
-// 'busqueda' o cuando se añade/quita un recurso de la lista.
-const recursosFiltrados = computed(() =>
-  recursos.value.filter(r =>
-    r.nombre.toLowerCase().includes(busqueda.value.toLowerCase()),
-  ),
-)
-
-// computed #2: cuenta los visibles del resultado filtrado. Encadenar
-// computed (uno depende del otro) es válido y eficiente — Vue solo
-// recalcula los afectados por el cambio.
-const totalVisibles = computed(() =>
-  recursosFiltrados.value.filter(r => r.visible).length,
-)
-</script>
-```
-
-::: tip BUENA PRÁCTICA
-Si un valor depende de estado reactivo y se muestra en pantalla, empieza pensando en `computed`.
-:::
-
-## 3.2 Comunicación Padre → Hijo: Props {#props}
-
-Los **props** pasan datos de un componente padre a un componente hijo. Antes de ver la sintaxis, fija la regla básica de comunicación en Vue: **los datos bajan, los eventos suben**.
+Cuando una vista crece, la partimos en **componentes**. Los **props** pasan datos del componente padre al hijo. La regla básica de comunicación en Vue:
 
 ```mermaid
 sequenceDiagram
@@ -184,32 +200,30 @@ sequenceDiagram
     participant H as Hijo (componente)
     participant U as Usuario
 
-    P->>H: prop titulo="Reserva"
-    Note over H: defineProps lee el valor.<br/>El hijo NO debe modificarlo.
-    U->>H: click en boton
+    P->>H: prop titulo="Contador A"
+    Note over H: El hijo LEE la prop.<br/>No debe modificarla.
+    U->>H: click en +1
     H->>H: contador.value++
     H-->>P: emit('cambio', contador.value)
-    Note over P: El padre actualiza<br/>su propio estado.
-    P->>H: prop titulo="Reserva confirmada"<br/>(nuevo valor)
-    Note over H: El hijo reacciona<br/>al cambio de prop.
+    Note over P: El padre decide<br/>qué hacer con el evento.
 ```
 
-<!-- diagram id="s8-props-emits" caption: "Datos bajan via props, eventos suben via emits" -->
+<!-- diagram id="s11-props-emits" caption: "Los datos bajan por props; los eventos suben por emits" -->
 
-Los props se definen con `defineProps`. La demo `Sesion8PropsEmits.vue` usa `TarjetaContador` para mostrar el patrón en código real:
+Los props se declaran con `defineProps`. La demo `Sesion8PropsEmits.vue` usa un componente hijo `TarjetaContador`:
 
-**Componente Hijo** (`TarjetaContador.vue`) — recibe `titulo` como prop y mantiene su contador local:
+**Hijo** (`TarjetaContador.vue`) — recibe `titulo` y mantiene su contador local:
 
 ```html
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// 1) Declarar la prop que el hijo acepta del padre.
+// Declarar la prop que el hijo acepta del padre.
 defineProps<{
   titulo: string
 }>()
 
-// 2) Estado LOCAL del hijo: ningún componente externo lo modifica directamente.
+// Estado LOCAL del hijo. Cada instancia tiene el suyo.
 const contador = ref(0)
 
 function incrementar(): void { contador.value++ }
@@ -218,7 +232,7 @@ function reiniciar(): void  { contador.value = 0 }
 
 <template>
   <div class="card">
-    <!-- La prop se interpola exactamente igual que un ref local. -->
+    <!-- La prop se interpola igual que un ref local. -->
     <div class="card-header">{{ titulo }}</div>
     <div class="card-body text-center">
       <p class="display-5 mb-3">{{ contador }}</p>
@@ -229,7 +243,7 @@ function reiniciar(): void  { contador.value = 0 }
 </template>
 ```
 
-**Componente Padre** (`Sesion8PropsEmits.vue`) — instancia dos veces el mismo hijo, cada uno con su título (por ahora sin escuchar su evento; lo añadimos en §3.3):
+**Padre** (`Sesion8PropsEmits.vue`) — instancia el mismo hijo dos veces, cada uno con su título:
 
 ```html
 <script setup lang="ts">
@@ -237,73 +251,56 @@ import TarjetaContador from './TarjetaContador.vue'
 </script>
 
 <template>
-  <!-- Sin v-bind (':'), el valor es literal: titulo="Contador A" es una cadena.
-       Aquí no necesitamos reactividad en la prop, solo pasar un nombre fijo. -->
+  <!-- Sin ':' el valor es literal: titulo="Contador A" es una cadena fija. -->
   <TarjetaContador titulo="Contador A" />
   <TarjetaContador titulo="Contador B" />
 </template>
 ```
 
-> Aquí mostramos solo la parte de **props** de `TarjetaContador.vue`. El fichero real además **emite un evento** cuando cambia su contador — lo añadimos en §3.3. Si el padre quisiera cambiar el título dinámicamente, usaría `:titulo="nombreA"` con un `ref`.
+::: warning LOS PROPS SON DE SOLO LECTURA
+Nunca modifiques un prop dentro del hijo (`props.titulo = 'otro'` es un error). Si el hijo necesita cambiar un valor del padre, usa **Emits** (§3.5) o **`defineModel`** (§3.6).
+:::
 
-### Props con valores por defecto: `withDefaults`
+::: details Ver más · Props con valor por defecto (`withDefaults`)
+Si una prop es opcional y quieres un valor por defecto:
 
 ```typescript
 interface Props {
   titulo: string
   activo?: boolean
-  contador?: number
 }
-
 const props = withDefaults(defineProps<Props>(), {
   activo: true,
-  contador: 0
 })
 ```
-
-::: warning IMPORTANTE
-Los props son de **solo lectura** en el componente hijo. Nunca modifiques un prop directamente (`props.nombre = 'otro'` es un error). Si el hijo necesita cambiar un valor del padre, usa Emits o `defineModel`.
 :::
 
-## 3.3 Comunicación Hijo → Padre: Emits {#emits}
+## 3.5 Comunicación hijo → padre: Emits {#emits}
 
-Los **emits** envían eventos desde el hijo hacia el padre. El `TarjetaContador` que acabamos de ver mantiene su contador en local; cuando ese contador cambia, **avisa al padre** emitiendo un evento. Los emits se declaran con `defineEmits`.
+Un hijo **no modifica** al padre: le **avisa** emitiendo un evento, y el padre decide qué hacer. Los eventos se declaran con `defineEmits`.
 
-**Componente Hijo** (`TarjetaContador.vue`) — ahora con el emit que faltaba en §3.2:
+**Hijo** (`TarjetaContador.vue`) — ahora emite `cambio` cuando su contador cambia:
 
 ```html
 <script setup lang="ts">
 import { ref } from 'vue'
 
-defineProps<{
-  titulo: string
-}>()
+defineProps<{ titulo: string }>()
 
-// Declarar el evento que el hijo puede emitir, con el tipo de su payload.
+// Declarar el evento y el tipo de su dato (payload).
 const emit = defineEmits<{
   (e: 'cambio', valor: number): void
 }>()
 
 const contador = ref(0)
 
-// El hijo NO modifica al padre: solo emite. El padre decide qué hacer.
+// Cambia su estado local Y avisa al padre con emit.
 function incrementar(): void { contador.value++; emit('cambio', contador.value) }
 function reiniciar(): void  { contador.value = 0; emit('cambio', contador.value) }
 </script>
-
-<template>
-  <div class="card">
-    <div class="card-header">{{ titulo }}</div>
-    <div class="card-body text-center">
-      <p class="display-5 mb-3">{{ contador }}</p>
-      <button class="btn btn-primary me-2" @click="incrementar">+1</button>
-      <button class="btn btn-outline-secondary" @click="reiniciar">Reset</button>
-    </div>
-  </div>
-</template>
 ```
 
-**Componente Padre** (`Sesion8PropsEmits.vue`) — escucha `@cambio` y guarda un historial:
+**Padre** (`Sesion8PropsEmits.vue`) — escucha `@cambio` y guarda un historial:
 
 ```html
 <script setup lang="ts">
@@ -312,8 +309,7 @@ import TarjetaContador from './TarjetaContador.vue'
 
 const historial = ref<{ origen: string; valor: number }[]>([])
 
-// $event lleva el payload del emit (el número). Envolvemos la llamada
-// para añadir de qué tarjeta viene.
+// $event lleva el dato del emit. Lo envolvemos para añadir el origen.
 function onCambio(origen: string, valor: number): void {
   historial.value.unshift({ origen, valor })
 }
@@ -332,47 +328,74 @@ function onCambio(origen: string, valor: number): void {
 </template>
 ```
 
-> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/TarjetaContador.vue` + `Sesion8PropsEmits.vue`. Cada `TarjetaContador` tiene su propio contador local: Vue no comparte estado entre instancias del mismo componente, y el padre solo se entera de los cambios porque el hijo los emite.
+> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/TarjetaContador.vue` + `Sesion8PropsEmits.vue`. Cada `TarjetaContador` tiene su propio contador: Vue **no comparte estado** entre instancias del mismo componente, y el padre solo se entera de los cambios porque el hijo los emite.
 
-::: tip ¿Y SI EL ESTADO DEBE VIVIR EN EL PADRE?
-Aquí el contador es local del hijo. Si necesitas que el **padre** sea el dueño del número (y el hijo solo lo muestre y pida cambios), el patrón es el mismo —prop que baja, emit que sube— pero sin estado local en el hijo. Lo practicarás en el **Ejercicio 1** con `ContadorPropsEmits`, y en §3.4 verás cómo `defineModel` lo compacta a una línea.
+## Ejercicio 1: dos contadores {#ejercicio-1}
+
+::: info ENUNCIADO
+Practica Props y Emits con un caso mínimo: un componente hijo `TarjetaContador` y un padre que **suma** los valores de dos tarjetas con un `computed`.
+
+**Resultado esperado:** dos tarjetas contador y, debajo, la suma de ambas actualizándose en vivo.
 :::
 
-## 3.4 `defineModel`: comunicación bidireccional simplificada {#define-model}
+1. Usa el `TarjetaContador.vue` de la demo (prop `titulo` + emit `cambio`).
+2. En el padre, guarda `valorA` y `valorB` como `ref`, actualizados al recibir `@cambio`.
+3. Muestra `suma` como `computed(() => valorA + valorB)`.
 
-El patrón Props + Emits funciona, pero es repetitivo para `v-model`. **`defineModel`** (Vue 3.4+) lo simplifica a una sola línea:
+::: details Solución Ejercicio 1
+
+```html
+<!-- PadreContadores.vue -->
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import TarjetaContador from './TarjetaContador.vue'
+
+const valorA = ref(0)
+const valorB = ref(0)
+
+// Estado derivado: la suma se recalcula sola cuando cambia A o B.
+const suma = computed(() => valorA.value + valorB.value)
+</script>
+
+<template>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <TarjetaContador titulo="Contador A" @cambio="valorA = $event" />
+    </div>
+    <div class="col-md-6">
+      <TarjetaContador titulo="Contador B" @cambio="valorB = $event" />
+    </div>
+  </div>
+
+  <p class="fs-4 mt-3">Suma: <strong>{{ suma }}</strong></p>
+</template>
+```
+:::
+
+## 3.6 `defineModel`: `v-model` sobre un componente {#define-model}
+
+Props + Emits funciona, pero para la comunicación bidireccional típica de un `v-model` es repetitivo. **`defineModel`** (Vue 3.4+) lo resume en una línea: el padre usa `v-model` sobre el hijo como si fuera un `<input>` nativo.
 
 ```mermaid
 flowchart LR
     subgraph manual["Sin defineModel (manual)"]
-        P1[Padre<br/>v-model='nombre'] -->|prop modelValue| H1[Hijo]
+        P1[Padre<br/>v-model] -->|prop modelValue| H1[Hijo]
         H1 -->|emit update:modelValue| P1
     end
     subgraph automatico["Con defineModel"]
-        P2[Padre<br/>v-model='nombre'] <-->|defineModel| H2["Hijo<br/><code>const v = defineModel()</code>"]
+        P2[Padre<br/>v-model] <-->|defineModel| H2["Hijo<br/>const v = defineModel()"]
     end
     style manual stroke-dasharray: 5 5
 ```
 
-<!-- diagram id="s8-define-model" caption: "defineModel compacta prop + emit en una sola declaracion bidireccional" -->
+<!-- diagram id="s11-define-model" caption: "defineModel resume prop + emit en una sola declaración bidireccional" -->
 
-### Comparación
-
-| Aspecto | Props + Emits | `defineModel` |
-|---------|---------------|---------------|
-| **Líneas de código** | ~15 líneas | ~3 líneas |
-| **Props a definir** | `modelValue` manual | Automático |
-| **Emits a definir** | `update:modelValue` manual | Automático |
-| **Función handler** | Necesaria | No necesaria |
-
-### Ejemplo: Input personalizado
-
-La demo `Sesion8DefineModel.vue` usa `InputEditable.vue` como componente hijo. Es el patrón "real" con etiqueta + botón "Limpiar":
+La demo `Sesion8DefineModel.vue` usa `InputEditable.vue` (un input con etiqueta y botón "Limpiar"):
 
 ```html
 <!-- InputEditable.vue (hijo) -->
 <script setup lang="ts">
-// defineModel reemplaza a defineProps + defineEmits('update:modelValue').
+// defineModel reemplaza a defineProps({ modelValue }) + defineEmits('update:modelValue').
 const valor = defineModel<string>({ required: true })
 
 defineProps<{ etiqueta: string }>()
@@ -389,9 +412,8 @@ function limpiar(): void { valor.value = '' }
 </template>
 ```
 
-**Uso en el padre** (`Sesion8DefineModel.vue`):
-
 ```html
+<!-- Sesion8DefineModel.vue (padre) -->
 <script setup lang="ts">
 import { ref } from 'vue'
 import InputEditable from './InputEditable.vue'
@@ -409,317 +431,138 @@ const apellido = ref('Lovelace')
 
 > Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8DefineModel.vue` + `InputEditable.vue`.
 
-### Toggle personalizado
+::: tip CUÁNDO USAR CADA PATRÓN
+- Solo lectura (padre → hijo) → **`defineProps`**.
+- Aviso del hijo al padre → **`defineEmits`**.
+- Edición compartida del mismo dato (`v-model`) → **`defineModel`**.
+:::
+
+::: details Ver más · toggle y varios v-model
 
 ```html
+<!-- defineModel booleano para un toggle -->
 <script setup lang="ts">
 const activo = defineModel<boolean>({ default: false })
 </script>
-
 <template>
-  <button @click="activo = !activo" :class="{ activado: activo }">
-    {{ activo ? 'Encendido ✓' : 'Apagado ✗' }}
-  </button>
+  <button @click="activo = !activo">{{ activo ? 'Encendido' : 'Apagado' }}</button>
 </template>
 ```
 
-### Múltiples v-models
-
 ```html
+<!-- Varios v-model con nombre -->
 <script setup lang="ts">
 const nombre = defineModel<string>('nombre')
 const apellido = defineModel<string>('apellido')
 </script>
-
-<template>
-  <input v-model="nombre" placeholder="Nombre" />
-  <input v-model="apellido" placeholder="Apellido" />
-</template>
-```
-
-```html
-<!-- Uso en el padre -->
-<FormularioNombre v-model:nombre="nombreUsuario" v-model:apellido="apellidoUsuario" />
-```
-
-::: tip BUENA PRÁCTICA
-**Cuándo usar cada patrón:**
-- **Props** (solo lectura) → `defineProps`
-- **Eventos del hijo al padre** → `defineEmits`
-- **Comunicación bidireccional** (`v-model`) → `defineModel` ✅
-:::
-
-## Ejercicio 1: Contador con componentes {#ejercicio-1}
-
-::: info ENUNCIADO
-Vas a resolver el mismo problema funcional con dos patrones de comunicación entre componentes. La práctica busca que comprendas cuándo usar Props+Emits y cuándo `defineModel`, manteniendo en ambos casos una única fuente de verdad del estado en el padre.
-
-**Resultado esperado:** tres componentes (`ContadorPropsEmits.vue`, `ContadorVModel.vue`, `PadreContadores.vue`) con comportamiento equivalente y suma derivada mediante `computed`.
-:::
-
-**Objetivo:** Practicar Props, Emits y `defineModel` creando un contador que vive en el padre pero se controla desde el hijo.
-
-1. Crea `ContadorPropsEmits.vue` (hijo):
-   - Recibe prop `contador` (number)
-   - Emite evento `actualizar` con el nuevo valor
-   - Tiene botones +1 y -1 que emiten el cambio
-
-2. Crea `ContadorVModel.vue` (hijo):
-   - Usa `defineModel<number>()` en lugar de props/emits
-   - Misma funcionalidad pero con menos código
-
-3. Crea `PadreContadores.vue` (padre):
-   - Mantiene `contadorA` y `contadorB` como refs
-   - Usa `ContadorPropsEmits` con `contadorA`
-   - Usa `ContadorVModel` con `contadorB`
-   - Muestra la suma de ambos contadores con `computed`
-
-::: details Solución Ejercicio 1
-
-```html
-<!-- ContadorPropsEmits.vue -->
-<script setup lang="ts">
-const props = defineProps<{ contador: number }>()
-const emit = defineEmits<{ actualizar: [valor: number] }>()
-</script>
-
-<template>
-  <div class="d-flex align-items-center gap-2">
-    <button class="btn btn-sm btn-danger" @click="emit('actualizar', contador - 1)">-1</button>
-    <span class="badge bg-primary fs-5">{{ contador }}</span>
-    <button class="btn btn-sm btn-success" @click="emit('actualizar', contador + 1)">+1</button>
-  </div>
-</template>
-```
-
-```html
-<!-- ContadorVModel.vue -->
-<script setup lang="ts">
-const modelo = defineModel<number>({ default: 0 })
-</script>
-
-<template>
-  <div class="d-flex align-items-center gap-2">
-    <button class="btn btn-sm btn-danger" @click="modelo!--">-1</button>
-    <span class="badge bg-info fs-5">{{ modelo }}</span>
-    <button class="btn btn-sm btn-success" @click="modelo!++">+1</button>
-  </div>
-</template>
-```
-
-```html
-<!-- PadreContadores.vue -->
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import ContadorPropsEmits from './ContadorPropsEmits.vue'
-import ContadorVModel from './ContadorVModel.vue'
-
-const contadorA = ref<number>(0)
-const contadorB = ref<number>(0)
-
-const suma = computed(() => contadorA.value + contadorB.value)
-</script>
-
-<template>
-  <div class="p-4">
-    <h2>Contadores</h2>
-
-    <div class="mb-3">
-      <h4>Props + Emits</h4>
-      <ContadorPropsEmits :contador="contadorA" @actualizar="(v) => contadorA = v" />
-    </div>
-
-    <div class="mb-3">
-      <h4>defineModel</h4>
-      <ContadorVModel v-model="contadorB" />
-    </div>
-
-    <p class="fs-4">Suma: {{ suma }}</p>
-  </div>
-</template>
+<!-- En el padre: <FormularioNombre v-model:nombre="n" v-model:apellido="a" /> -->
 ```
 :::
 
-## 3.5 Watchers: reaccionar a cambios {#watchers}
+## 3.7 `watch`: reaccionar a un cambio {#watch}
 
-Los **watchers** ejecutan código cuando cambia una propiedad reactiva. A diferencia de `computed`, no devuelven un valor: sirven para **efectos secundarios**.
-
-| | `computed` | `watch` |
-|---|---|---|
-| **Propósito** | Derivar o transformar datos | Ejecutar efectos secundarios |
-| **Retorna valor** | Sí | No |
-| **Ejemplo típico** | Filtrar, totalizar | Guardar en storage, llamar API, lanzar alerta |
-
-La diferencia se ve mejor lado a lado: ante un cambio en un `ref`, `computed` **devuelve un valor nuevo** (y lo cachea), mientras que `watch` **no devuelve nada** — dispara un efecto:
+`computed` **deriva un valor**. `watch` **ejecuta un efecto** cuando algo cambia (guardar en almacenamiento, registrar un log, llamar a una API…). No devuelve nada.
 
 ```mermaid
 flowchart TB
     subgraph comp["computed — DERIVA un valor"]
-        CR["ref fuente<br/>(precioBase, tipoIva)"] -->|cambia| CC["se recalcula<br/>y CACHEA el resultado"]
-        CC --> CV["devuelve un VALOR<br/>(se pinta en el template)"]
+        CR["ref fuente"] -->|cambia| CC["recalcula y CACHEA"]
+        CC --> CV["devuelve un VALOR<br/>(se pinta)"]
     end
     subgraph wat["watch — EJECUTA un efecto"]
-        WR["ref fuente<br/>(consulta)"] -->|cambia| WC["callback(nuevo, anterior)"]
-        WC --> WE["EFECTO secundario<br/>(log, localStorage, API…)<br/>NO devuelve valor"]
+        WR["ref fuente"] -->|cambia| WC["callback(nuevo, anterior)"]
+        WC --> WE["EFECTO<br/>(log, API…)<br/>NO devuelve valor"]
     end
     style comp fill:#e8f5e9,stroke:#388e3c
     style wat fill:#fff3e0,stroke:#ef6c00
 ```
 
-<!-- diagram id="s8-computed-vs-watch" caption: "computed deriva y cachea un valor; watch reacciona a un cambio para ejecutar un efecto secundario" -->
+<!-- diagram id="s11-computed-vs-watch" caption: "computed deriva y cachea; watch reacciona a un cambio para ejecutar un efecto" -->
 
-### `watch` con código real
-
-La demo `Sesion8Watchers.vue` observa un input de búsqueda y registra cada cambio en un historial visible:
+La demo `Sesion8Watchers.vue` observa un input de búsqueda y registra cada cambio:
 
 ```html
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
 const consulta = ref('')
-const eventosWatch = ref<string[]>([])
+const eventos = ref<string[]>([])
 
-// El primer argumento es la FUENTE: el ref a observar.
-// El callback recibe el valor NUEVO y el ANTERIOR. Útil para logging,
-// guardar en storage, lanzar una petición debounced, etc.
+// Primer argumento: la FUENTE (el ref a observar).
+// El callback recibe el valor NUEVO y el ANTERIOR.
 watch(consulta, (nuevo, anterior) => {
-  eventosWatch.value.unshift(`'${anterior}' -> '${nuevo}'`)
-  if (eventosWatch.value.length > 6) eventosWatch.value.pop()
+  eventos.value.unshift(`'${anterior}' -> '${nuevo}'`)
+  if (eventos.value.length > 6) eventos.value.pop()
 })
 </script>
 
 <template>
   <input v-model="consulta" class="form-control" placeholder="Empieza a escribir…" />
   <ul class="list-group mt-3">
-    <li v-for="(e, i) in eventosWatch" :key="i" class="list-group-item">{{ e }}</li>
+    <li v-for="(e, i) in eventos" :key="i" class="list-group-item">{{ e }}</li>
   </ul>
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Watchers.vue`. Cuando el efecto sea una llamada a una API (por ejemplo, autocompletar al teclear), recuerda añadir _debounce_ o cancelación: cada tecla disparará un nuevo `watch`.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Watchers.vue`. Si el efecto fuera una llamada a una API (autocompletar al teclear), habría que añadir _debounce_ o cancelación: cada tecla dispara el `watch`.
 
-### Opciones útiles: `deep` e `immediate`
-
-Por defecto `watch` solo detecta cambios en la **referencia** del valor. Para objetos anidados o para disparar el callback ya en el primer render:
-
-```typescript
-const recurso = ref({
-  nombre: 'Aula 12',
-  tipo: { codigo: 'AULA', nombre: 'Aula' }    // ← campo anidado (relación con TipoRecurso)
-})
-
-watch(
-  recurso,
-  (nuevoRecurso) => console.log('Recurso cambiado:', nuevoRecurso),
-  {
-    deep: true,       // dispara también con cambios en tipo.codigo
-    immediate: true,  // ejecuta el callback YA, sin esperar al primer cambio
-  },
-)
-```
-
-::: warning IMPORTANTE
-No uses `watch` para calcular valores derivados que podrían ser `computed`. Síntoma típico: un `watch` que cambia otro `ref` para "mantenerlo sincronizado" con el primero. Eso debería ser un `computed`.
+::: warning NO USES `watch` PARA DERIVAR
+Si te encuentras con un `watch` que cambia otro `ref` para "mantenerlo sincronizado" con el primero, eso casi siempre debería ser un `computed`. Usa `watch` solo para **efectos**.
 :::
 
-::: details `watchEffect` (uso minoritario)
-Variante de `watch` que **detecta automáticamente** las dependencias leyendo el callback. No le indicas qué observar:
+::: details Ver más · `deep`, `immediate` y `watchEffect`
 
 ```typescript
-import { ref, watchEffect } from 'vue'
-
-const consulta = ref('')
-
-// Se ejecuta ya al montar (como un immediate implícito) y cada vez que
-// cambia cualquier ref leído dentro. Sin acceso al valor anterior.
-watchEffect(() => {
-  console.log(`leyendo consulta='${consulta.value}'`)
-})
+// Observar objetos anidados y disparar ya en el primer render:
+watch(recurso, (nuevo) => console.log(nuevo), { deep: true, immediate: true })
 ```
 
-| `watch` | `watchEffect` |
-|---|---|
-| Indicas explícitamente qué observar | Detecta dependencias automáticamente |
-| Recibe valor nuevo y anterior | Solo conoce el actual |
-| No se ejecuta hasta que hay cambio | Se ejecuta al montar |
-
-En el código UA aparece poco — la mayoría de casos se resuelven con `watch` explícito.
+`watchEffect` detecta solas sus dependencias (lo que lee dentro) y se ejecuta al montar. En el código de la UA aparece poco; la mayoría de casos se resuelven con `watch` explícito. La demo `Sesion8Watchers.vue` muestra los dos lado a lado.
 :::
 
-## 3.6 Lifecycle Hooks y async/await {#lifecycle}
+## 3.8 `onMounted` y carga asíncrona {#onmounted}
 
-Vue ejecuta funciones en momentos concretos de la vida del componente. Antes de ver `onMounted` en código, fija el orden de los hooks:
+Vue ejecuta ciertas funciones en momentos concretos de la vida del componente. El hook que más usarás es **`onMounted`**: se ejecuta una sola vez, cuando el componente ya está en el DOM. Es el sitio para **lanzar la carga inicial** de datos.
 
 ```mermaid
 flowchart LR
-    A([Crear instancia]) --> B[setup<br/>script setup se ejecuta]
-    B --> C[onBeforeMount<br/>render todavia no en DOM]
-    C --> D[onMounted<br/>nodos en DOM. AQUI van<br/>las cargas iniciales async]
-    D --> E[Usuario interactua...]
-    E --> F[onBeforeUpdate<br/>reactividad detecto cambio]
-    F --> G[onUpdated<br/>DOM ya refleja el cambio]
-    G --> E
-    E --> H[onBeforeUnmount<br/>desuscribir, limpiar]
-    H --> I([Componente destruido])
-    style D fill:#e8f5e9,stroke:#388e3c
-    style H fill:#ffebee,stroke:#c62828
+    A([setup]) --> B[onMounted<br/>nodos en DOM.<br/>AQUÍ van las cargas async]
+    B --> C[Usuario interactúa…]
+    C --> D[onBeforeUnmount<br/>limpiar suscripciones]
+    D --> E([Destruido])
+    style B fill:#e8f5e9,stroke:#388e3c
 ```
 
-<!-- diagram id="s8-lifecycle" caption: "Hooks de ciclo de vida de un componente Vue 3" -->
+<!-- diagram id="s11-lifecycle" caption: "Los tres momentos del ciclo de vida que de verdad usarás" -->
 
-::: tip CUANDO USAR CADA HOOK
-- `onMounted`: cargas iniciales que necesitan el DOM montado (peticiones HTTP, foco, integraciones con librerias DOM).
-- `onUpdated`: rarisimo en codigo de la UA. Si crees que lo necesitas, casi seguro hay un `computed` o `watch` que encaja mejor.
-- `onBeforeUnmount`: limpiar suscripciones, intervalos, listeners globales. Si no lo haces, hay leak.
-:::
-
-El hook más usado en frontend de negocio es `onMounted`:
-
-```typescript
-import { ref, onMounted } from 'vue'
-
-const datos = ref<string[]>([])
-
-onMounted(() => {
-  console.log('Componente montado en el DOM')
-})
-```
-
-### Cargar datos al montar (patrón real de la UA)
-
-Lo más habitual en el proyecto es disparar `cargar()` desde `onMounted`. La demo `Sesion8Lifecycle.vue` simula la espera con `setTimeout`; el código de producción llamaría al servicio HTTP correspondiente:
+La demo `Sesion8Lifecycle.vue` simula la espera de una API con `setTimeout`:
 
 ```html
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
-interface IRecurso {
-  idRecurso: number
-  nombre: string
-}
+interface IRecurso { id: number; nombre: string }
 
-// Estado de la vista — tres refs típicos en cualquier listado.
+// Tres refs típicos de cualquier listado.
 const recursos = ref<IRecurso[]>([])
 const cargando = ref(false)
-// const error = ref<string | null>(null)        // se añade cuando hay try/catch real
 
 async function cargar(): Promise<void> {
   cargando.value = true
   try {
-    // En producción: await apiRecursos.listar()
-    // (servicio definido en services/api/apiRecursos.ts — sesión 12).
-    await new Promise(r => setTimeout(r, 1500))       // simulación de latencia
+    // En producción: await apiRecursos.listar() (servicio — sesión 12).
+    await new Promise(r => setTimeout(r, 1500))      // simula latencia
     recursos.value = [
-      { idRecurso: 1, nombre: 'Aula 12' },
-      { idRecurso: 2, nombre: 'Sala reuniones A' },
-      { idRecurso: 3, nombre: 'Proyector' },
+      { id: 1, nombre: 'Aula 12' },
+      { id: 2, nombre: 'Sala reuniones A' },
+      { id: 3, nombre: 'Proyector' },
     ]
   } finally {
-    cargando.value = false                            // siempre baja el spinner, falle o no
+    cargando.value = false                           // baja el spinner, falle o no
   }
 }
 
-// onMounted dispara la carga una sola vez, cuando el componente ya está en el DOM.
+// onMounted dispara la carga una vez, con el componente ya en el DOM.
 onMounted(() => { void cargar() })
 </script>
 
@@ -727,31 +570,32 @@ onMounted(() => { void cargar() })
   <button :disabled="cargando" @click="cargar">Recargar</button>
   <p v-if="cargando">Cargando…</p>
   <ul v-else>
-    <li v-for="r in recursos" :key="r.idRecurso">{{ r.nombre }}</li>
+    <li v-for="r in recursos" :key="r.id">{{ r.nombre }}</li>
   </ul>
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Lifecycle.vue`. Allí el spinner es el componente `<SpinnerModal v-model:visible="cargando" />` de la UA.
-
-::: info HACIA LA SESIÓN 12
-Cuando este código crezca (varias vistas listan recursos, hay crear/editar/eliminar, hace falta manejar errores con un toast común…), `cargar()` y los tres refs (`recursos`, `cargando`, `error`) se mueven a un **composable** (`useRecursos.ts`) y la llamada `fetch`/`axios` se aísla en un **servicio** (`apiRecursos.ts`). El `.vue` se queda muy corto: solo `useRecursos()` y el template. Veremos el patrón completo en la sesión 12.
-:::
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Lifecycle.vue`. Allí, en lugar del `<p v-if="cargando">`, el spinner es el componente **`<SpinnerModal v-model:visible="cargando">`** de `@vueua/components`: una sola variable `cargando` gobierna a la vez el modal, el `:disabled` del botón y el `v-if` de la lista.
 
 ::: tip BUENA PRÁCTICA
-Usa `try/catch/finally` en operaciones asíncronas que afecten a la UI. El `finally` es lo único que garantiza bajar el spinner aunque la API falle.
+- `onMounted` **no** se vuelve a ejecutar al pulsar "Recargar": por eso la carga se encapsula en una función reutilizable (`cargar()`).
+- Usa siempre `try/finally` en operaciones asíncronas que afecten a la UI. El `finally` es lo único que garantiza bajar el spinner aunque la API falle.
 :::
 
-## 3.7 Slots: contenido dinámico y layout reutilizable {#slots}
+::: info HACIA LA SESIÓN 12
+Cuando este código crezca (varias vistas listan recursos, hay crear/editar/eliminar, hace falta manejar errores…), `cargar()` y los refs (`recursos`, `cargando`, `error`) se moverán a un **composable** (`useRecursos.ts`) y la llamada HTTP a un **servicio** (`apiRecursos.ts`). El `.vue` se queda muy corto. Es el tema de la [sesión 12](../sesion-12-arquitectura-apis/).
+:::
 
-Los **slots** permiten que el componente padre inyecte contenido HTML en un componente hijo. La demo `Sesion8Slots.vue` usa `TarjetaUA.vue` con **tres slots** (cabecera / default / acciones) y _fallback_ para cuando el padre no rellena alguno:
+## 3.9 Slots: estructura visual reutilizable {#slots}
+
+Los **slots** son "huecos" que el padre rellena con el contenido que quiera. Permiten crear componentes visuales reutilizables sin inventar veinte props. La demo `Sesion8Slots.vue` usa `TarjetaUA.vue` con tres slots:
 
 ```html
 <!-- TarjetaUA.vue (hijo) -->
 <template>
   <div class="card border-primary mb-3">
     <div class="card-header bg-primary text-white">
-      <slot name="cabecera"><em>Tarjeta sin titulo</em></slot>
+      <slot name="cabecera"><em>Tarjeta sin título</em></slot>
     </div>
     <div class="card-body">
       <slot><p class="text-muted mb-0">Tarjeta sin contenido.</p></slot>
@@ -763,9 +607,8 @@ Los **slots** permiten que el componente padre inyecte contenido HTML en un comp
 </template>
 ```
 
-**Uso en el padre** (`Sesion8Slots.vue`):
-
 ```html
+<!-- Sesion8Slots.vue (padre) -->
 <TarjetaUA>
   <template #cabecera>🗓️ Reserva confirmada</template>
 
@@ -778,248 +621,171 @@ Los **slots** permiten que el componente padre inyecte contenido HTML en un comp
 </TarjetaUA>
 ```
 
-> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Slots.vue` + `TarjetaUA.vue`. Cuando veas `<DialogModal>` en la sesión 10, sus slots `#header / #body / #buttons` son exactamente este patrón.
+> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Slots.vue` + `TarjetaUA.vue`. Cada slot puede tener un _fallback_ (el contenido por defecto cuando el padre no rellena ese hueco). Cuando veas `<DialogModal>` en la [sesión 13](../sesion-13-componentes-ua/), sus slots `#header / #body / #buttons` son exactamente este patrón.
 
-## 3.8 Nota: Provide / Inject {#provide-inject}
-
-::: tip SESIÓN AVANZADA
-Este tema se amplía en la **Sesión 17 — Estado global y persistencia**, donde se cubre `provide`/`inject` junto con Pinia y otros mecanismos de estado compartido.
-:::
-
-`provide` / `inject` permite compartir datos entre componentes **sin pasar props** por cada nivel intermedio. Es útil para contexto compartido (tema, configuración, autenticación simple), pero no es el primer mecanismo que debe aprender alguien que empieza.
-
-```typescript
-import { provide, inject, ref, type Ref } from 'vue'
-
-const tema = ref<string>('claro')
-provide('tema', tema)
-
-const temaInyectado = inject<Ref<string>>('tema')
-```
-
-Úsalo cuando realmente quieras evitar pasar props por muchos niveles. Para estado compartido más amplio, ya pensaremos en Pinia en la sesión 20.
-
-## 3.9 Errores frecuentes y criterio de elección {#errores-frecuentes}
-
-Cuando un alumno empieza a combinar componentes, aparecen dudas repetidas. Este bloque ayuda a fijar criterio antes de pasar a arquitectura.
+## 3.10 Criterio de elección {#criterio}
 
 | Situación | Opción recomendada | Evitar |
 |----------|--------------------|--------|
-| Necesitas mostrar un total o un filtro en pantalla | `computed` | Recalcular en varios sitios con funciones duplicadas |
-| El hijo notifica una acción al padre | `defineEmits` | Modificar props directamente |
-| Padre e hijo editan el mismo dato | `defineModel` o props/emits explícito | Duplicar estado en ambos componentes |
-| Reaccionar a cambio para guardar/log/API | `watch` | Meter side effects dentro de `computed` |
-| Compartir layout flexible | `slots` | Multiplicar props para contenido que es estructura |
+| Mostrar un total, filtro o contador en pantalla | `computed` | Recalcular en varios sitios con funciones duplicadas |
+| El hijo avisa de una acción al padre | `defineEmits` | Modificar props directamente |
+| Padre e hijo editan el mismo dato | `defineModel` | Duplicar estado en ambos |
+| Reaccionar a un cambio para guardar/log/API | `watch` | Meter efectos dentro de un `computed` |
+| Compartir estructura visual flexible | `slots` | Multiplicar props para lo que es estructura |
 
-### Pregunta guía para decidir rápido
+::: tip TRES PREGUNTAS PARA DECIDIR RÁPIDO
+1. ¿Es un **valor derivado** que se muestra? → `computed`.
+2. ¿Es un **efecto secundario**? → `watch`.
+3. ¿Es **comunicación entre componentes**? → props/emits o `defineModel`.
 
-1. ¿Es un valor derivado mostrado en UI? -> `computed`.
-2. ¿Es un efecto secundario? -> `watch` o `watchEffect`.
-3. ¿Es comunicación de componentes? -> props/emits o `defineModel`.
-
-::: tip REGLA PRÁCTICA
-Si dudas entre dos enfoques, elige el que deje una única fuente de verdad del estado y haga más predecible el flujo de datos.
+Y si dudas entre dos enfoques, elige el que deje **una única fuente de verdad** del estado.
 :::
 
-### Hacia la sesión 12: Vista → Composable → Servicio
+> `provide`/`inject` (compartir datos sin pasar props por cada nivel) y Pinia se ven más adelante, en la [sesión 17 — Estado global y persistencia](../../../05-avanzadas/sesiones/sesion-20-estado-persistencia/). No es el primer mecanismo que conviene aprender.
 
-Todo lo que has visto en esta sesión (refs, computed, watch, lifecycle, props/emits) son **piezas** que conviven dentro de un `.vue`. Cuando esas piezas se repiten en varias vistas (listar recursos, crear, editar, manejar `cargando`/`error`), la arquitectura UA las extrae en tres capas con responsabilidades distintas:
+## 3.11 Pruébalo en el proyecto {#sandbox}
 
-```mermaid
-flowchart LR
-    V[Vista .vue<br/>solo UI + composable]
-    C[Composable<br/>useRecursos.ts<br/>estado reactivo:<br/>lista, cargando, error<br/>métodos: cargar, eliminar...]
-    S[Servicio HTTP<br/>apiRecursos.ts<br/>funciones puras:<br/>listar, crear, eliminar<br/>+ DTOs + esquemas Zod]
-    A[(API backend<br/>/api/Recursos)]
-
-    V -->|usa| C
-    C -->|llama| S
-    S -->|axios/fetch| A
-    A -->|JSON| S
-    S -->|DTOs tipados| C
-    C -->|refs reactivos| V
-
-    style V fill:#e3f2fd,stroke:#1976d2
-    style C fill:#fff3e0,stroke:#ef6c00
-    style S fill:#e8f5e9,stroke:#388e3c
-```
-
-<!-- diagram id="s11-vista-composable-servicio" caption: "Arquitectura UA en tres capas — se desarrolla en la sesión 12" -->
-
-::: info QUÉ APRENDERÁS EN SESIÓN 12
-- **Composable de dominio** (`useRecursos`): centraliza los tres refs (`lista`, `cargando`, `error`) y los métodos (`cargar`, `crear`, `eliminar`). Una vista lo consume con `const { recursos, cargando, cargar } = useRecursos()`.
-- **Servicio HTTP** (`apiRecursos`): expone funciones puras (`listar()`, `crear(dto)`, etc.) que llaman al backend con `axios`/`useAxios`. Es donde viven los DTOs y los esquemas Zod de validación.
-- **Vista**: queda muy corta — solo llama al composable en `onMounted` y pinta. Toda la lógica de estado y HTTP vive fuera.
-
-Si comparas el código de §3.6 (todo dentro del `.vue`) con la versión final de la sesión 12, verás que el `.vue` pasa de 40 a 10 líneas.
-:::
-
-## 3.10 Pruébalo en el proyecto {#sandbox}
-
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-8/` hay ocho demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-8`:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-8/` hay varias demos navegables. Arranca la app (`pnpm local`) y entra en `/uareservas/sesiones-vue/sesion-8`:
 
 | Demo | Concepto que ilustra | Fichero |
 |------|----------------------|---------|
-| `Sesion8Computed.vue` | `computed` con dependencias + `computed` con setter (IVA bidireccional) | `sesion-8/Sesion8Computed.vue` |
-| `Sesion8PropsEmits.vue` | Padre → hijo (`titulo`) + hijo → padre (`@cambio`) con `TarjetaContador` | `sesion-8/Sesion8PropsEmits.vue` + `TarjetaContador.vue` |
-| `Sesion8PropsEmitsModal.vue` | API declarativa (`v-model:visible`) vs imperativa (`ref + show()`) de `PopUpModal` | `sesion-8/Sesion8PropsEmitsModal.vue` |
-| `Sesion8DefineModel.vue` | `v-model` sobre un componente personalizado (`InputEditable`) | `sesion-8/Sesion8DefineModel.vue` + `InputEditable.vue` |
-| `Sesion8Watchers.vue` | `watch(consulta, ...)` vs `watchEffect(...)` con historial visible | `sesion-8/Sesion8Watchers.vue` |
-| `Sesion8Lifecycle.vue` | `onMounted` + `SpinnerModal` controlado por `v-model:visible` | `sesion-8/Sesion8Lifecycle.vue` |
-| `Sesion8Slots.vue` | Tres slots (cabecera / default / acciones) con _fallback_ en `TarjetaUA` | `sesion-8/Sesion8Slots.vue` + `TarjetaUA.vue` |
-| `Sesion8FormularioReserva.vue` | Integradora: `computed` (validación), `defineModel`, slots — sin axios todavía | `sesion-8/Sesion8FormularioReserva.vue` |
+| `Sesion8Computed.vue` | `computed` con dependencias (IVA) | `sesion-8/Sesion8Computed.vue` |
+| `Sesion8PropsEmits.vue` | Padre → hijo (`titulo`) + hijo → padre (`@cambio`) | `sesion-8/Sesion8PropsEmits.vue` + `TarjetaContador.vue` |
+| `Sesion8DefineModel.vue` | `v-model` sobre un componente (`InputEditable`) | `sesion-8/Sesion8DefineModel.vue` + `InputEditable.vue` |
+| `Sesion8Watchers.vue` | `watch` (y `watchEffect`) con historial visible | `sesion-8/Sesion8Watchers.vue` |
+| `Sesion8Lifecycle.vue` | `onMounted` + carga async + `Modal` de la UA | `sesion-8/Sesion8Lifecycle.vue` |
+| `Sesion8Slots.vue` | Tres slots con _fallback_ en `TarjetaUA` | `sesion-8/Sesion8Slots.vue` + `TarjetaUA.vue` |
+| `Sesion8FormularioReserva.vue` | **Integradora**: `computed` + `defineModel` + slots (sin API todavía) | `sesion-8/Sesion8FormularioReserva.vue` |
 
-::: tip CÓMO TRABAJAR LAS DEMOS
-La integradora `Sesion8FormularioReserva.vue` reúne todo: `puedeReservar` es un `computed` que habilita el botón solo cuando los tres campos son válidos, `InputEditable` usa `defineModel`, y `TarjetaUA` aporta la estructura visual con slots. Cuando en la sesión 10 sustituyas `TarjetaUA` por `DialogModal`, el resto del código apenas cambia.
+::: tip LA DEMO INTEGRADORA
+`Sesion8FormularioReserva.vue` lo reúne todo: `puedeReservar` es un `computed` que habilita el botón solo si los tres campos son válidos, `InputEditable` usa `defineModel` y `TarjetaUA` aporta la estructura con slots. Cuando en la sesión 13 cambies `TarjetaUA` por `DialogModal`, el resto del código apenas se toca.
+:::
+
+::: details Demos adicionales (avanzado, opcional)
+- `Sesion8PropsEmitsModal.vue`: compara la API **declarativa** (`v-model:visible`) con la **imperativa** (`ref + show()`) de `PopUpModal`. Es material de la sesión 13; déjalo para cuando domines props/emits.
 :::
 
 ---
 
-## Ejercicio 2: Gestor de reservas con cuota semanal {#ejercicio-2}
+## Ejercicio 2: lista de reservas con resumen {#ejercicio-2}
 
 ::: info ENUNCIADO
-Ahora aplicarás estado derivado y efectos secundarios en un caso realista del dominio: un formulario que registra reservas de recursos, calcula horas consumidas por tipo de recurso y avisa cuando se acerca a la cuota semanal asignada. El foco es separar entrada, cálculos (`computed`) y reacción a umbrales (`watch`).
+Une lo de hoy con lo de la sesión anterior: una lista de reservas (que ya sabes construir) más una **tarjeta de resumen** calculada con `computed` y mostrada por un **componente hijo** que recibe los totales por props.
 
-**Resultado esperado:** un componente `GestorReservas.vue` que permita registrar y eliminar reservas, calcular el total de horas por tipo de recurso (Aula / Sala / Equipo / Servicio) y mostrar alertas cuando la cuota semanal se acerca o se supera.
+**Resultado esperado:** una lista donde puedes añadir, confirmar (checkbox) y eliminar reservas, y una tarjeta que muestra en vivo *cuántas hay, cuántas confirmadas y cuántas horas suman*.
 :::
 
-**Objetivo:** Aplicar `computed`, `watch` y métodos de arrays sobre las entidades del proyecto.
+**Objetivo:** practicar `computed` (derivar los totales) + Props (pasarlos a un hijo).
 
-Crea `GestorReservas.vue` con:
-1. Interface `IReserva`: `id`, `recurso`, `horas`, `tipo` (`'Aula' | 'Sala' | 'Equipo' | 'Servicio'`), `confirmada`.
-2. Estado reactivo: `reservas`, `nuevoRecurso`, `nuevasHoras`, `nuevoTipo`, `cuotaSemanal`, `alertaCuota`.
-3. Funciones: `agregarReserva()` y `eliminarReserva(id)`.
-4. `computed`: `totalHoras`, `horasPorTipo`, `horasRestantes`, `porcentajeUsado`.
-5. `watch`: alertar al superar el 80 % o el 100 % de la cuota semanal.
+1. `IReserva { id, recurso, horas, confirmada }` y un array inicial.
+2. Añadir / confirmar / eliminar reservas (como en la [sesión 10](../sesion-10-directivas-eventos/)).
+3. `computed`: `total`, `confirmadas`, `horasTotales`.
+4. Un hijo `TarjetaResumen.vue` que recibe esos tres números por props y los pinta.
 
 ::: details Solución Ejercicio 2
 
 ```html
+<!-- TarjetaResumen.vue (hijo) -->
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+// Solo recibe datos y los muestra. No tiene estado propio.
+defineProps<{
+  total: number
+  confirmadas: number
+  horasTotales: number
+}>()
+</script>
 
-// Dominio del proyecto: los cuatro tipos coinciden con TipoRecurso de la BD.
-type TipoRecurso = 'Aula' | 'Sala' | 'Equipo' | 'Servicio'
+<template>
+  <div class="card border-primary">
+    <div class="card-header bg-primary text-white">Resumen</div>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item d-flex justify-content-between">
+        <span>Reservas</span><strong>{{ total }}</strong>
+      </li>
+      <li class="list-group-item d-flex justify-content-between">
+        <span>Confirmadas</span><strong>{{ confirmadas }}</strong>
+      </li>
+      <li class="list-group-item d-flex justify-content-between">
+        <span>Horas totales</span><strong>{{ horasTotales }} h</strong>
+      </li>
+    </ul>
+  </div>
+</template>
+```
+
+```html
+<!-- ListaReservasResumen.vue (padre) -->
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import TarjetaResumen from './TarjetaResumen.vue'
 
 interface IReserva {
   id: number
   recurso: string
   horas: number
-  tipo: TipoRecurso
   confirmada: boolean
 }
 
-const reservas = ref<IReserva[]>([])
-const nuevoRecurso = ref<string>('')
-const nuevasHoras = ref<number>(1)
-const nuevoTipo = ref<TipoRecurso>('Aula')
-const cuotaSemanal = ref<number>(20)        // horas máximas reservables por semana
-const alertaCuota = ref<string>('')
+const reservas = ref<IReserva[]>([
+  { id: 1, recurso: 'Aula 12',          horas: 2, confirmada: false },
+  { id: 2, recurso: 'Sala reuniones A', horas: 1, confirmada: true  },
+])
 
-let contadorId = 1
+const nuevoRecurso = ref('')
+let proximoId = 100
 
-const agregarReserva = (): void => {
-  if (!nuevoRecurso.value.trim() || nuevasHoras.value <= 0) return
-
-  reservas.value.push({
-    id: contadorId++,
-    recurso: nuevoRecurso.value.trim(),
-    horas: nuevasHoras.value,
-    tipo: nuevoTipo.value,
-    confirmada: false,
-  })
-
+function anadir(): void {
+  const limpio = nuevoRecurso.value.trim()
+  if (!limpio) return
+  reservas.value.push({ id: proximoId++, recurso: limpio, horas: 1, confirmada: false })
   nuevoRecurso.value = ''
-  nuevasHoras.value = 1
-  nuevoTipo.value = 'Aula'
 }
 
-const eliminarReserva = (id: number): void => {
+function borrar(id: number): void {
   reservas.value = reservas.value.filter(r => r.id !== id)
 }
 
-const totalHoras = computed((): number =>
-  reservas.value.reduce((total, r) => total + r.horas, 0),
-)
-
-const horasPorTipo = computed(() => ({
-  Aula:     reservas.value.filter(r => r.tipo === 'Aula')    .reduce((s, r) => s + r.horas, 0),
-  Sala:     reservas.value.filter(r => r.tipo === 'Sala')    .reduce((s, r) => s + r.horas, 0),
-  Equipo:   reservas.value.filter(r => r.tipo === 'Equipo')  .reduce((s, r) => s + r.horas, 0),
-  Servicio: reservas.value.filter(r => r.tipo === 'Servicio').reduce((s, r) => s + r.horas, 0),
-}))
-
-const horasRestantes = computed((): number =>
-  cuotaSemanal.value - totalHoras.value,
-)
-
-const porcentajeUsado = computed((): number =>
-  Number(((totalHoras.value / cuotaSemanal.value) * 100).toFixed(2)),
-)
-
-watch(totalHoras, (nuevoTotal) => {
-  const porcentaje = (nuevoTotal / cuotaSemanal.value) * 100
-
-  if (porcentaje > 100) {
-    alertaCuota.value = '🚨 Has superado tu cuota semanal de horas'
-  } else if (porcentaje > 80) {
-    alertaCuota.value = '⚠️ Has usado más del 80 % de tu cuota semanal'
-  } else {
-    alertaCuota.value = ''
-  }
-})
+// Tres valores derivados: se recalculan solos al añadir, confirmar o borrar.
+const total        = computed(() => reservas.value.length)
+const confirmadas  = computed(() => reservas.value.filter(r => r.confirmada).length)
+const horasTotales = computed(() => reservas.value.reduce((s, r) => s + r.horas, 0))
 </script>
 
 <template>
-  <div class="p-4" style="max-width: 800px">
-    <h2>Gestor de reservas — cuota semanal</h2>
+  <div class="row g-3">
+    <div class="col-md-8">
+      <div class="input-group mb-3">
+        <input
+          v-model="nuevoRecurso"
+          class="form-control"
+          placeholder="Recurso a reservar (pulsa Enter)"
+          @keyup.enter="anadir"
+        />
+        <button class="btn btn-primary" @click="anadir">Añadir</button>
+      </div>
 
-    <div class="row g-2 mb-3">
-      <div class="col-md-5">
-        <input v-model="nuevoRecurso" class="form-control" placeholder="Recurso (Aula 12, Sala A...)" />
-      </div>
-      <div class="col-md-2">
-        <input v-model.number="nuevasHoras" type="number" min="1" class="form-control" placeholder="Horas" />
-      </div>
-      <div class="col-md-3">
-        <select v-model="nuevoTipo" class="form-select">
-          <option value="Aula">Aula</option>
-          <option value="Sala">Sala</option>
-          <option value="Equipo">Equipo</option>
-          <option value="Servicio">Servicio</option>
-        </select>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button @click="agregarReserva" class="btn btn-primary">Añadir</button>
-      </div>
+      <ul class="list-group">
+        <li
+          v-for="reserva in reservas"
+          :key="reserva.id"
+          class="list-group-item d-flex align-items-center gap-2"
+        >
+          <input v-model="reserva.confirmada" type="checkbox" class="form-check-input mt-0" />
+          <span class="flex-grow-1" :class="{ 'text-success fw-bold': reserva.confirmada }">
+            {{ reserva.recurso }} ({{ reserva.horas }}h)
+          </span>
+          <button class="btn btn-sm btn-outline-danger" @click="borrar(reserva.id)">Borrar</button>
+        </li>
+        <li v-if="reservas.length === 0" class="list-group-item text-center text-muted">
+          No hay reservas.
+        </li>
+      </ul>
     </div>
 
-    <div class="mb-3 p-3 border rounded bg-light">
-      <p class="mb-1">Cuota semanal: <strong>{{ cuotaSemanal }} h</strong></p>
-      <p class="mb-1">Horas reservadas: <strong>{{ totalHoras }} h</strong></p>
-      <p class="mb-1">Horas restantes: <strong>{{ horasRestantes }} h</strong></p>
-      <p class="mb-0">Porcentaje usado: <strong>{{ porcentajeUsado }} %</strong></p>
-      <p v-if="alertaCuota" class="mt-2 mb-0 text-danger fw-bold">{{ alertaCuota }}</p>
+    <div class="col-md-4">
+      <!-- Los totales (computed) bajan al hijo por props. -->
+      <TarjetaResumen :total="total" :confirmadas="confirmadas" :horas-totales="horasTotales" />
     </div>
-
-    <div class="mb-3 p-3 border rounded">
-      <h5>Horas por tipo de recurso</h5>
-      <p class="mb-1">Aula:     {{ horasPorTipo.Aula }} h</p>
-      <p class="mb-1">Sala:     {{ horasPorTipo.Sala }} h</p>
-      <p class="mb-1">Equipo:   {{ horasPorTipo.Equipo }} h</p>
-      <p class="mb-0">Servicio: {{ horasPorTipo.Servicio }} h</p>
-    </div>
-
-    <ul class="list-group">
-      <li v-if="reservas.length === 0" class="list-group-item text-muted">No hay reservas registradas.</li>
-      <li v-for="r in reservas" :key="r.id" class="list-group-item d-flex justify-content-between align-items-center">
-        <span>{{ r.recurso }} <small class="text-muted">({{ r.tipo }})</small></span>
-        <div class="d-flex align-items-center gap-2">
-          <strong>{{ r.horas }} h</strong>
-          <button @click="eliminarReserva(r.id)" class="btn btn-sm btn-outline-danger">Eliminar</button>
-        </div>
-      </li>
-    </ul>
   </div>
 </template>
 ```
@@ -1027,23 +793,12 @@ watch(totalHoras, (nuevoTotal) => {
 
 ## Tarea progresiva del proyecto final {#tarea-pf}
 
-::: tip MÓDULOS 3 Y 4 · COMPONENTES REUTILIZABLES
-Esta sesión te da las piezas para dos módulos del proyecto final que aún no has empezado:
+::: tip PIENSA EN TUS PRÓXIMOS COMPONENTES
+Lo de hoy te da las piezas para componentes que montarás en los módulos 3 y 4 del proyecto final:
+- **`BloqueDia`** (Horario): recibe el día por prop y las franjas con `defineModel`.
+- **`SelectorHora` / `SelectorDuracion`** (Reserva): `defineModel<number>()` para el valor.
 
-**Módulo 3 · Horario** — Diseña en tu cabeza el componente `BloqueDia` que usarás más adelante:
-
-- Recibe el día (lunes-domingo) como prop y las franjas como `defineModel`.
-- Botones "añadir franja", "borrar franja", "bloquear día" usando los patrones de hoy.
-- En la sesión de Pinia (sesión 20) lo conectaremos a un store compartido del horario en edición.
-
-**Módulo 4 · Reserva** — Componentes `SelectorHora` y `SelectorDuracion`:
-
-- `SelectorHora` con `defineModel<number>()` para el minuto del día (0-1439) y formato `HH:mm` en pantalla.
-- `SelectorDuracion` con `defineModel<number>()` para minutos, presets en botones (15, 30, 60, 90).
-
-Hoy basta con que dejes esbozada la API (`<script setup>` con `defineProps` y `defineModel`) en tu rama. La integradora vendrá en módulos posteriores.
-
-Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
+Hoy basta con que entiendas el patrón (prop que baja, `defineModel` para editar). La integración completa llega en módulos posteriores. Mapa: [Proyecto final del curso](../../../06-proyecto-final/).
 :::
 
 <!-- NAV:START -->
