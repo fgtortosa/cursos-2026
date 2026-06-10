@@ -12,9 +12,9 @@ Las preguntas cubren **solo** lo que se enseña en esta sesión: DTOs, controlad
 
 Los temas relacionados que se cubren en otras sesiones tienen su propio test:
 
-- `ProblemDetails` / `ValidationProblemDetails` detallados, `Result<T>`, `HandleResult` → [Sesión 16](../../../04-integracion/sesiones/sesion-16-errores/).
-- FluentValidation con mensajes localizados → [Sesión 15](../../../04-integracion/sesiones/sesion-15-validacion/).
-- `peticion<T>` / `llamadaAxios` / `useGestionFormularios` / toasts → [Sesión 14](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
+- `ProblemDetails` / `ValidationProblemDetails` detallados, `Result<T>`, `HandleResult` → [Sesión 14](../../../04-integracion/sesiones/sesion-14-errores/).
+- FluentValidation con mensajes localizados → [Sesión 13](../../../04-integracion/sesiones/sesion-13-validacion/).
+- `peticion<T>` / `llamadaAxios` / `useGestionFormularios` / toasts → [Sesión 12](../../../04-integracion/sesiones/sesion-12-api-autenticacion/).
 - `[Columna]`, `[IgnorarMapeo]`, mapeo `'S'/'N'` ↔ `bool` y resolución de idioma de `ClaseOracleBD3` → [Sesión 8](../sesion-08/).
   :::
 

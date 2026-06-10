@@ -14,9 +14,9 @@ Los temas relacionados que se cubren en otras sesiones tienen su propio test:
 
 - DTOs, `[ApiController]`, verbos HTTP, validación con DataAnnotations → [Sesión 7](../sesion-07/).
 - `ClaseOracleBD3`, mapeo automático, `[Columna]`, `Result<T>`, paquetes PL/SQL → [Sesión 8](../sesion-08/).
-- `HandleResult` interno, `ProblemDetails`, `ValidationProblemDetails`, contrato de error UA → [Sesión 16](../../../04-integracion/sesiones/sesion-16-errores/).
-- FluentValidation, `AddValidatorsFromAssemblyContaining`, localización con `.resx` → [Sesión 15](../../../04-integracion/sesiones/sesion-15-validacion/).
-- CAS / JWT / claims → [Sesión 14](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
+- `HandleResult` interno, `ProblemDetails`, `ValidationProblemDetails`, contrato de error UA → [Sesión 14](../../../04-integracion/sesiones/sesion-14-errores/).
+- FluentValidation, `AddValidatorsFromAssemblyContaining`, localización con `.resx` → [Sesión 13](../../../04-integracion/sesiones/sesion-13-validacion/).
+- CAS / JWT / claims → [Sesión 12](../../../04-integracion/sesiones/sesion-12-api-autenticacion/).
   :::
 
 ## Pregunta 1

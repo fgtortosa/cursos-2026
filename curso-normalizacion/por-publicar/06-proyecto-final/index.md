@@ -84,7 +84,7 @@ Esta es la tabla maestra que conviene revisar al inicio del curso. Indica **qué
 | 13 | Vue · Directivas y eventos | 1 | Tabla y filtro de `TipoRecurso` |
 | 14 | Vue · Componentes y comunicación | 1 + 3 (día) + 4 (Hora/Duración) | Modal de edición de `TipoRecurso` **+** componente `BloqueDia` para Horario y `SelectorHoraDuracion` para Reserva |
 | 15 | Vue · Arquitectura: composables y servicios | 1 + 2 | Composable `useTipoRecurso` + plantilla del de `Recurso` |
-| 16 | Vue · Componentes internos UA | 1 | CRUD de `TipoRecurso` completo cliente (la integradora `Sesion10CrudRecursos` es la referencia visual) |
+| 16 | Vue · Componentes internos UA | 1 | CRUD de `TipoRecurso` completo cliente (la integradora `Sesion11CrudRecursos` es la referencia visual) |
 | 17 | Integración · Llamadas a la API y autenticación | 1 + 2 (idioma+codper) | Sustituir el mock por `useAxios`, lectura de claims y filtrado de listas por idioma del usuario |
 | 18 | Integración · Validación en todas las capas | 1 + 3 (conflictos) | `useGestionFormularios` aplicado al formulario de `TipoRecurso` + validador cruzado de Horario |
 | 19 | Integración · Gestión de errores | 1 + 2 | Toast + confirmación en eliminación de `TipoRecurso` y `Recurso`, errores Oracle traducidos |

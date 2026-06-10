@@ -163,7 +163,7 @@ Estos tres patrones aparecen en casi todos los `.vue` del proyecto. Aplicados al
 </template>
 ```
 
-> Demo equivalente en el repo: `Sesion7ListaReservas.vue` aplica los patrones 1 y 2 (`anadirReserva`, `eliminar`) sobre `IClaseReserva` —la misma forma que `IReserva`—. El recuento de pendientes (patrón 3) lo resuelve con un objeto `resumen` que veremos en §2.5.
+> Demo equivalente en el repo: `Sesion8ListaReservas.vue` aplica los patrones 1 y 2 (`anadirReserva`, `eliminar`) sobre `IClaseReserva` —la misma forma que `IReserva`—. El recuento de pendientes (patrón 3) lo resuelve con un objeto `resumen` que veremos en §2.5.
 
 ::: tip REGLA PRÁCTICA
 
@@ -228,7 +228,7 @@ Controlan si un elemento **existe en el DOM**. Si la condición es falsa, el ele
 
 ### `v-show` y comparación lado a lado
 
-El elemento **siempre está en el DOM**, solo se oculta con CSS. La demo `Sesion7VifVshow.vue` pone los dos comportamientos uno al lado del otro para inspeccionarlos con F12:
+El elemento **siempre está en el DOM**, solo se oculta con CSS. La demo `Sesion8VifVshow.vue` pone los dos comportamientos uno al lado del otro para inspeccionarlos con F12:
 
 ```html
 <script setup lang="ts">
@@ -280,7 +280,7 @@ El elemento **siempre está en el DOM**, solo se oculta con CSS. La demo `Sesion
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7VifVshow.vue`. Abre la demo con F12 en el panel **Elements**: el bloque con `v-if` aparece y desaparece del árbol, el de `v-show` permanece con `style="display: none"`.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8VifVshow.vue`. Abre la demo con F12 en el panel **Elements**: el bloque con `v-if` aparece y desaparece del árbol, el de `v-show` permanece con `style="display: none"`.
 
 ### ¿Cuándo usar cada uno?
 
@@ -353,7 +353,7 @@ Itera sobre arrays, objetos o rangos numéricos:
 </template>
 ```
 
-> Demo equivalente en el repo: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7ListaReservas.vue` itera este mismo bucle sobre `IClaseReserva` — los input/checkbox/botón eliminar de la demo los veremos a continuación en §2.7 y §2.8.
+> Demo equivalente en el repo: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8ListaReservas.vue` itera este mismo bucle sobre `IClaseReserva` — los input/checkbox/botón eliminar de la demo los veremos a continuación en §2.7 y §2.8.
 
 ### Objetos y rangos
 
@@ -378,7 +378,7 @@ Itera sobre arrays, objetos o rangos numéricos:
 Sobre un **array** `v-for` entrega `(elemento, índice)`; sobre un **objeto** entrega `(valor, clave)` — el valor **primero**, la clave después. Es un error clásico asumir que la clave va delante.
 :::
 
-> Demo equivalente en el repo: `Sesion7ListaReservas.vue` incluye un bloque **Resumen** con `v-for="(valor, clave) in resumen"` sobre un objeto `computed` (`{ pendientes, confirmadas }`). Al confirmar o eliminar reservas, los recuentos se recalculan solos — el objeto que recorre `v-for` es reactivo.
+> Demo equivalente en el repo: `Sesion8ListaReservas.vue` incluye un bloque **Resumen** con `v-for="(valor, clave) in resumen"` sobre un objeto `computed` (`{ pendientes, confirmadas }`). Al confirmar o eliminar reservas, los recuentos se recalculan solos — el objeto que recorre `v-for` es reactivo.
 
 ### El atributo `:key`
 
@@ -508,11 +508,11 @@ Vincula dinámicamente atributos HTML a valores reactivos. Recuperamos a **Lola,
 </template>
 ```
 
-> Demo equivalente en el repo: `Sesion7VBind.vue`. Las fotos viven en `ClientApp/public/lola.jpg` y `ClientApp/public/tiger.jpg`. Lo que estrenamos es `v-bind` (`:`) sobre **varios atributos a la vez** (`:src`, `:alt`, `:title`, `:disabled`) y el caso clásico de **botón deshabilitado** cuando ya estás en ese estado — patrón que reutilizaremos en formularios.
+> Demo equivalente en el repo: `Sesion8VBind.vue`. Las fotos viven en `ClientApp/public/lola.jpg` y `ClientApp/public/tiger.jpg`. Lo que estrenamos es `v-bind` (`:`) sobre **varios atributos a la vez** (`:src`, `:alt`, `:title`, `:disabled`) y el caso clásico de **botón deshabilitado** cuando ya estás en ese estado — patrón que reutilizaremos en formularios.
 
 ### Vincular clases CSS (muy común)
 
-Las llaves `{ }` representan un objeto donde la **clave** es el nombre de la clase y el **valor** es una condición booleana. La demo `Sesion7Semaforo.vue` lo combina con un **union type** para que TypeScript impida valores fuera del dominio:
+Las llaves `{ }` representan un objeto donde la **clave** es el nombre de la clase y el **valor** es una condición booleana. La demo `Sesion8Semaforo.vue` lo combina con un **union type** para que TypeScript impida valores fuera del dominio:
 
 ```html
 <script setup lang="ts">
@@ -549,7 +549,7 @@ Las llaves `{ }` representan un objeto donde la **clave** es el nombre de la cla
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7Semaforo.vue`. Intentar `estado.value = 'azul'` en el script falla en compilación: ese es el valor del union type.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Semaforo.vue`. Intentar `estado.value = 'azul'` en el script falla en compilación: ese es el valor del union type.
 
 ::: warning IMPORTANTE
 Si el nombre de clase tiene guion (ej: `btn-activo`), debe ir entre comillas: `'btn-activo'`.
@@ -627,7 +627,7 @@ Cada checkbox enlaza directamente con `reserva.confirmada` del objeto que itera 
 </li>
 ```
 
-> Demo equivalente en el repo: `Sesion7ListaReservas.vue`. Observa que `:id` y `:for` se construyen con template literal (`` `reserva-${reserva.id}` ``) para que cada `<label>` apunte a su propio checkbox.
+> Demo equivalente en el repo: `Sesion8ListaReservas.vue`. Observa que `:id` y `:for` se construyen con template literal (`` `reserva-${reserva.id}` ``) para que cada `<label>` apunte a su propio checkbox.
 
 ## 2.8 Eventos del DOM {#eventos}
 
@@ -776,13 +776,13 @@ Combinamos `@keyup.enter` para añadir reservas sin tocar el ratón y `@click` c
 </template>
 ```
 
-> Demo equivalente en el repo: `Sesion7ListaReservas.vue` (mismos handlers sobre `IClaseReserva`). Regla práctica: enganchar `@click="fn"` (sin paréntesis) si el handler no necesita argumentos, y `@click="fn(arg)"` cuando sí.
+> Demo equivalente en el repo: `Sesion8ListaReservas.vue` (mismos handlers sobre `IClaseReserva`). Regla práctica: enganchar `@click="fn"` (sin paréntesis) si el handler no necesita argumentos, y `@click="fn(arg)"` cuando sí.
 
 ## 2.9 Métodos de arrays {#metodos-arrays}
 
 Los métodos de arrays son fundamentales en Vue para transformar, filtrar y agregar datos. Todos son **inmutables** (no modifican el array original, excepto `.sort()`).
 
-La demo `Sesion7MetodosArrays.vue` muestra los cuatro métodos clave sobre el mismo array de reservas y todos como `computed`:
+La demo `Sesion8MetodosArrays.vue` muestra los cuatro métodos clave sobre el mismo array de reservas y todos como `computed`:
 
 ```typescript
 interface IReserva {
@@ -820,7 +820,7 @@ const horasConfirmadas = computed(() =>
 );
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7MetodosArrays.vue`. Encadenar `.filter().reduce()` es legible y no muta el array original.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8MetodosArrays.vue`. Encadenar `.filter().reduce()` es legible y no muta el array original.
 
 ### `.some()` y `.every()` — Verificar condiciones
 
@@ -982,7 +982,7 @@ const copiaReal = structuredClone(recurso.value);
 
 :::
 
-> Demo equivalente en el repo: `Sesion7SpreadDestructuring.vue` (con `IUsuario { nombre, email, direccion }` como dominio de juguete). Los cuatro patrones (`...`, destructuring, `?.`, `??`) son idénticos sobre `IRecursoLectura`.
+> Demo equivalente en el repo: `Sesion8SpreadDestructuring.vue` (con `IUsuario { nombre, email, direccion }` como dominio de juguete). Los cuatro patrones (`...`, destructuring, `?.`, `??`) son idénticos sobre `IRecursoLectura`.
 
 ::: info PUENTE A LA SESIÓN 11
 En esta sesión trabajamos `v-model`, handlers y validaciones básicas. En la sesión 11 verás el patrón completo de formulario con **estado derivado** usando `computed`: normalización de entrada, habilitar/deshabilitar acciones y criterio `computed` vs método.
@@ -990,20 +990,20 @@ En esta sesión trabajamos `v-model`, handlers y validaciones básicas. En la se
 
 ## 2.11 Pruébalo en el proyecto {#sandbox}
 
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-7/` hay siete demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-7`:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-8/` hay siete demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-8`:
 
 | Demo                             | Concepto que ilustra                                                                  | Fichero                                   |
 | -------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `Sesion7Semaforo.vue`            | `:class` con objeto + union type (`'rojo' \| 'ambar' \| 'verde'`)                     | `sesion-7/Sesion7Semaforo.vue`            |
-| `Sesion7VifVshow.vue`            | `v-if` destruye/crea nodo; `v-show` solo cambia `display`                             | `sesion-7/Sesion7VifVshow.vue`            |
-| `Sesion7VBind.vue`               | `v-bind` sobre atributos: `:src`, `:alt`, `:title`, `:disabled`                       | `sesion-7/Sesion7VBind.vue`               |
-| `Sesion7ListaReservas.vue`       | `v-for`, `:key` estable, `v-model` en checkbox, `@keyup.enter` y `v-for` sobre objeto | `sesion-7/Sesion7ListaReservas.vue`       |
-| `Sesion7MetodosArrays.vue`       | `.map / .filter / .find / .reduce` sobre reservas, todos como `computed`              | `sesion-7/Sesion7MetodosArrays.vue`       |
-| `Sesion7SpreadDestructuring.vue` | Spread, destructuring, `?.`, `??` sobre `IUsuario`                                    | `sesion-7/Sesion7SpreadDestructuring.vue` |
-| `Sesion7TablaRecursos.vue`       | Demo integradora: filtro + checkbox + tabla con clases dinámicas                      | `sesion-7/Sesion7TablaRecursos.vue`       |
+| `Sesion8Semaforo.vue`            | `:class` con objeto + union type (`'rojo' \| 'ambar' \| 'verde'`)                     | `sesion-7/Sesion8Semaforo.vue`            |
+| `Sesion8VifVshow.vue`            | `v-if` destruye/crea nodo; `v-show` solo cambia `display`                             | `sesion-7/Sesion8VifVshow.vue`            |
+| `Sesion8VBind.vue`               | `v-bind` sobre atributos: `:src`, `:alt`, `:title`, `:disabled`                       | `sesion-7/Sesion8VBind.vue`               |
+| `Sesion8ListaReservas.vue`       | `v-for`, `:key` estable, `v-model` en checkbox, `@keyup.enter` y `v-for` sobre objeto | `sesion-7/Sesion8ListaReservas.vue`       |
+| `Sesion8MetodosArrays.vue`       | `.map / .filter / .find / .reduce` sobre reservas, todos como `computed`              | `sesion-7/Sesion8MetodosArrays.vue`       |
+| `Sesion8SpreadDestructuring.vue` | Spread, destructuring, `?.`, `??` sobre `IUsuario`                                    | `sesion-7/Sesion8SpreadDestructuring.vue` |
+| `Sesion8TablaRecursos.vue`       | Demo integradora: filtro + checkbox + tabla con clases dinámicas                      | `sesion-7/Sesion8TablaRecursos.vue`       |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
-Abre `Sesion7TablaRecursos.vue` con F12 abierto y mira cómo Vue solo redibuja las filas afectadas al teclear en el filtro o marcar "solo activos". Esta vista es el "antes" del DataTable con paginación servidor que veremos en la sesión 15.
+Abre `Sesion8TablaRecursos.vue` con F12 abierto y mira cómo Vue solo redibuja las filas afectadas al teclear en el filtro o marcar "solo activos". Esta vista es el "antes" del DataTable con paginación servidor que veremos en la sesión 15.
 :::
 
 ---

@@ -492,11 +492,11 @@ Conectaremos con Oracle usando `ClaseOracleBD3`. Implementaremos el patrón `Res
 
 | Tema                                                                                  | Dónde se aborda                                                                                  |
 | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Probar la API desde Vue (`peticion`, `useAxios`, interceptor) y autenticación CAS+JWT | [Sesión 14 — API y autenticación](../../../04-integracion/sesiones/sesion-14-api-autenticacion/) |
-| Validación robusta: `DataAnnotations` → **FluentValidation** + localización           | [Sesión 15 — Validación](../../../04-integracion/sesiones/sesion-15-validacion/)                 |
-| Errores end-to-end: `ProblemDetails`, `HandleResult`, `useGestionFormularios`, toasts | [Sesión 16 — Errores](../../../04-integracion/sesiones/sesion-16-errores/)                       |
-| DataTable server-side: paginación, filtros y ordenación con `ClaseCrudUtils`          | [Sesión 17 — DataTable](../../../04-integracion/sesiones/sesion-17-datatable/)                   |
-| Tests unitarios xUnit, `OracleTestFixture`, calidad de código                         | [Sesión 21 — Tests y calidad](../../../05-avanzadas/sesiones/sesion-21-tests-calidad/)           |
+| Probar la API desde Vue (`peticion`, `useAxios`, interceptor) y autenticación CAS+JWT | [Sesión 12 — API y autenticación](../../../04-integracion/sesiones/sesion-12-api-autenticacion/) |
+| Validación robusta: `DataAnnotations` → **FluentValidation** + localización           | [Sesión 13 — Validación](../../../04-integracion/sesiones/sesion-13-validacion/)                 |
+| Errores end-to-end: `ProblemDetails`, `HandleResult`, `useGestionFormularios`, toasts | [Sesión 14 — Errores](../../../04-integracion/sesiones/sesion-14-errores/)                       |
+| DataTable server-side: paginación, filtros y ordenación con `ClaseCrudUtils`          | [Sesión 15 — DataTable](../../../04-integracion/sesiones/sesion-15-datatable/)                   |
+| Tests unitarios xUnit, `OracleTestFixture`, calidad de código                         | [Sesión 19 — Tests y calidad](../../../05-avanzadas/sesiones/sesion-19-tests-calidad/)           |
 
 ---
 

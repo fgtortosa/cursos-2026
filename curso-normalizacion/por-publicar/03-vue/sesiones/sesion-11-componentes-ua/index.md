@@ -23,12 +23,12 @@ En las sesiones anteriores construimos componentes y composables a mano para ent
 | Bloque               | Tiempo | Contenido                                                          |
 | -------------------- | ------ | ------------------------------------------------------------------ |
 | **Teoría guiada**    | 45 min | 10.1 a 10.7 (árbol de decisión + componentes uno a uno + Teleport) |
-| **Práctica en aula** | 25 min | Demo integradora CRUD mock (`Sesion10CrudRecursos.vue`)            |
+| **Práctica en aula** | 25 min | Demo integradora CRUD mock (`Sesion11CrudRecursos.vue`)            |
 | **Test de sesión**   | 15 min | Preguntas rápidas en formato desplegable y corrección grupal       |
 | **Cierre**           | 5 min  | Dudas y enlace con sesiones de integración (14-17)                 |
 
 ::: tip ENFOQUE DIDÁCTICO
-Cada componente se presenta junto con su demo abrible en `uareservas/sesiones-vue/sesion-10/...`. Abre el código y modifica valores: es la forma más rápida de fijar la API.
+Cada componente se presenta junto con su demo abrible en `uareservas/sesiones-vue/sesion-11/...`. Abre el código y modifica valores: es la forma más rápida de fijar la API.
 :::
 
 ## 6.1 ¿Qué componente UA elegir? {#decision}
@@ -127,7 +127,7 @@ async function eliminar() {
 
 :::
 
-[Demo abrible: `/uareservas/sesiones-vue/sesion-10/popup-modal`](/uareservas/sesiones-vue/sesion-10/popup-modal)
+[Demo abrible: `/uareservas/sesiones-vue/sesion-11/popup-modal`](/uareservas/sesiones-vue/sesion-11/popup-modal)
 
 ## 6.3 `DialogModal` · formularios y vistas de detalle {#dialog-modal}
 
@@ -186,7 +186,7 @@ async function guardar() {
 `:cerrado-automatico="false"` evita que el modal se cierre al pulsar "Aceptar" antes de que termine la validacion / llamada a la API. Vuelve a poner `editando = false` solo cuando el `await` haya terminado correctamente.
 :::
 
-[Demo abrible: `/uareservas/sesiones-vue/sesion-10/dialog-modal`](/uareservas/sesiones-vue/sesion-10/dialog-modal)
+[Demo abrible: `/uareservas/sesiones-vue/sesion-11/dialog-modal`](/uareservas/sesiones-vue/sesion-11/dialog-modal)
 
 ## 6.4 `SpinnerModal` · bloquear pantalla durante operación larga {#spinner-modal}
 
@@ -217,7 +217,7 @@ onMounted(() => cargar());
 
 Una **sola variable booleana** (`cargando`) gobierna a la vez la visibilidad del modal y el `v-if` que decide si pintar la lista. Es el caso típico de "una fuente de verdad" que vimos en la sesión 8.
 
-[Demo abrible: `/uareservas/sesiones-vue/sesion-10/spinner-modal`](/uareservas/sesiones-vue/sesion-10/spinner-modal)
+[Demo abrible: `/uareservas/sesiones-vue/sesion-11/spinner-modal`](/uareservas/sesiones-vue/sesion-11/spinner-modal)
 
 ## 6.5 `BotonLoading` · botón con spinner integrado {#boton-loading}
 
@@ -295,7 +295,7 @@ async function enviar() {
 El botón se bloquea solo al pulsarlo. **No** olvides el `try/finally`: desbloquéalo con `loadContent(false)` (componente) o poniendo a `false` la variable de `v-loading` (directiva). Si el `await` lanza una excepción y no lo desbloqueas, el botón queda inservible hasta recargar la página.
 :::
 
-[Demo abrible: `/uareservas/sesiones-vue/sesion-9/boton-loading`](/uareservas/sesiones-vue/sesion-9/boton-loading) (introducido en la sesión 12)
+[Demo abrible: `/uareservas/sesiones-vue/sesion-10/boton-loading`](/uareservas/sesiones-vue/sesion-10/boton-loading) (introducido en la sesión 12)
 
 ## 6.6 `useToast` · avisos transitorios {#use-toast}
 
@@ -329,7 +329,7 @@ cerrarToastsPorGrupo("reservas");
 El contenedor `<ToastContainer />` debe estar en `App.vue` (o se monta solo en el primer aviso). En `uaReservas` ya está montado explícitamente.
 :::
 
-[Demo abrible: `/uareservas/sesiones-vue/sesion-9/use-toast`](/uareservas/sesiones-vue/sesion-9/use-toast) (introducido en la sesión 12)
+[Demo abrible: `/uareservas/sesiones-vue/sesion-10/use-toast`](/uareservas/sesiones-vue/sesion-10/use-toast) (introducido en la sesión 12)
 
 ## 6.7 `Checkbox3estados` · filtros con `boolean | null` {#checkbox3estados}
 
@@ -376,7 +376,7 @@ const filtrados = computed(() =>
 Tipa la variable como `boolean | null`. Aunque el componente admite valores laxos, este contrato es el más estable.
 :::
 
-[Demo abrible: `/uareservas/sesiones-vue/sesion-10/checkbox-3-estados`](/uareservas/sesiones-vue/sesion-10/checkbox-3-estados)
+[Demo abrible: `/uareservas/sesiones-vue/sesion-11/checkbox-3-estados`](/uareservas/sesiones-vue/sesion-11/checkbox-3-estados)
 
 ## 6.8 `Teleport` · renderizar fuera del árbol {#teleport}
 
@@ -426,7 +426,7 @@ El componente `vueua-autocomplete` (búsqueda remota con selección) figura en e
 
 ## 6.9 Demo integradora: el flujo recomendado {#integradora}
 
-[Demo abrible: `/uareservas/sesiones-vue/sesion-10/crud-recursos`](/uareservas/sesiones-vue/sesion-10/crud-recursos)
+[Demo abrible: `/uareservas/sesiones-vue/sesion-11/crud-recursos`](/uareservas/sesiones-vue/sesion-11/crud-recursos)
 
 La integradora combina todos los componentes en un único CRUD **usando el modo de trabajo recomendado** de §10.1: modales con **variable de visibilidad**, **`peticion<T>`**, **validación Zod en cliente** antes de enviar y **gestión de 400/500** con `useGestionFormularios`.
 
@@ -527,24 +527,24 @@ async function guardar() {
 El resto del CRUD encaja igual: `SpinnerModal v-model:visible="cargando"` en la carga, `PopUpModal v-model:visible="confirmando"` para confirmar el borrado, `BotonLoading` en guardar y `Checkbox3estados` en el filtro.
 
 ::: info DÓNDE ESTÁ EL DETALLE COMPLETO
-Aquí ves **cómo se usan los componentes** con el flujo recomendado. El **porqué** del pipeline de validación de extremo a extremo (DataAnnotations, FluentValidation, errores de Oracle, `ValidationProblemDetails`) se desarrolla en la [sesión 13 — Validación en todas las capas](../../../04-integracion/sesiones/sesion-15-validacion/). Y `peticion<T>` / interceptores / autenticación, en la [sesión 12](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
+Aquí ves **cómo se usan los componentes** con el flujo recomendado. El **porqué** del pipeline de validación de extremo a extremo (DataAnnotations, FluentValidation, errores de Oracle, `ValidationProblemDetails`) se desarrolla en la [sesión 13 — Validación en todas las capas](../../../04-integracion/sesiones/sesion-13-validacion/). Y `peticion<T>` / interceptores / autenticación, en la [sesión 12](../../../04-integracion/sesiones/sesion-12-api-autenticacion/).
 :::
 
 ## 6.10 Pruébalo en el proyecto {#sandbox}
 
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-10/` hay seis demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-10`:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-11/` hay seis demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-11`:
 
 | Demo                           | Concepto que ilustra                                                                        | Fichero                                  |
 | ------------------------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `Sesion10PopUpModal.vue`       | Las dos APIs (`v-model:visible` + `@confirmar` y `await ref.show()`) en paralelo            | `sesion-10/Sesion10PopUpModal.vue`       |
-| `Sesion10DialogModal.vue`      | Formulario en modal con `borrador` editable, `:cerrado-automatico="false"` y guardado async | `sesion-10/Sesion10DialogModal.vue`      |
-| `Sesion10SpinnerModal.vue`     | `cargando` como **única variable** que controla spinner + `:disabled` del botón + mensaje   | `sesion-10/Sesion10SpinnerModal.vue`     |
-| `Sesion10Checkbox3estados.vue` | Filtro tri-estado con contrato `boolean \| null`                                            | `sesion-10/Sesion10Checkbox3estados.vue` |
-| `Sesion10Teleport.vue`         | Modal casero dentro de `.card` con `overflow:hidden` y `<Teleport to="body">`               | `sesion-10/Sesion10Teleport.vue`         |
-| `Sesion10CrudRecursos.vue`     | Integradora: listar, filtrar, crear, editar y eliminar con todos los componentes UA         | `sesion-10/Sesion10CrudRecursos.vue`     |
+| `Sesion11PopUpModal.vue`       | Las dos APIs (`v-model:visible` + `@confirmar` y `await ref.show()`) en paralelo            | `sesion-10/Sesion11PopUpModal.vue`       |
+| `Sesion11DialogModal.vue`      | Formulario en modal con `borrador` editable, `:cerrado-automatico="false"` y guardado async | `sesion-10/Sesion11DialogModal.vue`      |
+| `Sesion11SpinnerModal.vue`     | `cargando` como **única variable** que controla spinner + `:disabled` del botón + mensaje   | `sesion-10/Sesion11SpinnerModal.vue`     |
+| `Sesion11Checkbox3estados.vue` | Filtro tri-estado con contrato `boolean \| null`                                            | `sesion-10/Sesion11Checkbox3estados.vue` |
+| `Sesion11Teleport.vue`         | Modal casero dentro de `.card` con `overflow:hidden` y `<Teleport to="body">`               | `sesion-10/Sesion11Teleport.vue`         |
+| `Sesion11CrudRecursos.vue`     | Integradora: listar, filtrar, crear, editar y eliminar con todos los componentes UA         | `sesion-10/Sesion11CrudRecursos.vue`     |
 
 ::: tip CIERRE DEL BLOQUE VUE
-La integradora `Sesion10CrudRecursos.vue` es el **estado final del bloque Vue**: combina `DialogModal` (crear/editar), `PopUpModal` (confirmar eliminación), `SpinnerModal` (carga inicial), `BotonLoading` (guardar), `Checkbox3estados` (filtro) y `useToast` (avisos). Cuando arranque el bloque de **Integración** (sesión 12), sustituiremos el servicio mock por uno con `useAxios` y esta vista no se tocará.
+La integradora `Sesion11CrudRecursos.vue` es el **estado final del bloque Vue**: combina `DialogModal` (crear/editar), `PopUpModal` (confirmar eliminación), `SpinnerModal` (carga inicial), `BotonLoading` (guardar), `Checkbox3estados` (filtro) y `useToast` (avisos). Cuando arranque el bloque de **Integración** (sesión 12), sustituiremos el servicio mock por uno con `useAxios` y esta vista no se tocará.
 :::
 
 ## 6.11 Siguiente sesión {#siguiente}
@@ -554,7 +554,7 @@ En la sesión 12 (parte de Integración) sustituiremos el servicio mock por llam
 ## Tarea progresiva del proyecto final {#tarea-pf}
 
 ::: tip MÓDULO 1 · CIERRE CLIENTE
-En tu rama `tiporecurso-<nombre>`, construye la pantalla completa de gestión de **tipos de recurso** copiando la receta de `Sesion10CrudRecursos.vue`:
+En tu rama `tiporecurso-<nombre>`, construye la pantalla completa de gestión de **tipos de recurso** copiando la receta de `Sesion11CrudRecursos.vue`:
 
 - Listado en tabla con búsqueda libre y filtro `Activo` con `Checkbox3estados`.
 - Botón **Nuevo** que abre un `DialogModal` con el formulario (multiidioma `NombreEs / NombreCa / NombreEn`).
@@ -631,6 +631,6 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 | Anterior                                                                                                      | Inicio                        | Siguiente                                                                                                       |
 | ------------------------------------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| [← Sesión 10: Arquitectura de componentes y servicios](../../../03-vue/sesiones/sesion-10-arquitectura-apis/) | [Índice del curso](../../../) | [Sesión 12: Llamadas a la API y autenticación →](../../../04-integracion/sesiones/sesion-14-api-autenticacion/) |
+| [← Sesión 10: Arquitectura de componentes y servicios](../../../03-vue/sesiones/sesion-10-arquitectura-apis/) | [Índice del curso](../../../) | [Sesión 12: Llamadas a la API y autenticación →](../../../04-integracion/sesiones/sesion-12-api-autenticacion/) |
 
 <!-- NAV:END -->

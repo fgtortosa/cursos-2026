@@ -149,7 +149,7 @@ Este es el patrón que vamos a generalizar en toda la sesión: **si un valor se 
 
 ## 3.2 Propiedades computadas (`computed`) {#computed}
 
-Una `computed` es un valor que se **calcula automáticamente** a partir de otros datos reactivos. La demo `Sesion8Computed.vue` lo ilustra con el cálculo del IVA:
+Una `computed` es un valor que se **calcula automáticamente** a partir de otros datos reactivos. La demo `Sesion9Computed.vue` lo ilustra con el cálculo del IVA:
 
 ```html
 <script setup lang="ts">
@@ -174,9 +174,9 @@ Una `computed` es un valor que se **calcula automáticamente** a partir de otros
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Computed.vue`. Fíjate en que `precioTotal` depende de `ivaImporte`, que a su vez es otra `computed`: **encadenar computed es válido y eficiente**, Vue solo recalcula las afectadas por el cambio.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-9/Sesion9Computed.vue`. Fíjate en que `precioTotal` depende de `ivaImporte`, que a su vez es otra `computed`: **encadenar computed es válido y eficiente**, Vue solo recalcula las afectadas por el cambio.
 >
-> 🔗 **En la app** · Vista `Sesion8Computed.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-8/computed>
+> 🔗 **En la app** · Vista `Sesion9Computed.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/computed>
 
 ### `computed` vs método
 
@@ -210,7 +210,7 @@ Una `computed` normal es de solo lectura. Si necesitas que también sea **escrib
 </script>
 ```
 
-Está en `Sesion8Computed.vue`. Úsalo solo cuando tengas una "operación inversa" clara; en la mayoría de casos basta con la `computed` de solo lectura.
+Está en `Sesion9Computed.vue`. Úsalo solo cuando tengas una "operación inversa" clara; en la mayoría de casos basta con la `computed` de solo lectura.
 :::
 
 ## 3.3 `computed` en formularios: entrada → derivado → acción {#formularios}
@@ -314,7 +314,7 @@ Empecemos por el caso más simple posible: un hijo que **solo muestra un nombre*
 </template>
 ```
 
-**Padre** (`Sesion8Props.vue`) — le pasa el nombre. Hay **dos formas**, y la diferencia es clave:
+**Padre** (`Sesion9Props.vue`) — le pasa el nombre. Hay **dos formas**, y la diferencia es clave:
 
 ```html
 <script setup lang="ts">
@@ -342,26 +342,26 @@ Escribe en el `<input>` y verás que el saludo cambia en vivo, sin avisar al hij
 Dos componentes, dos formas de invocarlos:
 
 - `SaludoNombre.vue` es un **componente hijo**: no se navega a él por URL. Lo **importa su padre** con `import SaludoNombre from "./SaludoNombre.vue"` y lo usa en su `<template>`. Es como llamar a una función desde otra.
-- `Sesion8Props.vue` (el padre) es una **vista**: una página completa a la que se llega por **URL**. Toda vista se engancha al router con **dos líneas** en `router.ts`:
+- `Sesion9Props.vue` (el padre) es una **vista**: una página completa a la que se llega por **URL**. Toda vista se engancha al router con **dos líneas** en `router.ts`:
 
 ```ts
 // 1) Import del componente de vista.
-import Sesion8Props from "@/views/sesiones-vue/sesion-8/Sesion8Props.vue";
+import Sesion9Props from "@/views/sesiones-vue/sesion-9/Sesion9Props.vue";
 
 // 2) Ruta que lo asocia a una URL.
-{ path: APP_DIR + "/sesiones-vue/sesion-8/props", name: "Sesion8Props", component: Sesion8Props },
+{ path: APP_DIR + "/sesiones-vue/sesion-9/props", name: "Sesion9Props", component: Sesion9Props },
 ```
 
-A partir de ahí, navegar a `…/sesiones-vue/sesion-8/props` muestra esa vista. Recordaremos estas dos líneas (import + ruta) cada vez que aparezca una vista nueva.
+A partir de ahí, navegar a `…/sesiones-vue/sesion-9/props` muestra esa vista. Recordaremos estas dos líneas (import + ruta) cada vez que aparezca una vista nueva.
 :::
 
 ::: warning LOS PROPS SON DE SOLO LECTURA
 Nunca modifiques un prop dentro del hijo (`props.nombre = 'otro'` es un error). Si el hijo necesita cambiar un valor del padre, usa **Emits** (§3.5) o **`defineModel`** (§3.6).
 :::
 
-> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Props.vue` + `SaludoNombre.vue`.
+> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-9/Sesion9Props.vue` + `SaludoNombre.vue`.
 >
-> 🔗 **En la app** · Vistas `Sesion8Props.vue` + `SaludoNombre.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-8/props>
+> 🔗 **En la app** · Vistas `Sesion9Props.vue` + `SaludoNombre.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/props>
 
 ::: details Ver más · Props con valor por defecto (`withDefaults`)
 Si una prop es opcional y quieres un valor por defecto:
@@ -410,7 +410,7 @@ Ampliamos `SaludoNombre.vue` con un botón "Saludar". Al pulsarlo, el hijo **emi
 </template>
 ```
 
-**Padre** (`Sesion8PropsEmits.vue`) — escucha `@saludar`, guarda quién fue y un `watch` lo registra en consola:
+**Padre** (`Sesion9PropsEmits.vue`) — escucha `@saludar`, guarda quién fue y un `watch` lo registra en consola:
 
 ```html
 <script setup lang="ts">
@@ -469,7 +469,7 @@ El nombre es un dato que **viene del padre**. Pero un hijo también puede tener 
 ```
 
 ```html
-<!-- Sesion8PropsEmits.vue (padre) -->
+<!-- Sesion9PropsEmits.vue (padre) -->
 <template>
   <!-- $event lleva el dato del emit; lo envolvemos para añadir el origen. -->
   <TarjetaContador
@@ -483,9 +483,9 @@ El nombre es un dato que **viene del padre**. Pero un hijo también puede tener 
 </template>
 ```
 
-> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/SaludoNombre.vue` + `TarjetaContador.vue` + `Sesion8PropsEmits.vue`. Cada hijo tiene su propia identidad (su nombre, su contador): Vue **no comparte estado** entre instancias del mismo componente, y el padre solo se entera de los cambios porque el hijo los emite.
+> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-9/SaludoNombre.vue` + `TarjetaContador.vue` + `Sesion9PropsEmits.vue`. Cada hijo tiene su propia identidad (su nombre, su contador): Vue **no comparte estado** entre instancias del mismo componente, y el padre solo se entera de los cambios porque el hijo los emite.
 >
-> 🔗 **En la app** · Vistas `Sesion8PropsEmits.vue` + `SaludoNombre.vue` + `TarjetaContador.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-8/props-emits>
+> 🔗 **En la app** · Vistas `Sesion9PropsEmits.vue` + `SaludoNombre.vue` + `TarjetaContador.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/props-emits>
 
 ## Ejercicio 1: dos contadores {#ejercicio-1}
 
@@ -548,7 +548,7 @@ flowchart LR
 
 <!-- diagram id="s11-define-model" caption: "defineModel resume prop + emit en una sola declaración bidireccional" -->
 
-La demo `Sesion8DefineModel.vue` usa `InputEditable.vue` (un input con etiqueta y botón "Limpiar"):
+La demo `Sesion9DefineModel.vue` usa `InputEditable.vue` (un input con etiqueta y botón "Limpiar"):
 
 ```html
 <!-- InputEditable.vue (hijo) -->
@@ -575,7 +575,7 @@ La demo `Sesion8DefineModel.vue` usa `InputEditable.vue` (un input con etiqueta 
 ```
 
 ```html
-<!-- Sesion8DefineModel.vue (padre) -->
+<!-- Sesion9DefineModel.vue (padre) -->
 <script setup lang="ts">
   import { ref } from "vue";
   import InputEditable from "./InputEditable.vue";
@@ -591,9 +591,9 @@ La demo `Sesion8DefineModel.vue` usa `InputEditable.vue` (un input con etiqueta 
 </template>
 ```
 
-> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8DefineModel.vue` + `InputEditable.vue`.
+> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-9/Sesion9DefineModel.vue` + `InputEditable.vue`.
 >
-> 🔗 **En la app** · Vistas `Sesion8DefineModel.vue` + `InputEditable.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-8/define-model>
+> 🔗 **En la app** · Vistas `Sesion9DefineModel.vue` + `InputEditable.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/define-model>
 
 ::: tip CUÁNDO USAR CADA PATRÓN
 
@@ -647,7 +647,7 @@ flowchart TB
 
 <!-- diagram id="s11-computed-vs-watch" caption: "computed deriva y cachea; watch reacciona a un cambio para ejecutar un efecto" -->
 
-La demo `Sesion8Watchers.vue` observa un input de búsqueda y registra cada cambio:
+La demo `Sesion9Watchers.vue` observa un input de búsqueda y registra cada cambio:
 
 ```html
 <script setup lang="ts">
@@ -676,9 +676,9 @@ La demo `Sesion8Watchers.vue` observa un input de búsqueda y registra cada camb
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Watchers.vue`. Si el efecto fuera una llamada a una API (autocompletar al teclear), habría que añadir _debounce_ o cancelación: cada tecla dispara el `watch`.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-9/Sesion9Watchers.vue`. Si el efecto fuera una llamada a una API (autocompletar al teclear), habría que añadir _debounce_ o cancelación: cada tecla dispara el `watch`.
 >
-> 🔗 **En la app** · Vista `Sesion8Watchers.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-8/watchers>
+> 🔗 **En la app** · Vista `Sesion9Watchers.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/watchers>
 
 ::: warning NO USES `watch` PARA DERIVAR
 Si te encuentras con un `watch` que cambia otro `ref` para "mantenerlo sincronizado" con el primero, eso casi siempre debería ser un `computed`. Usa `watch` solo para **efectos**.
@@ -691,7 +691,7 @@ Si te encuentras con un `watch` que cambia otro `ref` para "mantenerlo sincroniz
 watch(recurso, (nuevo) => console.log(nuevo), { deep: true, immediate: true });
 ```
 
-`watchEffect` detecta solas sus dependencias (lo que lee dentro) y se ejecuta al montar. En el código de la UA aparece poco; la mayoría de casos se resuelven con `watch` explícito. La demo `Sesion8Watchers.vue` muestra los dos lado a lado.
+`watchEffect` detecta solas sus dependencias (lo que lee dentro) y se ejecuta al montar. En el código de la UA aparece poco; la mayoría de casos se resuelven con `watch` explícito. La demo `Sesion9Watchers.vue` muestra los dos lado a lado.
 :::
 
 ## 3.8 `onMounted` y carga asíncrona {#onmounted}
@@ -709,7 +709,7 @@ flowchart LR
 
 <!-- diagram id="s11-lifecycle" caption: "Los tres momentos del ciclo de vida que de verdad usarás" -->
 
-La demo `Sesion8Lifecycle.vue` simula la espera de una API con `setTimeout`:
+La demo `Sesion9Lifecycle.vue` simula la espera de una API con `setTimeout`:
 
 ```html
 <script setup lang="ts">
@@ -755,9 +755,9 @@ La demo `Sesion8Lifecycle.vue` simula la espera de una API con `setTimeout`:
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Lifecycle.vue`. Allí, en lugar del `<p v-if="cargando">`, el spinner es el componente **`<SpinnerModal v-model:visible="cargando">`** de `@vueua/components`: una sola variable `cargando` gobierna a la vez el modal, el `:disabled` del botón y el `v-if` de la lista.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-9/Sesion9Lifecycle.vue`. Allí, en lugar del `<p v-if="cargando">`, el spinner es el componente **`<SpinnerModal v-model:visible="cargando">`** de `@vueua/components`: una sola variable `cargando` gobierna a la vez el modal, el `:disabled` del botón y el `v-if` de la lista.
 >
-> 🔗 **En la app** · Vista `Sesion8Lifecycle.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-8/lifecycle>
+> 🔗 **En la app** · Vista `Sesion9Lifecycle.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/lifecycle>
 
 ::: tip BUENA PRÁCTICA
 
@@ -771,7 +771,7 @@ Cuando este código crezca (varias vistas listan recursos, hay crear/editar/elim
 
 ## 3.9 Slots: estructura visual reutilizable {#slots}
 
-Los **slots** son "huecos" que el padre rellena con el contenido que quiera. Permiten crear componentes visuales reutilizables sin inventar veinte props. La demo `Sesion8Slots.vue` usa `TarjetaUA.vue` con tres slots:
+Los **slots** son "huecos" que el padre rellena con el contenido que quiera. Permiten crear componentes visuales reutilizables sin inventar veinte props. La demo `Sesion9Slots.vue` usa `TarjetaUA.vue` con tres slots:
 
 ```html
 <!-- TarjetaUA.vue (hijo) -->
@@ -791,7 +791,7 @@ Los **slots** son "huecos" que el padre rellena con el contenido que quiera. Per
 ```
 
 ```html
-<!-- Sesion8Slots.vue (padre) -->
+<!-- Sesion9Slots.vue (padre) -->
 <TarjetaUA>
   <template #cabecera>🗓️ Reserva confirmada</template>
 
@@ -807,9 +807,9 @@ Los **slots** son "huecos" que el padre rellena con el contenido que quiera. Per
 </TarjetaUA>
 ```
 
-> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-8/Sesion8Slots.vue` + `TarjetaUA.vue`. Cada slot puede tener un _fallback_ (el contenido por defecto cuando el padre no rellena ese hueco). Cuando veas `<DialogModal>` en la [sesión 11](../sesion-11-componentes-ua/), sus slots `#header / #body / #buttons` son exactamente este patrón.
+> Ficheros reales: `ClientApp/src/views/sesiones-vue/sesion-9/Sesion9Slots.vue` + `TarjetaUA.vue`. Cada slot puede tener un _fallback_ (el contenido por defecto cuando el padre no rellena ese hueco). Cuando veas `<DialogModal>` en la [sesión 11](../sesion-11-componentes-ua/), sus slots `#header / #body / #buttons` son exactamente este patrón.
 >
-> 🔗 **En la app** · Vistas `Sesion8Slots.vue` + `TarjetaUA.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-8/slots>
+> 🔗 **En la app** · Vistas `Sesion9Slots.vue` + `TarjetaUA.vue` · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/slots>
 
 ## 3.10 Criterio de elección {#criterio}
 
@@ -830,30 +830,30 @@ Los **slots** son "huecos" que el padre rellena con el contenido que quiera. Per
 Y si dudas entre dos enfoques, elige el que deje **una única fuente de verdad** del estado.
 :::
 
-> `provide`/`inject` (compartir datos sin pasar props por cada nivel) y Pinia se ven más adelante, en la [sesión 18 — Estado global y persistencia](../../../05-avanzadas/sesiones/sesion-20-estado-persistencia/). No es el primer mecanismo que conviene aprender.
+> `provide`/`inject` (compartir datos sin pasar props por cada nivel) y Pinia se ven más adelante, en la [sesión 18 — Estado global y persistencia](../../../05-avanzadas/sesiones/sesion-18-estado-persistencia/). No es el primer mecanismo que conviene aprender.
 
 ## 3.11 Pruébalo en el proyecto {#sandbox}
 
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-8/` hay varias demos navegables. Arranca la app (`pnpm local`) y entra en <https://localhost:44306/uareservas/sesiones-vue/sesion-8>:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-9/` hay varias demos navegables. Arranca la app (`pnpm local`) y entra en <https://localhost:44306/uareservas/sesiones-vue/sesion-9>:
 
 | Demo (vista)                   | Concepto que ilustra                                                  | URL en la app                                              |
 | ------------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `Sesion8Computed.vue`          | `computed` con dependencias (IVA)                                     | `/uareservas/sesiones-vue/sesion-8/computed`              |
-| `Sesion8Props.vue` + `SaludoNombre.vue` | Padre → hijo (`nombre`): literal vs variable reactiva       | `/uareservas/sesiones-vue/sesion-8/props`                |
-| `Sesion8PropsEmits.vue` + `SaludoNombre.vue` + `TarjetaContador.vue` | Hijo → padre: emite su nombre (`@saludar` + `watch`) y el contador | `/uareservas/sesiones-vue/sesion-8/props-emits` |
-| `Sesion8DefineModel.vue` + `InputEditable.vue` | `v-model` sobre un componente (`InputEditable`)     | `/uareservas/sesiones-vue/sesion-8/define-model`        |
-| `Sesion8Watchers.vue`          | `watch` (y `watchEffect`) con historial visible                       | `/uareservas/sesiones-vue/sesion-8/watchers`            |
-| `Sesion8Lifecycle.vue`         | `onMounted` + carga async + `Modal` de la UA                          | `/uareservas/sesiones-vue/sesion-8/lifecycle`           |
-| `Sesion8Slots.vue` + `TarjetaUA.vue` | Tres slots con _fallback_ en `TarjetaUA`                        | `/uareservas/sesiones-vue/sesion-8/slots`               |
-| `Sesion8FormularioReserva.vue` | **Integradora**: `computed` + `defineModel` + slots (sin API todavía) | `/uareservas/sesiones-vue/sesion-8/formulario-reserva`  |
+| `Sesion9Computed.vue`          | `computed` con dependencias (IVA)                                     | `/uareservas/sesiones-vue/sesion-9/computed`              |
+| `Sesion9Props.vue` + `SaludoNombre.vue` | Padre → hijo (`nombre`): literal vs variable reactiva       | `/uareservas/sesiones-vue/sesion-9/props`                |
+| `Sesion9PropsEmits.vue` + `SaludoNombre.vue` + `TarjetaContador.vue` | Hijo → padre: emite su nombre (`@saludar` + `watch`) y el contador | `/uareservas/sesiones-vue/sesion-9/props-emits` |
+| `Sesion9DefineModel.vue` + `InputEditable.vue` | `v-model` sobre un componente (`InputEditable`)     | `/uareservas/sesiones-vue/sesion-9/define-model`        |
+| `Sesion9Watchers.vue`          | `watch` (y `watchEffect`) con historial visible                       | `/uareservas/sesiones-vue/sesion-9/watchers`            |
+| `Sesion9Lifecycle.vue`         | `onMounted` + carga async + `Modal` de la UA                          | `/uareservas/sesiones-vue/sesion-9/lifecycle`           |
+| `Sesion9Slots.vue` + `TarjetaUA.vue` | Tres slots con _fallback_ en `TarjetaUA`                        | `/uareservas/sesiones-vue/sesion-9/slots`               |
+| `Sesion9FormularioReserva.vue` | **Integradora**: `computed` + `defineModel` + slots (sin API todavía) | `/uareservas/sesiones-vue/sesion-9/formulario-reserva`  |
 
 ::: tip LA DEMO INTEGRADORA
-`Sesion8FormularioReserva.vue` lo reúne todo: `puedeReservar` es un `computed` que habilita el botón solo si los tres campos son válidos, `InputEditable` usa `defineModel` y `TarjetaUA` aporta la estructura con slots. Cuando en la sesión 11 cambies `TarjetaUA` por `DialogModal`, el resto del código apenas se toca.
+`Sesion9FormularioReserva.vue` lo reúne todo: `puedeReservar` es un `computed` que habilita el botón solo si los tres campos son válidos, `InputEditable` usa `defineModel` y `TarjetaUA` aporta la estructura con slots. Cuando en la sesión 11 cambies `TarjetaUA` por `DialogModal`, el resto del código apenas se toca.
 :::
 
 ::: details Demos adicionales (avanzado, opcional)
 
-- `Sesion8PropsEmitsModal.vue`: compara la API **declarativa** (`v-model:visible`) con la **imperativa** (`ref + show()`) de `PopUpModal`. Es material de la sesión 11; déjalo para cuando domines props/emits. URL: <https://localhost:44306/uareservas/sesiones-vue/sesion-8/modal-comparativo>
+- `Sesion9PropsEmitsModal.vue`: compara la API **declarativa** (`v-model:visible`) con la **imperativa** (`ref + show()`) de `PopUpModal`. Es material de la sesión 11; déjalo para cuando domines props/emits. URL: <https://localhost:44306/uareservas/sesiones-vue/sesion-9/modal-comparativo>
   :::
 
 ---

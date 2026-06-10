@@ -373,7 +373,7 @@ Con `const` no decimos "el dato no cambia". Decimos "esta referencia reactiva no
 
 ### `ref` — Referencia reactiva
 
-`ref` crea una referencia reactiva a cualquier valor. El núcleo de la demo `Sesion6HolaVue.vue` del sandbox es justo eso: dos botones cambian un mismo `ref<string>` y el saludo se actualiza solo, sin que escribamos nada para tocar el DOM.
+`ref` crea una referencia reactiva a cualquier valor. El núcleo de la demo `Sesion7HolaVue.vue` del sandbox es justo eso: dos botones cambian un mismo `ref<string>` y el saludo se actualiza solo, sin que escribamos nada para tocar el DOM.
 
 ```html
 <script setup lang="ts">
@@ -404,7 +404,7 @@ Con `const` no decimos "el dato no cambia". Decimos "esta referencia reactiva no
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6HolaVue.vue`. El fichero del sandbox añade además una **foto** de la mascota — la dejamos como ampliación porque usa `computed` y `v-if`, que verás en las sesiones 10 y 11.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7HolaVue.vue`. El fichero del sandbox añade además una **foto** de la mascota — la dejamos como ampliación porque usa `computed` y `v-if`, que verás en las sesiones 10 y 11.
 
 ::: details AMPLIACIÓN — mostrar la foto de la mascota (`computed` + `v-if`)
 La demo real deriva la URL de la foto con una `computed` y la muestra con `v-if`. No necesitas dominar esto todavía; es un adelanto de las sesiones 10 (`v-if`) y 11 (`computed`):
@@ -451,7 +451,7 @@ Si olvidas `.value` en el script, el código no funciona. Si pones `.value` en e
 
 ### `reactive` — Objeto reactivo
 
-Para **objetos** existe `reactive`. La demo `Sesion6RefVsReactive.vue` coloca un `ref` y un `reactive` lado a lado para que se vea la diferencia:
+Para **objetos** existe `reactive`. La demo `Sesion7RefVsReactive.vue` coloca un `ref` y un `reactive` lado a lado para que se vea la diferencia:
 
 ```html
 <script setup lang="ts">
@@ -484,7 +484,7 @@ Para **objetos** existe `reactive`. La demo `Sesion6RefVsReactive.vue` coloca un
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6RefVsReactive.vue`.
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7RefVsReactive.vue`.
 
 ### `ref` vs `reactive` — Cuándo usar cada uno
 
@@ -524,11 +524,11 @@ const tipoSeleccionado = ref<ITipoRecurso | null>(null);
 const cargando = ref<boolean>(false);
 ```
 
-> La demo integradora **`Sesion6DemoTipoRecurso.vue`** aplica estos tres patrones con un mock local. En la sesión 12 cambiaremos el mock por una llamada real al servicio (`apiTiposRecurso.listar()` — definido en `services/api/apiTiposRecurso.ts`) y la vista apenas se moverá. Ese es el sentido de la interface: la vista no sabe quién le pasa los datos.
+> La demo integradora **`Sesion7DemoTipoRecurso.vue`** aplica estos tres patrones con un mock local. En la sesión 12 cambiaremos el mock por una llamada real al servicio (`apiTiposRecurso.listar()` — definido en `services/api/apiTiposRecurso.ts`) y la vista apenas se moverá. Ese es el sentido de la interface: la vista no sabe quién le pasa los datos.
 
 ## 1.5 Interpolación: mostrar datos en el template {#interpolacion}
 
-Usa llaves dobles <code v-pre>{{ }}</code> para mostrar valores reactivos en el template. La demo `Sesion6Interpolacion.vue` agrupa los siete usos típicos partiendo de un objeto `persona`:
+Usa llaves dobles <code v-pre>{{ }}</code> para mostrar valores reactivos en el template. La demo `Sesion7Interpolacion.vue` agrupa los siete usos típicos partiendo de un objeto `persona`:
 
 ```html
 <script setup lang="ts">
@@ -574,7 +574,7 @@ Usa llaves dobles <code v-pre>{{ }}</code> para mostrar valores reactivos en el 
 </template>
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6Interpolacion.vue`. El objeto `persona` se usa por comodidad didáctica (campos variados: string, number, array, union type). Los **siete patrones** funcionan idénticamente sobre los DTOs del proyecto:
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7Interpolacion.vue`. El objeto `persona` se usa por comodidad didáctica (campos variados: string, number, array, union type). Los **siete patrones** funcionan idénticamente sobre los DTOs del proyecto:
 
 ```html
 <!-- Los mismos siete patrones aplicados a TipoRecurso. -->
@@ -594,7 +594,7 @@ Usa llaves dobles <code v-pre>{{ }}</code> para mostrar valores reactivos en el 
 <!-- 7 -->
 ```
 
-Esto es exactamente lo que hace la demo integradora **`Sesion6DemoTipoRecurso.vue`** (sandbox §1.7): mismo objeto que en .NET, mismo patrón de interpolación.
+Esto es exactamente lo que hace la demo integradora **`Sesion7DemoTipoRecurso.vue`** (sandbox §1.7): mismo objeto que en .NET, mismo patrón de interpolación.
 
 ::: warning IMPORTANTE
 La interpolación solo acepta **expresiones** (que devuelven un valor). No acepta sentencias como `if`, `for` o asignaciones (<code v-pre>{{ x = 5 }}</code> está prohibido). Para lógica condicional en templates usamos directivas (`v-if`, `v-for`), que veremos en la sesión 10.
@@ -662,7 +662,7 @@ function incrementar() {
 }
 ```
 
-> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6Depuracion.vue` (botón "3. group + count + time").
+> Fichero real: `ClientApp/src/views/sesiones-vue/sesion-7/Sesion7Depuracion.vue` (botón "3. group + count + time").
 > :::
 
 ### 1.6.3 Pausar el código: `debugger` y breakpoints {#debugger}
@@ -757,19 +757,19 @@ Implicaciones prácticas:
 
 ## 1.7 Pruébalo en el proyecto {#sandbox}
 
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-6/` viven seis demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-6`:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-7/` viven seis demos navegables, una por concepto. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-7`:
 
 | Demo                          | Concepto que ilustra                                                             | Fichero                                |
 | ----------------------------- | -------------------------------------------------------------------------------- | -------------------------------------- |
-| `Sesion6HolaVue.vue`          | Estructura `.vue` mínima, `ref<string>`, `v-model`                               | `sesion-6/Sesion6HolaVue.vue`          |
-| `Sesion6TypeScriptBasico.vue` | Primitivos, arrays, `const`/`let`, union types, `any` vs `unknown`               | `sesion-6/Sesion6TypeScriptBasico.vue` |
-| `Sesion6RefVsReactive.vue`    | Dos contadores lado a lado: `ref<number>` vs `reactive({...})`                   | `sesion-6/Sesion6RefVsReactive.vue`    |
-| `Sesion6Interpolacion.vue`    | Los siete usos típicos de <code v-pre>{{ ... }}</code> sobre un objeto `persona` | `sesion-6/Sesion6Interpolacion.vue`    |
-| `Sesion6DemoTipoRecurso.vue`  | Demo integradora con un `TipoRecursoLectura[]` mock y navegación                 | `sesion-6/Sesion6DemoTipoRecurso.vue`  |
-| `Sesion6Depuracion.vue`       | Variantes de `console`, diferencia `ref` vs `ref.value` en consola y `debugger`  | `sesion-6/Sesion6Depuracion.vue`       |
+| `Sesion7HolaVue.vue`          | Estructura `.vue` mínima, `ref<string>`, `v-model`                               | `sesion-6/Sesion7HolaVue.vue`          |
+| `Sesion7TypeScriptBasico.vue` | Primitivos, arrays, `const`/`let`, union types, `any` vs `unknown`               | `sesion-6/Sesion7TypeScriptBasico.vue` |
+| `Sesion7RefVsReactive.vue`    | Dos contadores lado a lado: `ref<number>` vs `reactive({...})`                   | `sesion-6/Sesion7RefVsReactive.vue`    |
+| `Sesion7Interpolacion.vue`    | Los siete usos típicos de <code v-pre>{{ ... }}</code> sobre un objeto `persona` | `sesion-6/Sesion7Interpolacion.vue`    |
+| `Sesion7DemoTipoRecurso.vue`  | Demo integradora con un `TipoRecursoLectura[]` mock y navegación                 | `sesion-6/Sesion7DemoTipoRecurso.vue`  |
+| `Sesion7Depuracion.vue`       | Variantes de `console`, diferencia `ref` vs `ref.value` en consola y `debugger`  | `sesion-6/Sesion7Depuracion.vue`       |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
-Abre cada fichero en VS Code, lee el `<script setup>` y luego el `<template>`. Modifica un valor, guarda y observa cómo Vue redibuja **solo** lo que ha cambiado. La integradora `Sesion6DemoTipoRecurso.vue` ya usa el mismo DTO (`TipoRecursoLectura`) que devolverá la API real en la sesión 12; cambiar el mock por una llamada axios no toca el template.
+Abre cada fichero en VS Code, lee el `<script setup>` y luego el `<template>`. Modifica un valor, guarda y observa cómo Vue redibuja **solo** lo que ha cambiado. La integradora `Sesion7DemoTipoRecurso.vue` ya usa el mismo DTO (`TipoRecursoLectura`) que devolverá la API real en la sesión 12; cambiar el mock por una llamada axios no toca el template.
 :::
 
 ## 1.8 Lo que viene en las próximas sesiones {#preview}

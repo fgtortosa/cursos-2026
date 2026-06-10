@@ -12,9 +12,9 @@ Las preguntas cubren **solo** lo que se enseña en esta sesión: separación de 
 
 Los temas relacionados que se cubren en otras sesiones tienen su propio test:
 
-- `HandleResult` interno (mapeo `ErrorType` → HTTP), `ProblemDetails` / `ValidationProblemDetails` detallados, `ErrorPaquetePlSql.DesdeCodigo` → [Sesión 16](../../../04-integracion/sesiones/sesion-16-errores/).
-- Tests xUnit con `OracleTestFixture`, `[SkippableFact]`, fakes → [Sesión 21](../../../05-avanzadas/sesiones/sesion-21-tests-calidad/).
-- FluentValidation y localización → [Sesión 15](../../../04-integracion/sesiones/sesion-15-validacion/).
+- `HandleResult` interno (mapeo `ErrorType` → HTTP), `ProblemDetails` / `ValidationProblemDetails` detallados, `ErrorPaquetePlSql.DesdeCodigo` → [Sesión 14](../../../04-integracion/sesiones/sesion-14-errores/).
+- Tests xUnit con `OracleTestFixture`, `[SkippableFact]`, fakes → [Sesión 19](../../../05-avanzadas/sesiones/sesion-19-tests-calidad/).
+- FluentValidation y localización → [Sesión 13](../../../04-integracion/sesiones/sesion-13-validacion/).
   :::
 
 ## Pregunta 1

@@ -1241,7 +1241,7 @@ Una API sin documentación es una API que **nadie sabe cómo usar**. **Scalar** 
 - **Cómo documentar bien un endpoint** (XML + atributos `[ProducesResponseType]`).
 - **Cómo usar Scalar** para probar la API.
 - **Cómo cambiar el idioma** de la petición para ver el cambio en los textos de error.
-- **Recordatorio del formato de errores** (`ProblemDetails` / `ValidationProblemDetails`) con remisión a la **[sesión 16 — Gestión de errores](../../../04-integracion/sesiones/sesion-16-errores/)** para el ciclo completo (Result&lt;T&gt;, HandleResult, `useGestionFormularios`, toasts, notificación al equipo).
+- **Recordatorio del formato de errores** (`ProblemDetails` / `ValidationProblemDetails`) con remisión a la **[sesión 14 — Gestión de errores](../../../04-integracion/sesiones/sesion-14-errores/)** para el ciclo completo (Result&lt;T&gt;, HandleResult, `useGestionFormularios`, toasts, notificación al equipo).
 
 ::: info CONTEXTO — el setup ya está hecho, no hay que tocarlo
 `uaReservas` ya tiene los paquetes (`Microsoft.AspNetCore.OpenApi`, `Scalar.AspNetCore`, `Scalar.AspNetCore.Microsoft`) en el `.csproj` y el wiring en `Program.cs` (`builder.Services.AddOpenApi(...)`, `app.MapOpenApi()`, `app.MapScalarApiReference(...)` dentro del `if (Development || Staging)`). En esta sección nos centramos en **cómo usarlo**, no en cómo se monta.
@@ -1360,12 +1360,12 @@ Los errores HTTP en el curso siempre viajan en JSON con dos formas estandarizada
 Todo el ciclo completo — anatomía del `Error`, mapeo `Result<T>` → HTTP, mensajes Oracle (`#…#`), formularios Vue con `useGestionFormularios` y `peticion<T>`, toasts y notificación al equipo — vive en una sola sesión:
 
 ::: tip → Sesión 16 · Gestión de errores de extremo a extremo
-[**Ir a la sesión 16**](../../../04-integracion/sesiones/sesion-16-errores/). Las anclas clave para esta sesión son:
+[**Ir a la sesión 14**](../../../04-integracion/sesiones/sesion-14-errores/). Las anclas clave para esta sesión son:
 
-- §13.0 — [Las dos formas JSON del error](../../../04-integracion/sesiones/sesion-16-errores/#formas-json) (los ejemplos `ProblemDetails` / `ValidationProblemDetails` y cómo provocarlos desde Scalar).
-- §13.2.4 — [`HandleResult`: el traductor único `Result<T>` → HTTP](../../../04-integracion/sesiones/sesion-16-errores/#handleresult).
-- §13.7.0 — [El interceptor de `useAxios`: `.then` para 2xx, `.catch` para todo lo demás](../../../04-integracion/sesiones/sesion-16-errores/#interceptor-useaxios).
-- §13.7.5 — [Patrón canónico de formulario con `TipoRecursoCrearDto`](../../../04-integracion/sesiones/sesion-16-errores/#patron-formulario).
+- §13.0 — [Las dos formas JSON del error](../../../04-integracion/sesiones/sesion-14-errores/#formas-json) (los ejemplos `ProblemDetails` / `ValidationProblemDetails` y cómo provocarlos desde Scalar).
+- §13.2.4 — [`HandleResult`: el traductor único `Result<T>` → HTTP](../../../04-integracion/sesiones/sesion-14-errores/#handleresult).
+- §13.7.0 — [El interceptor de `useAxios`: `.then` para 2xx, `.catch` para todo lo demás](../../../04-integracion/sesiones/sesion-14-errores/#interceptor-useaxios).
+- §13.7.5 — [Patrón canónico de formulario con `TipoRecursoCrearDto`](../../../04-integracion/sesiones/sesion-14-errores/#patron-formulario).
   :::
 
 En esta sesión basta con que recuerdes lo mínimo para diseñar bien los endpoints:
@@ -1397,10 +1397,10 @@ Aplicar esta lista a cualquier controlador nuevo:
 Una vez documentada la API con Scalar (§1.5), todavía falta probarla "como la verá Vue": cookie de sesión, cabecera `X-Idioma`, JSON real en `<pre>`. El **recorrido guiado** (DevTools + Scalar + probador `Home.vue` con `peticion<T>` + `gestionarError`) vive en una sola sesión:
 
 ::: tip → Sesión 14 · Llamadas a la API y autenticación
-[**Ir a la sesión 14**](../../../04-integracion/sesiones/sesion-14-api-autenticacion/). Anclas clave para esta sesión:
+[**Ir a la sesión 12**](../../../04-integracion/sesiones/sesion-12-api-autenticacion/). Anclas clave para esta sesión:
 
-- §11.6.3 — [Tres formas equivalentes de invocar la API en local (DevTools / Scalar / `Home.vue`)](../../../04-integracion/sesiones/sesion-14-api-autenticacion/#tres-formas).
-- §11.6.4 — [El probador `Home.vue` por dentro](../../../04-integracion/sesiones/sesion-14-api-autenticacion/#probador-home) (código, `peticion<T>`, `gestionarError` y recorrido guiado en 5 pasos).
+- §11.6.3 — [Tres formas equivalentes de invocar la API en local (DevTools / Scalar / `Home.vue`)](../../../04-integracion/sesiones/sesion-12-api-autenticacion/#tres-formas).
+- §11.6.4 — [El probador `Home.vue` por dentro](../../../04-integracion/sesiones/sesion-12-api-autenticacion/#probador-home) (código, `peticion<T>`, `gestionarError` y recorrido guiado en 5 pasos).
   :::
 
 Lo único que necesitas recordar **hoy** para terminar el ejercicio §1.9:

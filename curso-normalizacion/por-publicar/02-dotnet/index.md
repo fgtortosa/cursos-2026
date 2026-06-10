@@ -35,10 +35,10 @@ Los temas de validación avanzada, gestión de errores global, DataTable y consu
 
 | Sesión integración                                                                        | Contenido .NET relacionado                                  |
 | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| [Sesión 14: API y autenticación](../04-integracion/sesiones/sesion-14-api-autenticacion/) | OpenAPI, Scalar, claims, CAS+JWT cookies                    |
-| [Sesión 15: Validación](../04-integracion/sesiones/sesion-15-validacion/)                 | DataAnnotations, FluentValidation, localización de mensajes |
-| [Sesión 16: Errores](../04-integracion/sesiones/sesion-16-errores/)                       | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts  |
-| [Sesión 17: DataTable](../04-integracion/sesiones/sesion-17-datatable/)                   | Paginación, filtros y ordenación en servidor                |
+| [Sesión 12: API y autenticación](../04-integracion/sesiones/sesion-12-api-autenticacion/) | OpenAPI, Scalar, claims, CAS+JWT cookies                    |
+| [Sesión 13: Validación](../04-integracion/sesiones/sesion-13-validacion/)                 | DataAnnotations, FluentValidation, localización de mensajes |
+| [Sesión 14: Errores](../04-integracion/sesiones/sesion-14-errores/)                       | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts  |
+| [Sesión 15: DataTable](../04-integracion/sesiones/sesion-15-datatable/)                   | Paginación, filtros y ordenación en servidor                |
 
 :::
 

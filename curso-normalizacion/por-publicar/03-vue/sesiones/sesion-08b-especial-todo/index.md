@@ -720,7 +720,7 @@ Aquí está la idea central de la sesión. El TODO era el juguete; las **reserva
 Pon los dos componentes lado a lado (pestaña TODO y pestaña reservas). Son **el mismo componente** con otros nombres. El mensaje para la cámara: _cuando domines este patrón, montar el CRUD de cualquier entidad —tipos de recurso, recursos, reservas— es repetir esta misma estructura_.
 :::
 
-> Demo equivalente en el repo: `SesionEspecialReservas.vue`. Es prácticamente idéntico a `Sesion7ListaReservas.vue` de la [Sesión 8](../sesion-08-directivas-eventos/#eventos), que añade además un bloque "Resumen" con `v-for` sobre un objeto.
+> Demo equivalente en el repo: `SesionEspecialReservas.vue`. Es prácticamente idéntico a `Sesion8ListaReservas.vue` de la [Sesión 8](../sesion-08-directivas-eventos/#eventos), que añade además un bloque "Resumen" con `v-for` sobre un objeto.
 
 ## Paso 9 — Y después… la aplicación {#paso-9}
 
@@ -744,8 +744,8 @@ Lo importante: **el `<template>` casi no cambia**. Lo único que se sustituye es
 ::: info DÓNDE VERLO EN LA APP
 
 - **Servicio mock:** `uaReservas/ClientApp/src/services/recursosServicioMock.ts` — simula la API con datos en memoria, para trabajar el cliente sin backend.
-- **`useAxios`:** composable de `@vueua/components` que hace las llamadas HTTP reales con renovación de token CAS/JWT. Se introduce en la [Sesión 12](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
-- **El CRUD completo de verdad:** `sesiones-vue/sesion-10/Sesion10CrudRecursos.vue` — combina este patrón con modales, toasts y confirmación de borrado (componentes UA de la [Sesión 11](../sesion-11-componentes-ua/)).
+- **`useAxios`:** composable de `@vueua/components` que hace las llamadas HTTP reales con renovación de token CAS/JWT. Se introduce en la [Sesión 12](../../../04-integracion/sesiones/sesion-12-api-autenticacion/).
+- **El CRUD completo de verdad:** `sesiones-vue/sesion-11/Sesion11CrudRecursos.vue` — combina este patrón con modales, toasts y confirmación de borrado (componentes UA de la [Sesión 11](../sesion-11-componentes-ua/)).
   :::
 
 ::: warning ESTO NO ES MAGIA, ES EL MISMO PATRÓN
@@ -781,7 +781,7 @@ Abre `SesionEspecialTodo.vue` con **F12** y, mientras marcas/borras tareas, obse
 - [Sesión 08: Directivas, eventos y datos](../sesion-08-directivas-eventos/) — la teoría completa de `v-for`, `v-model`, eventos y `:class`.
 - [Sesión 09: Componentes y comunicación](../sesion-09-componentes-estado/) — `computed`, props y emits para extraer cada fila a su propio componente.
 - [Sesión 11: Otros componentes internos](../sesion-11-componentes-ua/) — modales, toasts y el CRUD con componentes UA.
-- [Sesión 12: Llamadas a la API y autenticación](../../../04-integracion/sesiones/sesion-14-api-autenticacion/) — sustituir el array fijo por `useAxios`.
+- [Sesión 12: Llamadas a la API y autenticación](../../../04-integracion/sesiones/sesion-12-api-autenticacion/) — sustituir el array fijo por `useAxios`.
 
 <!-- NAV:START -->
 

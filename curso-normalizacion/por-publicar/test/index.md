@@ -69,90 +69,90 @@ Material de evaluación para todas las sesiones del curso, agrupado por bloque. 
 - [Autoevaluación](../02-dotnet/test/sesion-08/autoevaluacion.md)
 - [Práctica IA-fix](../02-dotnet/test/sesion-08/practica-ia-fix.md)
 
-## Bloque Integración — Sesiones 14 a 17
+## Bloque Integración — Sesiones 12 a 15
 
-### Sesión 14 — Llamadas a la API y autenticación
+### Sesión 12 — Llamadas a la API y autenticación
+
+- [Preguntas](../04-integracion/test/sesion-12/preguntas.md)
+- [Respuestas](../04-integracion/test/sesion-12/respuestas.md)
+- [Autoevaluación](../04-integracion/test/sesion-12/autoevaluacion.md)
+- [Práctica IA-fix](../04-integracion/test/sesion-12/practica-ia-fix.md)
+
+### Sesión 13 — Validación en todas las capas
+
+- [Preguntas](../04-integracion/test/sesion-13/preguntas.md)
+- [Respuestas](../04-integracion/test/sesion-13/respuestas.md)
+- [Autoevaluación](../04-integracion/test/sesion-13/autoevaluacion.md)
+- [Práctica IA-fix](../04-integracion/test/sesion-13/practica-ia-fix.md)
+
+### Sesión 14 — Gestión de errores de extremo a extremo
 
 - [Preguntas](../04-integracion/test/sesion-14/preguntas.md)
 - [Respuestas](../04-integracion/test/sesion-14/respuestas.md)
 - [Autoevaluación](../04-integracion/test/sesion-14/autoevaluacion.md)
 - [Práctica IA-fix](../04-integracion/test/sesion-14/practica-ia-fix.md)
 
-### Sesión 15 — Validación en todas las capas
+### Sesión 15 — DataTable de extremo a extremo
 
 - [Preguntas](../04-integracion/test/sesion-15/preguntas.md)
 - [Respuestas](../04-integracion/test/sesion-15/respuestas.md)
 - [Autoevaluación](../04-integracion/test/sesion-15/autoevaluacion.md)
 - [Práctica IA-fix](../04-integracion/test/sesion-15/practica-ia-fix.md)
 
-### Sesión 16 — Gestión de errores de extremo a extremo
+## Bloque Avanzadas — Sesiones 16 a 23
 
-- [Preguntas](../04-integracion/test/sesion-16/preguntas.md)
-- [Respuestas](../04-integracion/test/sesion-16/respuestas.md)
-- [Autoevaluación](../04-integracion/test/sesion-16/autoevaluacion.md)
-- [Práctica IA-fix](../04-integracion/test/sesion-16/practica-ia-fix.md)
+### Sesión 16 — Internacionalización
 
-### Sesión 17 — DataTable de extremo a extremo
+- [Preguntas](../05-avanzadas/test/sesion-16/preguntas.md)
+- [Respuestas](../05-avanzadas/test/sesion-16/respuestas.md)
+- [Autoevaluación](../05-avanzadas/test/sesion-16/autoevaluacion.md)
+- [Práctica IA-fix](../05-avanzadas/test/sesion-16/practica-ia-fix.md)
 
-- [Preguntas](../04-integracion/test/sesion-17/preguntas.md)
-- [Respuestas](../04-integracion/test/sesion-17/respuestas.md)
-- [Autoevaluación](../04-integracion/test/sesion-17/autoevaluacion.md)
-- [Práctica IA-fix](../04-integracion/test/sesion-17/practica-ia-fix.md)
+### Sesión 17 — Seguridad, menús y perfiles
 
-## Bloque Avanzadas — Sesiones 18 a 25
+- [Preguntas](../05-avanzadas/test/sesion-17/preguntas.md)
+- [Respuestas](../05-avanzadas/test/sesion-17/respuestas.md)
+- [Autoevaluación](../05-avanzadas/test/sesion-17/autoevaluacion.md)
+- [Práctica IA-fix](../05-avanzadas/test/sesion-17/practica-ia-fix.md)
 
-### Sesión 18 — Internacionalización
+### Sesión 18 — Estado global y persistencia
 
 - [Preguntas](../05-avanzadas/test/sesion-18/preguntas.md)
 - [Respuestas](../05-avanzadas/test/sesion-18/respuestas.md)
 - [Autoevaluación](../05-avanzadas/test/sesion-18/autoevaluacion.md)
 - [Práctica IA-fix](../05-avanzadas/test/sesion-18/practica-ia-fix.md)
 
-### Sesión 19 — Seguridad, menús y perfiles
+### Sesión 19 — Tests y calidad de código
 
 - [Preguntas](../05-avanzadas/test/sesion-19/preguntas.md)
 - [Respuestas](../05-avanzadas/test/sesion-19/respuestas.md)
 - [Autoevaluación](../05-avanzadas/test/sesion-19/autoevaluacion.md)
 - [Práctica IA-fix](../05-avanzadas/test/sesion-19/practica-ia-fix.md)
 
-### Sesión 20 — Estado global y persistencia
+### Sesión 20 — Trabajo con ficheros
 
 - [Preguntas](../05-avanzadas/test/sesion-20/preguntas.md)
 - [Respuestas](../05-avanzadas/test/sesion-20/respuestas.md)
 - [Autoevaluación](../05-avanzadas/test/sesion-20/autoevaluacion.md)
 - [Práctica IA-fix](../05-avanzadas/test/sesion-20/practica-ia-fix.md)
 
-### Sesión 21 — Tests y calidad de código
+### Sesión 21 — Logs y diagnóstico
 
 - [Preguntas](../05-avanzadas/test/sesion-21/preguntas.md)
 - [Respuestas](../05-avanzadas/test/sesion-21/respuestas.md)
 - [Autoevaluación](../05-avanzadas/test/sesion-21/autoevaluacion.md)
 - [Práctica IA-fix](../05-avanzadas/test/sesion-21/practica-ia-fix.md)
 
-### Sesión 22 — Trabajo con ficheros
+### Sesión 22 — Accesibilidad y cumplimiento normativo
 
 - [Preguntas](../05-avanzadas/test/sesion-22/preguntas.md)
 - [Respuestas](../05-avanzadas/test/sesion-22/respuestas.md)
 - [Autoevaluación](../05-avanzadas/test/sesion-22/autoevaluacion.md)
 - [Práctica IA-fix](../05-avanzadas/test/sesion-22/practica-ia-fix.md)
 
-### Sesión 23 — Logs y diagnóstico
+### Sesión 23 — Copilot y organización del proyecto
 
 - [Preguntas](../05-avanzadas/test/sesion-23/preguntas.md)
 - [Respuestas](../05-avanzadas/test/sesion-23/respuestas.md)
 - [Autoevaluación](../05-avanzadas/test/sesion-23/autoevaluacion.md)
 - [Práctica IA-fix](../05-avanzadas/test/sesion-23/practica-ia-fix.md)
-
-### Sesión 24 — Accesibilidad y cumplimiento normativo
-
-- [Preguntas](../05-avanzadas/test/sesion-24/preguntas.md)
-- [Respuestas](../05-avanzadas/test/sesion-24/respuestas.md)
-- [Autoevaluación](../05-avanzadas/test/sesion-24/autoevaluacion.md)
-- [Práctica IA-fix](../05-avanzadas/test/sesion-24/practica-ia-fix.md)
-
-### Sesión 25 — Copilot y organización del proyecto
-
-- [Preguntas](../05-avanzadas/test/sesion-25/preguntas.md)
-- [Respuestas](../05-avanzadas/test/sesion-25/respuestas.md)
-- [Autoevaluación](../05-avanzadas/test/sesion-25/autoevaluacion.md)
-- [Práctica IA-fix](../05-avanzadas/test/sesion-25/practica-ia-fix.md)

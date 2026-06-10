@@ -1,12 +1,12 @@
 ---
-title: Integración full-stack — Sesiones 14 a 17
+title: Integración full-stack — Sesiones 12 a 15
 description: Sesiones de integración donde cada tema se cubre de extremo a extremo (Oracle → .NET → Vue).
 outline: deep
 ---
 
 # Integración full-stack
 
-Esta sección cubre las **sesiones 14 a 17** del curso. Cada sesión trata un tema transversal de extremo a extremo, conectando Oracle, .NET y Vue en un flujo completo.
+Esta sección cubre las **sesiones 12 a 15** del curso. Cada sesión trata un tema transversal de extremo a extremo, conectando Oracle, .NET y Vue en un flujo completo.
 
 ## Requisitos previos
 
@@ -22,10 +22,10 @@ Estas sesiones asumen que se han completado las partes anteriores:
 
 | Sesión                                                                                  | Título                                                               | Duración   |
 | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------- |
-| [Sesión 14: Llamadas a la API y autenticación](./sesiones/sesion-14-api-autenticacion/) | Cómo Vue habla con .NET, CAS/JWT, OpenAPI y Scalar                   | 1 h 30 min |
-| [Sesión 15: Validación en todas las capas](./sesiones/sesion-15-validacion/)            | DataAnnotations, FluentValidation, ModelState y errores en Vue       | 1 h 30 min |
-| [Sesión 16: Gestión de errores de extremo a extremo](./sesiones/sesion-16-errores/)     | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts y modales | 1 h 30 min |
-| [Sesión 17: DataTable de extremo a extremo](./sesiones/sesion-17-datatable/)            | `ClaseCrudUtils` en .NET + `@vueua/components` DataTable en Vue      | 1 h 30 min |
+| [Sesión 12: Llamadas a la API y autenticación](./sesiones/sesion-12-api-autenticacion/) | Cómo Vue habla con .NET, CAS/JWT, OpenAPI y Scalar                   | 1 h 30 min |
+| [Sesión 13: Validación en todas las capas](./sesiones/sesion-13-validacion/)            | DataAnnotations, FluentValidation, ModelState y errores en Vue       | 1 h 30 min |
+| [Sesión 14: Gestión de errores de extremo a extremo](./sesiones/sesion-14-errores/)     | `Result<T>`, `ProblemDetails`, `IExceptionHandler`, toasts y modales | 1 h 30 min |
+| [Sesión 15: DataTable de extremo a extremo](./sesiones/sesion-15-datatable/)            | `ClaseCrudUtils` en .NET + `@vueua/components` DataTable en Vue      | 1 h 30 min |
 
 ## Flujo de integración
 

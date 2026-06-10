@@ -78,7 +78,7 @@ public async Task<ActionResult> Crear([FromBody] TipoRecursoCrearDto dto)
 ```
 
 ::: tip BUENA PRÁCTICA
-El patrón cortafuegos es siempre el mismo: primero `if (!resultado.IsSuccess) return HandleResult(resultado);` y a continuación el verbo HTTP que toca (`Ok`, `CreatedAtAction`, `NoContent`). Verás esto **en cada acción** del proyecto. Más adelante, en [sesión 15](../../../04-integracion/sesiones/sesion-15-validacion/) y [sesión 16](../../../04-integracion/sesiones/sesion-16-errores/#handleresult), se introducen helpers (`HandleCreated`, `HandleNoContent`) que encapsulan estos one-liners — pero entender el patrón en crudo primero es lo importante.
+El patrón cortafuegos es siempre el mismo: primero `if (!resultado.IsSuccess) return HandleResult(resultado);` y a continuación el verbo HTTP que toca (`Ok`, `CreatedAtAction`, `NoContent`). Verás esto **en cada acción** del proyecto. Más adelante, en [sesión 13](../../../04-integracion/sesiones/sesion-13-validacion/) y [sesión 14](../../../04-integracion/sesiones/sesion-14-errores/#handleresult), se introducen helpers (`HandleCreated`, `HandleNoContent`) que encapsulan estos one-liners — pero entender el patrón en crudo primero es lo importante.
 :::
 
 ::: warning OJO CON LA IA

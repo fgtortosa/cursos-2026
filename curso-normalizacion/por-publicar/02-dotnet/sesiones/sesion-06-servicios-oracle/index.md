@@ -229,7 +229,7 @@ classDiagram
 
 - El **servicio** SIEMPRE devuelve `Result<T>`. Si tiene que decir "no existe", devuelve `Result<T>.NotFound(...)`. NUNCA tira excepciones para flujo normal.
 - El **controlador** llama al servicio y pasa el resultado a `HandleResult`. NO interpreta el `Result` a mano.
-- Las **excepciones** se reservan para imprevistos reales (Oracle caído, red rota). Un `IExceptionHandler` global las convierte en 500 — pero eso es **[sesión 16 (errores)](../../../04-integracion/sesiones/sesion-16-errores/)**.
+- Las **excepciones** se reservan para imprevistos reales (Oracle caído, red rota). Un `IExceptionHandler` global las convierte en 500 — pero eso es **[sesión 14 (errores)](../../../04-integracion/sesiones/sesion-14-errores/)**.
   :::
 
 ## 6.3 Lectura: SELECT contra una vista + mapeo automático
@@ -616,7 +616,7 @@ Cuando añadas un código nuevo en un paquete (`RAISE_APPLICATION_ERROR(-20XYZ, 
 Así queda `TipoRecursosController` — completo, con los cinco verbos. Mostramos el código **en crudo**, sin atajos: cada acción comprueba `IsSuccess`, decide el verbo HTTP correcto (`Ok` / `CreatedAtAction` / `NoContent`) y delega los errores en `HandleResult`. Así se ve la mecánica completa de la traducción `Result<T>` → HTTP.
 
 ::: info CONTEXTO
-En el repositorio del curso (último commit) verás dos helpers — `HandleCreated` y `HandleNoContent` — que encapsulan los patrones `POST → 201 + Location` y `PUT/DELETE → 204`. Son atajos útiles **una vez entendido el patrón**. Aquí mantenemos el código abierto a propósito: en la [sesión 15 · validación](../../../04-integracion/sesiones/sesion-15-validacion/) y [sesión 16 · errores](../../../04-integracion/sesiones/sesion-16-errores/#handleresult) los introducimos como normalización.
+En el repositorio del curso (último commit) verás dos helpers — `HandleCreated` y `HandleNoContent` — que encapsulan los patrones `POST → 201 + Location` y `PUT/DELETE → 204`. Son atajos útiles **una vez entendido el patrón**. Aquí mantenemos el código abierto a propósito: en la [sesión 13 · validación](../../../04-integracion/sesiones/sesion-13-validacion/) y [sesión 14 · errores](../../../04-integracion/sesiones/sesion-14-errores/#handleresult) los introducimos como normalización.
 :::
 
 ```csharp
@@ -799,12 +799,12 @@ El proyecto ya incluye `uaReservas.Tests/` con el patrón completo: tests **simu
 El detalle de xUnit — las tres clases de infraestructura (`UsuarioFake`, `FakeTiposRecursoServicio`, `OracleTestFixture`), los tests reales `TipoRecursosControllerSimuladoTests` y `TiposRecursoServicioRealTests`, el `IClassFixture<T>` y los `user-secrets` del proyecto de tests — vive en una sola sesión:
 
 ::: tip → Sesión 21 · Tests y calidad de código
-[**Ir a la sesión 21**](../../../05-avanzadas/sesiones/sesion-21-tests-calidad/#tests-unitarios-xunit). Anclas clave:
+[**Ir a la sesión 19**](../../../05-avanzadas/sesiones/sesion-19-tests-calidad/#tests-unitarios-xunit). Anclas clave:
 
-- §21.1.1 — [Tests simulados vs tests reales](../../../05-avanzadas/sesiones/sesion-21-tests-calidad/#_21-1-1-dos-tipos-de-test-que-nos-importan).
-- §21.1.2 — [`UsuarioFake`, `FakeTiposRecursoServicio`, fakes sin Moq](../../../05-avanzadas/sesiones/sesion-21-tests-calidad/#_21-1-2-tres-piezas-de-infraestructura-compartidas-entre-tests).
-- §21.1.4 — [`OracleTestFixture` con `IClassFixture<T>` y user-secrets de tests](../../../05-avanzadas/sesiones/sesion-21-tests-calidad/#_21-1-4-oracletestfixture-una-conexion-real-a-oracle-compartida).
-- §21.1.5 — [Test real con `[SkippableFact]`](../../../05-avanzadas/sesiones/sesion-21-tests-calidad/#_21-1-5-test-real-tiposrecursoserviciorealtests).
+- §21.1.1 — [Tests simulados vs tests reales](../../../05-avanzadas/sesiones/sesion-19-tests-calidad/#_21-1-1-dos-tipos-de-test-que-nos-importan).
+- §21.1.2 — [`UsuarioFake`, `FakeTiposRecursoServicio`, fakes sin Moq](../../../05-avanzadas/sesiones/sesion-19-tests-calidad/#_21-1-2-tres-piezas-de-infraestructura-compartidas-entre-tests).
+- §21.1.4 — [`OracleTestFixture` con `IClassFixture<T>` y user-secrets de tests](../../../05-avanzadas/sesiones/sesion-19-tests-calidad/#_21-1-4-oracletestfixture-una-conexion-real-a-oracle-compartida).
+- §21.1.5 — [Test real con `[SkippableFact]`](../../../05-avanzadas/sesiones/sesion-19-tests-calidad/#_21-1-5-test-real-tiposrecursoserviciorealtests).
   :::
 
 Lo mínimo que necesitas saber **para el ejercicio §5.6** que viene a continuación:
@@ -912,7 +912,7 @@ builder.Services.AddScoped<uaReservas.Services.Reservas.IObservacionesServicio,
 
 Una sola línea, debajo de los `AddScoped` de `TiposRecursoServicio` / `RecursosServicio` / `ReservasServicio`.
 
-**4. Tests simulados** del controlador en `uaReservas.Tests/Controllers/ObservacionesControllerSimuladoTests.cs`, con un `FakeObservacionesServicio` clon del `FakeTiposRecursoServicio` ([§21.1.2](../../../05-avanzadas/sesiones/sesion-21-tests-calidad/#_21-1-2-tres-piezas-de-infraestructura-compartidas-entre-tests)):
+**4. Tests simulados** del controlador en `uaReservas.Tests/Controllers/ObservacionesControllerSimuladoTests.cs`, con un `FakeObservacionesServicio` clon del `FakeTiposRecursoServicio` ([§21.1.2](../../../05-avanzadas/sesiones/sesion-19-tests-calidad/#_21-1-2-tres-piezas-de-infraestructura-compartidas-entre-tests)):
 
 - **Test 1**: `Listar` devuelve `OkObjectResult` con la lista del fake.
 - **Test 2**: `Crear` pasa el `CodPer` del token (vía `UsuarioFake`) y no el del body — chequeo de seguridad.

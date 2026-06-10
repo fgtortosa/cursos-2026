@@ -117,9 +117,9 @@ Ahora cualquier vista lo usa en una línea, y cada llamada crea **su propio esta
 </template>
 ```
 
-> Ficheros reales: `composables/useContador.ts` + `views/sesiones-vue/sesion-9/Sesion9ContadorComposable.vue`. La demo monta **dos** contadores con el mismo composable para que veas que no comparten estado.
+> Ficheros reales: `composables/useContador.ts` + `views/sesiones-vue/sesion-10/Sesion10ContadorComposable.vue`. La demo monta **dos** contadores con el mismo composable para que veas que no comparten estado.
 >
-> 🔗 **En la app** · Vista `Sesion9ContadorComposable.vue` (+ `composables/useContador.ts`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/contador-composable>
+> 🔗 **En la app** · Vista `Sesion10ContadorComposable.vue` (+ `composables/useContador.ts`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-10/contador-composable>
 
 ::: tip QUÉ HEMOS GANADO
 
@@ -241,7 +241,7 @@ export function useRecursosService() {
 La vista coge del servicio solo lo que va a pintar:
 
 ```html
-<!-- views/sesiones-vue/sesion-9/Sesion9ArquitecturaTresCapas.vue (simplificado) -->
+<!-- views/sesiones-vue/sesion-10/Sesion10ArquitecturaTresCapas.vue (simplificado) -->
 <script setup lang="ts">
   import { onMounted } from "vue";
   import { useRecursosService } from "@/services/useRecursosService";
@@ -264,10 +264,10 @@ La vista coge del servicio solo lo que va a pintar:
 
 Fíjate en el reparto: la vista **solo pinta**, el servicio **tiene todo lo demás**. El día de mañana, cambiar el origen de los datos (mock → API real) es tocar **una línea del servicio**.
 
-> 🔗 **En la app** · Vista `Sesion9ArquitecturaTresCapas.vue` (+ `composables/useRecursos.ts` + `services/recursosServicioMock.ts`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/tres-capas>
+> 🔗 **En la app** · Vista `Sesion10ArquitecturaTresCapas.vue` (+ `composables/useRecursos.ts` + `services/recursosServicioMock.ts`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-10/tres-capas>
 
 ::: details En el repo el servicio está partido en dos ficheros
-La demo real (`Sesion9ArquitecturaTresCapas.vue`) separa el servicio en dos piezas, algo habitual cuando el proyecto crece:
+La demo real (`Sesion10ArquitecturaTresCapas.vue`) separa el servicio en dos piezas, algo habitual cuando el proyecto crece:
 
 - `composables/useRecursos.ts` — el estado y la lógica (lo que aquí llamamos "servicio de la vista").
 - `services/recursosServicioMock.ts` — solo la obtención de datos, con los DTOs en el formato exacto del servidor (`PascalCase`) y un adaptador a `camelCase`.
@@ -292,7 +292,7 @@ export const useRecursosStore = defineStore("recursos", () => {
 });
 ```
 
-> Pinia se desarrolla en la [sesión 18 — Estado global y persistencia](../../../05-avanzadas/sesiones/sesion-20-estado-persistencia/). Por ahora quédate con la idea: **un servicio para una vista; Pinia cuando ese estado lo comparten varias**.
+> Pinia se desarrolla en la [sesión 18 — Estado global y persistencia](../../../05-avanzadas/sesiones/sesion-18-estado-persistencia/). Por ahora quédate con la idea: **un servicio para una vista; Pinia cuando ese estado lo comparten varias**.
 
 ### Ventajas de separar así
 
@@ -363,7 +363,7 @@ export function useRecursosService() {
 
 Eso es **toda** la diferencia entre el mock y la API real: una línea dentro del servicio. Ese es el premio de separar por capas.
 
-> 🔗 **En la app** · Vista `Sesion9Peticion.vue` (`peticion` vs `llamadaAxios`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/peticion>
+> 🔗 **En la app** · Vista `Sesion10Peticion.vue` (`peticion` vs `llamadaAxios`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-10/peticion>
 
 ### Y los datos, ¿cómo se comparten?
 
@@ -371,7 +371,7 @@ Eso es **toda** la diferencia entre el mock y la API real: una línea dentro del
 - Si los necesitan **varios componentes** que la vista orquesta (o varias vistas), el estado sube a un **store de Pinia** — el "paso más" que vimos en §4.2.
 
 ::: info EL DETALLE COMPLETO ESTÁ EN LA SESIÓN 12
-Aquí solo vemos **que** los datos llegan con `peticion<T>` y dónde viven. El tratamiento completo —`peticion` vs `llamadaAxios` vs `HttpApi`, interfaces de **lectura** y de **escritura** (DTOs), operaciones POST/PUT/DELETE, interceptores y refresco del token, autenticación CAS/JWT y Scalar— se desarrolla en la [sesión 12 — Llamadas a la API y autenticación](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
+Aquí solo vemos **que** los datos llegan con `peticion<T>` y dónde viven. El tratamiento completo —`peticion` vs `llamadaAxios` vs `HttpApi`, interfaces de **lectura** y de **escritura** (DTOs), operaciones POST/PUT/DELETE, interceptores y refresco del token, autenticación CAS/JWT y Scalar— se desarrolla en la [sesión 12 — Llamadas a la API y autenticación](../../../04-integracion/sesiones/sesion-12-api-autenticacion/).
 :::
 
 ## 4.4 Validación de formularios (un vistazo) {#validacion}
@@ -462,7 +462,7 @@ En el template, cada input marca su propio error y arriba se listan los globales
 ```
 
 ::: info EL DETALLE COMPLETO ESTÁ EN LA SESIÓN 13
-Aquí solo vemos **dónde encaja** la validación en la arquitectura. El pipeline completo (`DataAnnotations`, `FluentValidation`, errores de Oracle, `errorDeCampo` vs `erroresDeCampo`, el prefijo de campos y `validarConEsquema`) se desarrolla en la [sesión 13 — Validación en todas las capas](../../../04-integracion/sesiones/sesion-15-validacion/). Demo ejecutable: `Sesion9Formulario.vue` · 🔗 <https://localhost:44306/uareservas/sesiones-vue/sesion-9/formulario>
+Aquí solo vemos **dónde encaja** la validación en la arquitectura. El pipeline completo (`DataAnnotations`, `FluentValidation`, errores de Oracle, `errorDeCampo` vs `erroresDeCampo`, el prefijo de campos y `validarConEsquema`) se desarrolla en la [sesión 13 — Validación en todas las capas](../../../04-integracion/sesiones/sesion-13-validacion/). Demo ejecutable: `Sesion10Formulario.vue` · 🔗 <https://localhost:44306/uareservas/sesiones-vue/sesion-10/formulario>
 :::
 
 ## 4.5 Estado de la aplicación {#estado}
@@ -735,20 +735,20 @@ Si un alumno solo prueba el "camino feliz" y no revisa errores de red o validaci
 
 ## 4.8 Pruébalo en el proyecto {#sandbox}
 
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-9/` hay varias demos navegables. Arranca la app y entra en <https://localhost:44306/uareservas/sesiones-vue/sesion-9>:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-10/` hay varias demos navegables. Arranca la app y entra en <https://localhost:44306/uareservas/sesiones-vue/sesion-10>:
 
 | Demo (vista)                       | Concepto que ilustra                                                                        | URL en la app                                                |
 | ---------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `Sesion9ContadorComposable.vue` (+ `composables/useContador.ts`) | Composable casero (`useContador`) con dos instancias **independientes**     | `/uareservas/sesiones-vue/sesion-9/contador-composable`     |
-| `Sesion9UseUtils.vue`              | Composable sin estado: `generateUniqueId` y `deepClone` de `@vueua/components`              | `/uareservas/sesiones-vue/sesion-9/use-utils`               |
-| `Sesion9UseToast.vue`              | `avisar / avisarError / avisarPersonalizado`, grupos y toast persistente                    | `/uareservas/sesiones-vue/sesion-9/use-toast`               |
-| `Sesion9BotonLoading.vue`          | Patrón "ocupado" como **componente** (`<BotonLoading>`) y como **directiva** (`v-loading`)  | `/uareservas/sesiones-vue/sesion-9/boton-loading`           |
-| `Sesion9Peticion.vue`              | `peticion` vs `llamadaAxios` (anticipo de la sesión 12)                                      | `/uareservas/sesiones-vue/sesion-9/peticion`                |
-| `Sesion9Formulario.vue`            | Validación con `useGestionFormularios` (anticipo de la sesión 13)                            | `/uareservas/sesiones-vue/sesion-9/formulario`              |
-| `Sesion9ArquitecturaTresCapas.vue` (+ `composables/useRecursos.ts` + `services/recursosServicioMock.ts`) | Integradora: Vista → `useRecursos` → `recursosServicioMock` con `SpinnerModal` y `useToast` | `/uareservas/sesiones-vue/sesion-9/tres-capas` |
+| `Sesion10ContadorComposable.vue` (+ `composables/useContador.ts`) | Composable casero (`useContador`) con dos instancias **independientes**     | `/uareservas/sesiones-vue/sesion-10/contador-composable`     |
+| `Sesion10UseUtils.vue`              | Composable sin estado: `generateUniqueId` y `deepClone` de `@vueua/components`              | `/uareservas/sesiones-vue/sesion-10/use-utils`               |
+| `Sesion10UseToast.vue`              | `avisar / avisarError / avisarPersonalizado`, grupos y toast persistente                    | `/uareservas/sesiones-vue/sesion-10/use-toast`               |
+| `Sesion10BotonLoading.vue`          | Patrón "ocupado" como **componente** (`<BotonLoading>`) y como **directiva** (`v-loading`)  | `/uareservas/sesiones-vue/sesion-10/boton-loading`           |
+| `Sesion10Peticion.vue`              | `peticion` vs `llamadaAxios` (anticipo de la sesión 12)                                      | `/uareservas/sesiones-vue/sesion-10/peticion`                |
+| `Sesion10Formulario.vue`            | Validación con `useGestionFormularios` (anticipo de la sesión 13)                            | `/uareservas/sesiones-vue/sesion-10/formulario`              |
+| `Sesion10ArquitecturaTresCapas.vue` (+ `composables/useRecursos.ts` + `services/recursosServicioMock.ts`) | Integradora: Vista → `useRecursos` → `recursosServicioMock` con `SpinnerModal` y `useToast` | `/uareservas/sesiones-vue/sesion-10/tres-capas` |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
-La integradora `Sesion9ArquitecturaTresCapas.vue` es el "estado final" de esta sesión: la vista no sabe de dónde vienen los datos, el composable transforma DTOs PascalCase del servidor a camelCase del cliente, y el servicio aún es mock. Cuando en la sesión 12 sustituyas `recursosServicioMock` por uno con `useAxios`, ni la vista ni el composable se tocan.
+La integradora `Sesion10ArquitecturaTresCapas.vue` es el "estado final" de esta sesión: la vista no sabe de dónde vienen los datos, el composable transforma DTOs PascalCase del servidor a camelCase del cliente, y el servicio aún es mock. Cuando en la sesión 12 sustituyas `recursosServicioMock` por uno con `useAxios`, ni la vista ni el composable se tocan.
 :::
 
 ---
