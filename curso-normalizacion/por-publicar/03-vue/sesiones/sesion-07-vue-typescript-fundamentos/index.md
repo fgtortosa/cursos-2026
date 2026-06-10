@@ -1,10 +1,10 @@
 ---
-title: "Sesión 9: Vue 3, TypeScript y tu primer componente"
+title: "Sesión 7: Vue 3, TypeScript y tu primer componente"
 description: Fundamentos de Vue 3 con Composition API, TypeScript básico, reactividad e interpolación
 outline: deep
 ---
 
-# Sesión 9: Vue 3, TypeScript y tu primer componente
+# Sesión 7: Vue 3, TypeScript y tu primer componente
 
 <!-- [[toc]] -->
 
@@ -13,13 +13,13 @@ Esta sesión sienta las bases para el resto del módulo. Si ya conoces Vue 3, si
 
 **Sesiones de Vue en este curso:**
 
-| Sesión        | Tema                       | Qué aprenderás                                                                |
-| ------------- | -------------------------- | ----------------------------------------------------------------------------- |
-| **9 (esta)**  | Fundamentos                | Estructura `.vue`, TypeScript básico, reactividad, interpolación              |
-| **10**        | Datos e interactividad     | Interfaces, funciones, `v-if`, `v-for`, `v-model`, eventos, métodos de arrays |
-| **11**        | Componentes y comunicación | Props, Emits, `defineModel`, `computed`, `watch`, slots                       |
-| **12**        | Arquitectura y servicios   | Composables, servicios, Vista → Composable → Servicio                         |
-| **13**        | Componentes internos UA    | `vueua-autocomplete`, `vueua-dialogmodal`, Teleport                           |
+| Sesión       | Tema                       | Qué aprenderás                                                                |
+| ------------ | -------------------------- | ----------------------------------------------------------------------------- |
+| **7 (esta)** | Fundamentos                | Estructura `.vue`, TypeScript básico, reactividad, interpolación              |
+| **8**        | Datos e interactividad     | Interfaces, funciones, `v-if`, `v-for`, `v-model`, eventos, métodos de arrays |
+| **9**        | Componentes y comunicación | Props, Emits, `defineModel`, `computed`, `watch`, slots                       |
+| **10**       | Arquitectura y servicios   | Composables, servicios, Vista → Composable → Servicio                         |
+| **11**       | Componentes internos UA    | `vueua-autocomplete`, `vueua-dialogmodal`, Teleport                           |
 
 Los temas de `useAxios`, validación y Pinia se cubren en las sesiones de **Integración full-stack** (14-17).
 :::
@@ -118,25 +118,25 @@ Si el usuario puede navegar directamente a ello con una URL → es una **Vista**
 ```html
 <script setup lang="ts">
   // 1. Imports
-  import { ref, computed } from 'vue'
-  import TarjetaTipoRecurso from '@/components/TarjetaTipoRecurso.vue'
+  import { ref, computed } from "vue";
+  import TarjetaTipoRecurso from "@/components/TarjetaTipoRecurso.vue";
 
   // 2. Interfaces locales (misma forma que el DTO del backend .NET)
   interface ITipoRecurso {
-    idTipoRecurso: number
-    codigo: string
-    nombre: string
+    idTipoRecurso: number;
+    codigo: string;
+    nombre: string;
   }
 
   // 3. Props / Emits (si el .vue es un componente que el padre instancia)
-  const props = defineProps<{ titulo: string }>()
+  const props = defineProps<{ titulo: string }>();
 
   // 4. Variables reactivas (estado de la vista)
-  const tipos = ref<ITipoRecurso[]>([])
-  const seleccionado = ref<ITipoRecurso | null>(null)
+  const tipos = ref<ITipoRecurso[]>([]);
+  const seleccionado = ref<ITipoRecurso | null>(null);
 
   // 5. Computed (valores derivados)
-  const total = computed(() => tipos.value.length)
+  const total = computed(() => tipos.value.length);
 
   // 6. Watchers (efectos secundarios al cambiar el estado)
 
@@ -144,7 +144,7 @@ Si el usuario puede navegar directamente a ello con una URL → es una **Vista**
 
   // 8. Funciones (handlers)
   function seleccionar(t: ITipoRecurso): void {
-    seleccionado.value = t
+    seleccionado.value = t;
   }
 </script>
 ```
@@ -186,7 +186,11 @@ Diferencia importante con objetos:
 
 ```typescript
 // Mismo dominio que veremos en .NET/Oracle: TipoRecurso, Recurso, Reserva.
-const tipoRecurso = { idTipoRecurso: 1, codigo: "SALA", nombre: "Sala de reuniones" };
+const tipoRecurso = {
+  idTipoRecurso: 1,
+  codigo: "SALA",
+  nombre: "Sala de reuniones",
+};
 tipoRecurso.nombre = "Sala grande"; // ✅ permitido (cambia propiedad interna)
 
 // tipoRecurso = { idTipoRecurso: 2, codigo: 'EQUIPO', nombre: 'Proyector' }   // ❌ reasignar referencia
@@ -264,13 +268,13 @@ Los cuatro existen para casos muy concretos. La regla general: **elige siempre e
 // ── null y undefined ──────────────────────────────────────────────
 // Úsalos en uniones para indicar "puede no haber valor todavía".
 // Es lo habitual cuando una variable se rellena tras una llamada async.
-let tipoCargado: ITipoRecurso | null = null;      // luego: { idTipoRecurso: 1, ... }
-let idSeleccionado: number | null = null;         // luego: 42
+let tipoCargado: ITipoRecurso | null = null; // luego: { idTipoRecurso: 1, ... }
+let idSeleccionado: number | null = null; // luego: 42
 
 // ── any → desactiva TypeScript (EVITAR) ───────────────────────────
 let valor: any = "texto";
-valor = 42;              // No hay error... pero pierdes la red de seguridad
-valor.noExiste();        // No hay error en compilación; revienta en ejecución
+valor = 42; // No hay error... pero pierdes la red de seguridad
+valor.noExiste(); // No hay error en compilación; revienta en ejecución
 
 // ── unknown → la versión segura de any ────────────────────────────
 // Útil cuando recibes un dato del exterior y aún no sabes su forma
@@ -278,7 +282,7 @@ valor.noExiste();        // No hay error en compilación; revienta en ejecución
 let dato: unknown = JSON.parse(localStorage.getItem("config") ?? "{}");
 // dato.toUpperCase()                   // ❌ Error: TS te obliga a comprobar primero
 if (typeof dato === "string") {
-  dato.toUpperCase();                   // ✅ Dentro del if, TS sabe que es string
+  dato.toUpperCase(); // ✅ Dentro del if, TS sabe que es string
 }
 ```
 
@@ -353,7 +357,11 @@ contador.value++; // ✅ correcto
 Con `reactive` ocurre lo mismo:
 
 ```typescript
-const tipoRecurso = reactive({ idTipoRecurso: 1, codigo: "SALA", nombre: "Sala de reuniones" });
+const tipoRecurso = reactive({
+  idTipoRecurso: 1,
+  codigo: "SALA",
+  nombre: "Sala de reuniones",
+});
 tipoRecurso.nombre = "Sala grande"; // ✅ correcto (cambias propiedad)
 
 // tipoRecurso = reactive({ idTipoRecurso: 2, ... })  // ❌ reasignar la referencia rompe la reactividad
@@ -403,24 +411,30 @@ La demo real deriva la URL de la foto con una `computed` y la muestra con `v-if`
 
 ```html
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+  import { ref, computed } from "vue";
 
-const nombre = ref<string>('Mundo')
+  const nombre = ref<string>("Mundo");
 
-// computed: recalcula la URL sola cada vez que cambia 'nombre'.
-const fotoMascota = computed<string | null>(() => {
-  const base = import.meta.env.BASE_URL              // raíz de los assets de public/
-  if (nombre.value === 'Lola, mi perra')       return `${base}lola.jpg`
-  if (nombre.value === 'Tiger, mi super gato') return `${base}tiger.jpg`
-  return null
-})
+  // computed: recalcula la URL sola cada vez que cambia 'nombre'.
+  const fotoMascota = computed<string | null>(() => {
+    const base = import.meta.env.BASE_URL; // raíz de los assets de public/
+    if (nombre.value === "Lola, mi perra") return `${base}lola.jpg`;
+    if (nombre.value === "Tiger, mi super gato") return `${base}tiger.jpg`;
+    return null;
+  });
 </script>
 
 <template>
   <!-- v-if monta/desmonta el bloque según haya foto o no. -->
-  <img v-if="fotoMascota" :src="fotoMascota" :alt="nombre" style="max-height: 240px" />
+  <img
+    v-if="fotoMascota"
+    :src="fotoMascota"
+    :alt="nombre"
+    style="max-height: 240px"
+  />
 </template>
 ```
+
 :::
 
 ::: tip BUENA PRÁCTICA — assets desde `public/` y `import.meta.env.BASE_URL`
@@ -490,24 +504,24 @@ Prefiere **`ref`** en la mayoría de casos. Es más clara, funciona con todo y t
 En el proyecto trabajamos con tres entidades: `TipoRecurso` → `Recurso` → `Reserva`. Su forma en el cliente es la misma que viste en .NET, en formato TypeScript. Patrones típicos con `ref`:
 
 ```typescript
-import { ref } from 'vue'
+import { ref } from "vue";
 
 // Forma del DTO que el backend devuelve en GET /api/TipoRecursos
 // (mismo contrato que la clase TipoRecursoLectura del backend .NET — sesión 7).
 interface ITipoRecurso {
-  idTipoRecurso: number
-  codigo: string
-  nombre: string
+  idTipoRecurso: number;
+  codigo: string;
+  nombre: string;
 }
 
 // 1) ref<T[]> para listados: empieza vacío y se rellena cuando llega la respuesta.
-const tiposRecurso = ref<ITipoRecurso[]>([])
+const tiposRecurso = ref<ITipoRecurso[]>([]);
 
 // 2) ref<T | null> para "selección actual": null hasta que el usuario elige.
-const tipoSeleccionado = ref<ITipoRecurso | null>(null)
+const tipoSeleccionado = ref<ITipoRecurso | null>(null);
 
 // 3) ref<boolean> para flags de UI: cargando, modal abierto, hay error.
-const cargando = ref<boolean>(false)
+const cargando = ref<boolean>(false);
 ```
 
 > La demo integradora **`Sesion6DemoTipoRecurso.vue`** aplica estos tres patrones con un mock local. En la sesión 12 cambiaremos el mock por una llamada real al servicio (`apiTiposRecurso.listar()` — definido en `services/api/apiTiposRecurso.ts`) y la vista apenas se moverá. Ese es el sentido de la interface: la vista no sabe quién le pasa los datos.
@@ -564,13 +578,20 @@ Usa llaves dobles <code v-pre>{{ }}</code> para mostrar valores reactivos en el 
 
 ```html
 <!-- Los mismos siete patrones aplicados a TipoRecurso. -->
-<p>Nombre: <strong>{{ tipoRecurso.nombre }}</strong></p>                          <!-- 1 -->
-<p>Longitud del código: {{ tipoRecurso.codigo.length }}</p>                       <!-- 2 -->
-<p>{{ `${tipoRecurso.codigo} — ${tipoRecurso.nombre}` }}</p>                      <!-- 3 -->
-<p>¿Tiene descripción? {{ tipoRecurso.descripcion ? 'Sí' : 'No' }}</p>            <!-- 4 -->
-<p>Iniciales: {{ obtenerIniciales(tipoRecurso.nombre) }}</p>                      <!-- 5 -->
-<p>Código en mayúsculas: {{ tipoRecurso.codigo.toUpperCase() }}</p>               <!-- 6 -->
-<a :href="`/uareservas/tipos/${tipoRecurso.idTipoRecurso}`">Ver detalle</a>       <!-- 7 -->
+<p>Nombre: <strong>{{ tipoRecurso.nombre }}</strong></p>
+<!-- 1 -->
+<p>Longitud del código: {{ tipoRecurso.codigo.length }}</p>
+<!-- 2 -->
+<p>{{ `${tipoRecurso.codigo} — ${tipoRecurso.nombre}` }}</p>
+<!-- 3 -->
+<p>¿Tiene descripción? {{ tipoRecurso.descripcion ? 'Sí' : 'No' }}</p>
+<!-- 4 -->
+<p>Iniciales: {{ obtenerIniciales(tipoRecurso.nombre) }}</p>
+<!-- 5 -->
+<p>Código en mayúsculas: {{ tipoRecurso.codigo.toUpperCase() }}</p>
+<!-- 6 -->
+<a :href="`/uareservas/tipos/${tipoRecurso.idTipoRecurso}`">Ver detalle</a>
+<!-- 7 -->
 ```
 
 Esto es exactamente lo que hace la demo integradora **`Sesion6DemoTipoRecurso.vue`** (sandbox §1.7): mismo objeto que en .NET, mismo patrón de interpolación.
@@ -596,14 +617,14 @@ El depurador aquí lo tiene el **navegador**, no el IDE. Abre `F12` → pestaña
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
-const contador = ref<number>(0)
+  import { ref } from "vue";
+  const contador = ref<number>(0);
 
-function incrementar() {
-  console.log('Antes:', contador.value)
-  contador.value++
-  console.log('Despues:', contador.value)
-}
+  function incrementar() {
+    console.log("Antes:", contador.value);
+    contador.value++;
+    console.log("Despues:", contador.value);
+  }
 </script>
 ```
 
@@ -611,13 +632,13 @@ function incrementar() {
 `console.log(contador)` (sin `.value`) imprime `RefImpl { value: 0, ... }`, no `0`. Para ver el valor limpio: `console.log(contador.value)`. Para objetos `reactive`: `console.dir(estado)` o `JSON.stringify(estado)`. Vue Devtools muestra los valores ya desempaquetados.
 :::
 
-| Variante | Cuándo usarla |
-|---|---|
-| `console.log(...)` | Información general. |
-| `console.warn(...)` | Aviso amarillo: no rompe pero algo no encaja. |
-| `console.error(...)` | Rojo + stack trace, para errores detectados en un `catch`. |
+| Variante             | Cuándo usarla                                               |
+| -------------------- | ----------------------------------------------------------- |
+| `console.log(...)`   | Información general.                                        |
+| `console.warn(...)`  | Aviso amarillo: no rompe pero algo no encaja.               |
+| `console.error(...)` | Rojo + stack trace, para errores detectados en un `catch`.  |
 | `console.table(arr)` | Pinta arrays de objetos como tabla con columnas ordenables. |
-| `console.dir(obj)` | Árbol explorable, mejor que `log` para objetos profundos. |
+| `console.dir(obj)`   | Árbol explorable, mejor que `log` para objetos profundos.   |
 
 ::: details Más variantes (`group`, `time`, `count`, `assert`, `trace`)
 | Variante | Para qué |
@@ -632,17 +653,17 @@ Ejemplo combinado:
 
 ```ts
 function incrementar() {
-  console.group('[click] incrementar')
-  console.count('clicks')
-  console.time('t')
-  contador.value++
-  console.timeEnd('t')
-  console.groupEnd()
+  console.group("[click] incrementar");
+  console.count("clicks");
+  console.time("t");
+  contador.value++;
+  console.timeEnd("t");
+  console.groupEnd();
 }
 ```
 
 > Fichero real: `ClientApp/src/views/sesiones-vue/sesion-6/Sesion6Depuracion.vue` (botón "3. group + count + time").
-:::
+> :::
 
 ### 1.6.3 Pausar el código: `debugger` y breakpoints {#debugger}
 
@@ -652,8 +673,8 @@ function incrementar() {
 
 ```ts
 function incrementar() {
-  debugger              // ← Vue para aquí (si DevTools está abierto)
-  contador.value++
+  debugger; // ← Vue para aquí (si DevTools está abierto)
+  contador.value++;
 }
 ```
 
@@ -666,19 +687,19 @@ Si dejas un `debugger` y un compañero abre DevTools, la app le para de repente.
 :::
 
 ::: details Breakpoint condicional + equivalencias con Visual Studio
-**Breakpoint condicional**: clic derecho sobre el número de línea → *Add conditional breakpoint* → escribe `contador.value > 5`. Solo pausa cuando se cumpla. Imprescindible para fallos que solo ocurren tras N clics.
+**Breakpoint condicional**: clic derecho sobre el número de línea → _Add conditional breakpoint_ → escribe `contador.value > 5`. Solo pausa cuando se cumpla. Imprescindible para fallos que solo ocurren tras N clics.
 
 **Equivalencias VS ↔ DevTools**:
 
-| Visual Studio | DevTools | Notas |
-|---|---|---|
-| F9 — toggle breakpoint | Clic en número de línea (Sources) | Punto azul en el margen |
-| F5 — Continuar | F8 — Resume | |
-| F10 / F11 / Shift+F11 | F10 / F11 / Shift+F11 | Mismos atajos |
-| Ventana Locals/Autos | Panel Scope | Variables del frame actual |
-| Ventana Watch | Panel Watch | Expresiones evaluadas a cada paso |
-| Ventana inmediata | Console mientras está pausado | Ejecuta cualquier expresión |
-| `Debugger.Break()` en C# | Sentencia `debugger` en TS | Solo pausa si DevTools está abierto |
+| Visual Studio            | DevTools                          | Notas                               |
+| ------------------------ | --------------------------------- | ----------------------------------- |
+| F9 — toggle breakpoint   | Clic en número de línea (Sources) | Punto azul en el margen             |
+| F5 — Continuar           | F8 — Resume                       |                                     |
+| F10 / F11 / Shift+F11    | F10 / F11 / Shift+F11             | Mismos atajos                       |
+| Ventana Locals/Autos     | Panel Scope                       | Variables del frame actual          |
+| Ventana Watch            | Panel Watch                       | Expresiones evaluadas a cada paso   |
+| Ventana inmediata        | Console mientras está pausado     | Ejecuta cualquier expresión         |
+| `Debugger.Break()` en C# | Sentencia `debugger` en TS        | Solo pausa si DevTools está abierto |
 
 VS Code también puede depurar Vue conectándose a Chrome con un `launch.json` tipo `"chrome"`, pero en esta sesión usamos DevTools del navegador por inmediatez.
 :::
@@ -696,12 +717,12 @@ VS Code también puede depurar Vue conectándose a Chrome con un `launch.json` t
 
 **Pestañas de DevTools (resumen):**
 
-| Pestaña | Para qué |
-|---|---|
-| **Console** | Errores, warnings, `console.*` |
-| **Elements** | Confirmar que el DOM refleja el estado |
-| **Sources** | Breakpoints, scope, watch |
-| **Network** | Ver `/api/...`, status, payload del backend |
+| Pestaña            | Para qué                                             |
+| ------------------ | ---------------------------------------------------- |
+| **Console**        | Errores, warnings, `console.*`                       |
+| **Elements**       | Confirmar que el DOM refleja el estado               |
+| **Sources**        | Breakpoints, scope, watch                            |
+| **Network**        | Ver `/api/...`, status, payload del backend          |
 | **Vue (Devtools)** | Árbol de componentes, refs, eventos sin tocar código |
 
 ::: tip Truco — `$0` en la consola
@@ -709,6 +730,7 @@ Selecciona un nodo en **Elements**; en la **Console**, `$0` te lo devuelve. `con
 :::
 
 ::: details Anexo — TypeScript en el navegador (source maps) {#sourcemaps}
+
 > "Pero si yo escribí TypeScript… ¿por qué la consola pone la línea de mi `.vue`? El navegador no entiende TS, ¿no?"
 
 Correcto. El navegador **solo ejecuta JavaScript**. Vite compila tu `.vue` + `.ts` a JS y junto al bundle genera un fichero `.map` (**source map**) que asocia cada línea del JS compilado con la del fichero original. DevTools usa ese mapa para mostrarte **tu código fuente** en lugar del JS transformado.
@@ -718,7 +740,7 @@ Implicaciones prácticas:
 - El breakpoint en una línea TypeScript funciona porque Vite añade source maps en `dev` por defecto.
 - A veces el breakpoint salta a una línea "cercana": el compilador puede haber fusionado líneas. Pon `debugger` en la línea exacta.
 - Si DevTools de pronto muestra **JavaScript ofuscado** en vez de tu fuente, falta o se ha perdido el source map (build de producción sin maps, recurso cacheado antiguo, etc.). Recarga sin caché con `Ctrl+Shift+R`.
-:::
+  :::
 
 ::: details Anexo — Qué revisar cuando algo "no aparece"
 | Síntoma | Comprobación rápida |
@@ -804,32 +826,35 @@ La interface en esta sesión vive **dentro del `.vue`**: aún no estamos central
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from "vue";
 
-// Misma forma que TipoRecursoLectura del backend .NET (sesión 7).
-// Cuando esto venga de la API en S12, la interface no cambiará.
-interface ITipoRecurso {
-  idTipoRecurso: number
-  codigo: string
-  nombre: string
-  descripcion?: string
-}
+  // Misma forma que TipoRecursoLectura del backend .NET (sesión 7).
+  // Cuando esto venga de la API en S12, la interface no cambiará.
+  interface ITipoRecurso {
+    idTipoRecurso: number;
+    codigo: string;
+    nombre: string;
+    descripcion?: string;
+  }
 
-const tipo = ref<ITipoRecurso>({
-  idTipoRecurso: 1,
-  codigo: 'sala',
-  nombre: 'Sala de reuniones',
-  descripcion: 'Espacios reservables para reuniones del personal.',
-})
+  const tipo = ref<ITipoRecurso>({
+    idTipoRecurso: 1,
+    codigo: "sala",
+    nombre: "Sala de reuniones",
+    descripcion: "Espacios reservables para reuniones del personal.",
+  });
 
-const visible = ref<boolean>(true)
+  const visible = ref<boolean>(true);
 </script>
 
 <template>
   <div class="card my-3" style="max-width: 500px">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>Tipo de recurso #{{ tipo.idTipoRecurso }}</span>
-      <button class="btn btn-sm btn-outline-secondary" @click="visible = !visible">
+      <button
+        class="btn btn-sm btn-outline-secondary"
+        @click="visible = !visible"
+      >
         {{ visible ? 'Ocultar' : 'Mostrar' }}
       </button>
     </div>
@@ -853,6 +878,6 @@ Una vez funcione, abre Vue DevTools y comprueba que `tipo` y `visible` aparecen 
 
 | Anterior                                                                                           | Inicio                        | Siguiente                                                                                          |
 | -------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| [← Sesión 8: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 10: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-10-directivas-eventos/) |
+| [← Sesión 6: Servicios y acceso a Oracle](../../../02-dotnet/sesiones/sesion-06-servicios-oracle/) | [Índice del curso](../../../) | [Sesión 08: Directivas, eventos y datos →](../../../03-vue/sesiones/sesion-08-directivas-eventos/) |
 
 <!-- NAV:END -->

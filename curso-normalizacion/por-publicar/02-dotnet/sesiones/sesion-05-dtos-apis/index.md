@@ -1576,6 +1576,6 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 | Anterior                                                                                      | Inicio                        | Siguiente                                                                                          |
 | --------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| [← Sesión 6: Introducción a .NET](../../../02-dotnet/sesiones/sesion-06-introduccion-dotnet/) | [Índice del curso](../../../) | [Sesión 8: Servicios y acceso a Oracle →](../../../02-dotnet/sesiones/sesion-08-servicios-oracle/) |
+| [← Sesión 4: Introducción a .NET](../../../02-dotnet/sesiones/sesion-04-introduccion-dotnet/) | [Índice del curso](../../../) | [Sesión 6: Servicios y acceso a Oracle →](../../../02-dotnet/sesiones/sesion-06-servicios-oracle/) |
 
 <!-- NAV:END -->

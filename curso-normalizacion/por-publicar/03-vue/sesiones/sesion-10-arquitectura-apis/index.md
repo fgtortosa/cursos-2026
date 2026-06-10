@@ -1,23 +1,24 @@
 ---
-title: "Sesión 12: Arquitectura de componentes y servicios"
+title: "Sesión 10: Arquitectura de componentes y servicios"
 description: Qué es un composable y por qué se usa, composables genéricos vs servicios, arquitectura Vista → Servicio → API y herramientas de depuración
 outline: deep
 ---
 
-# Sesión 12: Arquitectura de componentes y servicios
+# Sesión 10: Arquitectura de componentes y servicios
+
 ::: tip SESIÓN DE INTEGRACIÓN
 Esta sesión se centra en la **arquitectura** (Composables vs Servicios). Los temas de `useAxios`, validación de formularios (`useGestionFormularios`) y estado global (Pinia) se cubren en:
-- **Sesión 14** — Llamadas a la API y autenticación
-- **Sesión 15** — Validación en todas las capas
-- **Sesión 20** — Estado y persistencia
-:::
 
-<!-- [[toc]] -->
+- **Sesión 12** — Llamadas a la API y autenticación
+- **Sesión 13** — Validación en todas las capas
+- **Sesión 18** — Estado y persistencia
+  :::
 
 ::: info CONTEXTO
 En las sesiones anteriores aprendimos a crear componentes, comunicar datos y derivar estado. Ahora damos el paso a una forma de trabajo más cercana a un proyecto real: **arquitectura por capas**, consumo de APIs, validación y criterio para gestionar el estado sin desordenarlo.
 
 **Al terminar esta sesión sabrás:**
+
 - Entender qué es un composable, para qué sirve y qué correspondencia tiene con el .NET MVC
 - Diferenciar un composable genérico de un servicio de vista y cuándo usar cada uno
 - Estructurar una pantalla con la arquitectura Vista → Servicio → API
@@ -25,16 +26,16 @@ En las sesiones anteriores aprendimos a crear componentes, comunicar datos y der
 - Validar formularios en cliente y servidor con `useGestionFormularios`
 - Gestionar estado local, compartido y persistente en frontend
 - Usar herramientas de apoyo para depurar y verificar una aplicación Vue
-:::
+  :::
 
 ## Plan de sesión (90 min) {#plan-90}
 
-| Bloque | Tiempo | Contenido |
-|--------|--------|-----------|
-| **Teoría guiada** | 55 min | 4.1 a 4.7 (arquitectura, APIs, validación, estado y flujo de depuración) |
-| **Práctica en aula** | 20 min | Ejercicio completo Vista -> Composable -> Servicio |
-| **Test de sesión** | 10 min | Preguntas de consolidación y corrección técnica |
-| **Cierre** | 5 min | Checklist final de calidad y próximos pasos del módulo |
+| Bloque               | Tiempo | Contenido                                                                |
+| -------------------- | ------ | ------------------------------------------------------------------------ |
+| **Teoría guiada**    | 55 min | 4.1 a 4.7 (arquitectura, APIs, validación, estado y flujo de depuración) |
+| **Práctica en aula** | 20 min | Ejercicio completo Vista -> Composable -> Servicio                       |
+| **Test de sesión**   | 10 min | Preguntas de consolidación y corrección técnica                          |
+| **Cierre**           | 5 min  | Checklist final de calidad y próximos pasos del módulo                   |
 
 ::: tip OBJETIVO PEDAGÓGICO
 El foco de esta sesión es que el alumno tome decisiones de arquitectura con criterio, no solo que consiga "hacer funcionar" una llamada HTTP.
@@ -53,12 +54,12 @@ Imagina un contador escrito directamente en una vista:
 ```html
 <!-- Contador escrito DENTRO del componente -->
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from "vue";
 
-const contador = ref(0)
-const incrementar = () => contador.value++
-const decrementar = () => contador.value--
-const reiniciar   = () => (contador.value = 0)
+  const contador = ref(0);
+  const incrementar = () => contador.value++;
+  const decrementar = () => contador.value--;
+  const reiniciar = () => (contador.value = 0);
 </script>
 
 <template>
@@ -77,19 +78,25 @@ Movemos ese estado y esas funciones a un fichero aparte, una función `useContad
 
 ```typescript
 // src/composables/useContador.ts
-import { ref, computed } from 'vue'
+import { ref, computed } from "vue";
 
 export function useContador(inicial: number = 0, paso: number = 1) {
-  const contador = ref<number>(inicial)
+  const contador = ref<number>(inicial);
 
-  const esCero = computed(() => contador.value === 0)
+  const esCero = computed(() => contador.value === 0);
 
-  const incrementar = () => { contador.value += paso }
-  const decrementar = () => { contador.value -= paso }
-  const reiniciar   = () => { contador.value = inicial }
+  const incrementar = () => {
+    contador.value += paso;
+  };
+  const decrementar = () => {
+    contador.value -= paso;
+  };
+  const reiniciar = () => {
+    contador.value = inicial;
+  };
 
   // Devolvemos lo que el componente podrá usar.
-  return { contador, esCero, incrementar, decrementar, reiniciar }
+  return { contador, esCero, incrementar, decrementar, reiniciar };
 }
 ```
 
@@ -97,9 +104,9 @@ Ahora cualquier vista lo usa en una línea, y cada llamada crea **su propio esta
 
 ```html
 <script setup lang="ts">
-import { useContador } from '@/composables/useContador'
+  import { useContador } from "@/composables/useContador";
 
-const { contador, incrementar, decrementar, reiniciar } = useContador(10)
+  const { contador, incrementar, decrementar, reiniciar } = useContador(10);
 </script>
 
 <template>
@@ -111,24 +118,27 @@ const { contador, incrementar, decrementar, reiniciar } = useContador(10)
 ```
 
 > Ficheros reales: `composables/useContador.ts` + `views/sesiones-vue/sesion-9/Sesion9ContadorComposable.vue`. La demo monta **dos** contadores con el mismo composable para que veas que no comparten estado.
+>
+> 🔗 **En la app** · Vista `Sesion9ContadorComposable.vue` (+ `composables/useContador.ts`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/contador-composable>
 
 ::: tip QUÉ HEMOS GANADO
+
 - **Reutilización**: la lógica vive en un sitio y se usa desde donde haga falta.
 - **Vista más limpia**: el `.vue` se queda casi sin lógica.
 - **Testable**: `useContador` se prueba sin montar ningún componente.
 - **Un único punto de cambio**: si cambia la regla, se cambia una vez.
-:::
+  :::
 
 ### Correspondencia con el .NET MVC de siempre
 
 Si vienes de .NET MVC, ya conoces estas piezas con otro nombre:
 
-| En Vue | En .NET MVC | Papel |
-|--------|-------------|-------|
-| **Composable genérico** (`useAxios`, `useContador`) | **Helper / clase de utilidades** | Código transversal reutilizable, sin pantalla concreta |
-| **Servicio** (`useRecursosService`) | **Service** (capa de negocio) | Lógica de negocio y acceso a datos de una funcionalidad |
-| **Vista `.vue`** | **Vista Razor** (+ el pegamento del controlador) | Solo presentación; cuanta menos lógica, mejor |
-| **Pinia** | Servicio _singleton_ con estado compartido | Datos que comparten varias pantallas |
+| En Vue                                              | En .NET MVC                                      | Papel                                                   |
+| --------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------- |
+| **Composable genérico** (`useAxios`, `useContador`) | **Helper / clase de utilidades**                 | Código transversal reutilizable, sin pantalla concreta  |
+| **Servicio** (`useRecursosService`)                 | **Service** (capa de negocio)                    | Lógica de negocio y acceso a datos de una funcionalidad |
+| **Vista `.vue`**                                    | **Vista Razor** (+ el pegamento del controlador) | Solo presentación; cuanta menos lógica, mejor           |
+| **Pinia**                                           | Servicio _singleton_ con estado compartido       | Datos que comparten varias pantallas                    |
 
 ### Dos tipos de `useX()`: composable genérico vs servicio
 
@@ -148,13 +158,13 @@ Aunque ambos se escriben igual (una función `useX()` que devuelve refs y funcio
 **Un servicio no es más que un composable especial, adaptado a su vista.** Misma mecánica (`useX()` que devuelve estado y funciones); lo que cambia es el propósito: el composable genérico es una librería reutilizable; el servicio es el "cerebro" de una pantalla.
 :::
 
-| Aspecto | Composable genérico | Servicio (de la vista) |
-|---------|---------------------|------------------------|
-| **Ubicación** | `src/composables/` | `src/services/` |
-| **Pertenece a** | Nadie en concreto (reutilizable) | Una vista concreta |
-| **Contiene** | Lógica reactiva genérica | Estado + lógica de negocio + DTOs + llamadas API |
-| **Equivale en MVC a** | Helper / utilidades | Service |
-| **Ejemplos** | `useAxios`, `useContador`, `useToast` | `useRecursosService`, `useReservasService` |
+| Aspecto               | Composable genérico                   | Servicio (de la vista)                           |
+| --------------------- | ------------------------------------- | ------------------------------------------------ |
+| **Ubicación**         | `src/composables/`                    | `src/services/`                                  |
+| **Pertenece a**       | Nadie en concreto (reutilizable)      | Una vista concreta                               |
+| **Contiene**          | Lógica reactiva genérica              | Estado + lógica de negocio + DTOs + llamadas API |
+| **Equivale en MVC a** | Helper / utilidades                   | Service                                          |
+| **Ejemplos**          | `useAxios`, `useContador`, `useToast` | `useRecursosService`, `useReservasService`       |
 
 ## 4.2 Arquitectura: Vista → Servicio → API {#arquitectura}
 
@@ -189,42 +199,42 @@ La **vista** no debe saber **cómo** se piden los datos: solo pide al servicio y
 
 ### Ejemplo: listado de recursos
 
-Un servicio mínimo para una vista que lista recursos. Tiene el **estado**, la **estructura de datos** y la **llamada a la API** (de momento, datos de ejemplo en memoria; en la sesión 14 esa única línea pasa a ser una llamada real con `useAxios` y **la vista no cambia**):
+Un servicio mínimo para una vista que lista recursos. Tiene el **estado**, la **estructura de datos** y la **llamada a la API** (de momento, datos de ejemplo en memoria; en la sesión 12 esa única línea pasa a ser una llamada real con `useAxios` y **la vista no cambia**):
 
 ```typescript
 // src/services/useRecursosService.ts
-import { ref } from 'vue'
+import { ref } from "vue";
 
 // Estructura de datos de la vista.
 export interface IRecurso {
-  id: number
-  nombre: string
-  tipo: string
-  activo: boolean
+  id: number;
+  nombre: string;
+  tipo: string;
+  activo: boolean;
 }
 
 export function useRecursosService() {
   // Estado de la vista.
-  const recursos = ref<IRecurso[]>([])
-  const cargando = ref(false)
+  const recursos = ref<IRecurso[]>([]);
+  const cargando = ref(false);
 
   // Lógica de negocio + llamada a la API.
   async function cargar(): Promise<void> {
-    cargando.value = true
+    cargando.value = true;
     try {
-      // En la sesión 14: const { data } = await peticion('/Recursos', verbosAxios.GET)
-      await new Promise(r => setTimeout(r, 800))            // simula la red
+      // En la sesión 12: const { data } = await peticion('/Recursos', verbosAxios.GET)
+      await new Promise((r) => setTimeout(r, 800)); // simula la red
       recursos.value = [
-        { id: 1, nombre: 'Aula 12',          tipo: 'Aula',   activo: true  },
-        { id: 2, nombre: 'Sala reuniones A', tipo: 'Sala',   activo: true  },
-        { id: 3, nombre: 'Proyector',        tipo: 'Equipo', activo: false },
-      ]
+        { id: 1, nombre: "Aula 12", tipo: "Aula", activo: true },
+        { id: 2, nombre: "Sala reuniones A", tipo: "Sala", activo: true },
+        { id: 3, nombre: "Proyector", tipo: "Equipo", activo: false },
+      ];
     } finally {
-      cargando.value = false
+      cargando.value = false;
     }
   }
 
-  return { recursos, cargando, cargar }
+  return { recursos, cargando, cargar };
 }
 ```
 
@@ -233,13 +243,13 @@ La vista coge del servicio solo lo que va a pintar:
 ```html
 <!-- views/sesiones-vue/sesion-9/Sesion9ArquitecturaTresCapas.vue (simplificado) -->
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useRecursosService } from '@/services/useRecursosService'
+  import { onMounted } from "vue";
+  import { useRecursosService } from "@/services/useRecursosService";
 
-// Una línea: la vista no sabe de dónde salen los datos.
-const { recursos, cargando, cargar } = useRecursosService()
+  // Una línea: la vista no sabe de dónde salen los datos.
+  const { recursos, cargando, cargar } = useRecursosService();
 
-onMounted(cargar)
+  onMounted(cargar);
 </script>
 
 <template>
@@ -254,8 +264,11 @@ onMounted(cargar)
 
 Fíjate en el reparto: la vista **solo pinta**, el servicio **tiene todo lo demás**. El día de mañana, cambiar el origen de los datos (mock → API real) es tocar **una línea del servicio**.
 
+> 🔗 **En la app** · Vista `Sesion9ArquitecturaTresCapas.vue` (+ `composables/useRecursos.ts` + `services/recursosServicioMock.ts`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/tres-capas>
+
 ::: details En el repo el servicio está partido en dos ficheros
 La demo real (`Sesion9ArquitecturaTresCapas.vue`) separa el servicio en dos piezas, algo habitual cuando el proyecto crece:
+
 - `composables/useRecursos.ts` — el estado y la lógica (lo que aquí llamamos "servicio de la vista").
 - `services/recursosServicioMock.ts` — solo la obtención de datos, con los DTOs en el formato exacto del servidor (`PascalCase`) y un adaptador a `camelCase`.
 
@@ -268,27 +281,27 @@ A veces una vista **orquesta varios componentes** que necesitan el **mismo dato*
 
 ```typescript
 // El estado deja de vivir dentro del servicio y pasa a un store compartido.
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { defineStore } from "pinia";
+import { ref } from "vue";
 
-export const useRecursosStore = defineStore('recursos', () => {
-  const recursos = ref<IRecurso[]>([])   // ahora lo comparten varios componentes
-  const cargando = ref(false)
+export const useRecursosStore = defineStore("recursos", () => {
+  const recursos = ref<IRecurso[]>([]); // ahora lo comparten varios componentes
+  const cargando = ref(false);
   // … cargar(), igual que en el servicio
-  return { recursos, cargando }
-})
+  return { recursos, cargando };
+});
 ```
 
-> Pinia se desarrolla en la [sesión 17 — Estado global y persistencia](../../../05-avanzadas/sesiones/sesion-20-estado-persistencia/). Por ahora quédate con la idea: **un servicio para una vista; Pinia cuando ese estado lo comparten varias**.
+> Pinia se desarrolla en la [sesión 18 — Estado global y persistencia](../../../05-avanzadas/sesiones/sesion-20-estado-persistencia/). Por ahora quédate con la idea: **un servicio para una vista; Pinia cuando ese estado lo comparten varias**.
 
 ### Ventajas de separar así
 
-| Ventaja | Descripción |
-|---------|-------------|
+| Ventaja              | Descripción                                                           |
+| -------------------- | --------------------------------------------------------------------- |
 | **Separación clara** | Vista = UI · Servicio = estado + lógica + API · Composables = helpers |
-| **Reutilización** | Los composables genéricos sirven para cualquier vista |
-| **Mantenibilidad** | Un cambio en la API solo toca el servicio |
-| **Testabilidad** | El servicio se prueba sin montar la vista |
+| **Reutilización**    | Los composables genéricos sirven para cualquier vista                 |
+| **Mantenibilidad**   | Un cambio en la API solo toca el servicio                             |
+| **Testabilidad**     | El servicio se prueba sin montar la vista                             |
 
 ### Dónde vive cada cosa
 
@@ -300,17 +313,18 @@ src/
 ├── services/                   ← SERVICIOS de vista (estado + lógica + DTOs + API)
 │   ├── useRecursosService.ts
 │   └── useReservasService.ts
-├── stores/                     ← Pinia: estado compartido entre vistas (sesión 17)
+├── stores/                     ← Pinia: estado compartido entre vistas (sesión 18)
 │   └── useRecursosStore.ts
 └── views/                      ← vistas .vue: solo interfaz
     └── Recursos.vue
 ```
 
 ::: tip CÓMO ELEGIR LA CARPETA
+
 - ¿Lo usaría cualquier pantalla y no tiene datos de negocio? → `composables/` (genérico).
 - ¿Es la lógica/estado/API de **una** pantalla? → `services/`.
 - ¿Ese estado lo comparten **varias** pantallas? → `stores/` (Pinia).
-:::
+  :::
 
 ## 4.3 Traer datos reales (un vistazo) {#useaxios}
 
@@ -318,39 +332,46 @@ En el ejemplo de §4.2 el servicio rellenaba la lista con un `setTimeout` de men
 
 ```typescript
 // src/services/useRecursosService.ts — lo único que cambia frente al mock
-import { ref } from 'vue'
-import { peticion, verbosAxios } from '@vueua/components/composables/use-axios'
+import { ref } from "vue";
+import { peticion, verbosAxios } from "@vueua/components/composables/use-axios";
 
-export interface IRecurso { id: number; nombre: string; tipo: string; activo: boolean }
+export interface IRecurso {
+  id: number;
+  nombre: string;
+  tipo: string;
+  activo: boolean;
+}
 
 export function useRecursosService() {
-  const recursos = ref<IRecurso[]>([])
-  const cargando = ref(false)
+  const recursos = ref<IRecurso[]>([]);
+  const cargando = ref(false);
 
   async function cargar(): Promise<void> {
-    cargando.value = true
+    cargando.value = true;
     try {
       // Antes:   await new Promise(r => setTimeout(r, 800)); recursos.value = [ … ]
       // Ahora:   una sola llamada tipada a la API.
-      recursos.value = await peticion<IRecurso[]>('Recursos', verbosAxios.GET)
+      recursos.value = await peticion<IRecurso[]>("Recursos", verbosAxios.GET);
     } finally {
-      cargando.value = false
+      cargando.value = false;
     }
   }
 
-  return { recursos, cargando, cargar }
+  return { recursos, cargando, cargar };
 }
 ```
 
 Eso es **toda** la diferencia entre el mock y la API real: una línea dentro del servicio. Ese es el premio de separar por capas.
+
+> 🔗 **En la app** · Vista `Sesion9Peticion.vue` (`peticion` vs `llamadaAxios`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-9/peticion>
 
 ### Y los datos, ¿cómo se comparten?
 
 - Si los usa **una sola vista**, se quedan en su **servicio** (como arriba).
 - Si los necesitan **varios componentes** que la vista orquesta (o varias vistas), el estado sube a un **store de Pinia** — el "paso más" que vimos en §4.2.
 
-::: info EL DETALLE COMPLETO ESTÁ EN LA SESIÓN 14
-Aquí solo vemos **que** los datos llegan con `peticion<T>` y dónde viven. El tratamiento completo —`peticion` vs `llamadaAxios` vs `HttpApi`, interfaces de **lectura** y de **escritura** (DTOs), operaciones POST/PUT/DELETE, interceptores y refresco del token, autenticación CAS/JWT y Scalar— se desarrolla en la [sesión 14 — Llamadas a la API y autenticación](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
+::: info EL DETALLE COMPLETO ESTÁ EN LA SESIÓN 12
+Aquí solo vemos **que** los datos llegan con `peticion<T>` y dónde viven. El tratamiento completo —`peticion` vs `llamadaAxios` vs `HttpApi`, interfaces de **lectura** y de **escritura** (DTOs), operaciones POST/PUT/DELETE, interceptores y refresco del token, autenticación CAS/JWT y Scalar— se desarrolla en la [sesión 12 — Llamadas a la API y autenticación](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
 :::
 
 ## 4.4 Validación de formularios (un vistazo) {#validacion}
@@ -394,25 +415,31 @@ La validación de cliente mejora la UX, pero cualquier `curl` o DevTools la salt
 El mismo `useGestionFormularios` gestiona los errores del **cliente** (con un esquema Zod) y los del **servidor** (el `400` que llega como `ValidationProblemDetails`):
 
 ```ts
-import { peticion, verbosAxios } from '@vueua/components/composables/use-axios'
-import { useGestionFormularios } from '@vueua/components/composables/use-gestion-formularios'
-import { esquemaCrearTipoRecurso, type TipoRecursoCrearDto } from '@/services/api/apiTiposRecurso'
+import { peticion, verbosAxios } from "@vueua/components/composables/use-axios";
+import { useGestionFormularios } from "@vueua/components/composables/use-gestion-formularios";
+import {
+  esquemaCrearTipoRecurso,
+  type TipoRecursoCrearDto,
+} from "@/services/api/apiTiposRecurso";
 
 const {
-  erroresGlobales,        // string[]: errores sin un campo concreto
-  erroresDeCampo,         // (campo) => string[]
-  validarConEsquema,      // valida en cliente con un esquema Zod
-  adaptarProblemDetails,  // mapea el 400 del servidor a los campos del form
+  erroresGlobales, // string[]: errores sin un campo concreto
+  erroresDeCampo, // (campo) => string[]
+  validarConEsquema, // valida en cliente con un esquema Zod
+  adaptarProblemDetails, // mapea el 400 del servidor a los campos del form
   inicializarMensajeError,
-} = useGestionFormularios()
+} = useGestionFormularios();
 
-async function crear(form: TipoRecursoCrearDto, formRef: HTMLFormElement): Promise<void> {
-  inicializarMensajeError()
-  if (!validarConEsquema(esquemaCrearTipoRecurso, form)) return    // 1) cliente (Zod)
+async function crear(
+  form: TipoRecursoCrearDto,
+  formRef: HTMLFormElement,
+): Promise<void> {
+  inicializarMensajeError();
+  if (!validarConEsquema(esquemaCrearTipoRecurso, form)) return; // 1) cliente (Zod)
   try {
-    await peticion<number>('TipoRecursos', verbosAxios.POST, form) // 2) servidor
+    await peticion<number>("TipoRecursos", verbosAxios.POST, form); // 2) servidor
   } catch (e: any) {
-    adaptarProblemDetails(e.response?.data, formRef)               // 3) pinta el 400 por campo
+    adaptarProblemDetails(e.response?.data, formRef); // 3) pinta el 400 por campo
   }
 }
 ```
@@ -420,17 +447,22 @@ async function crear(form: TipoRecursoCrearDto, formRef: HTMLFormElement): Promi
 En el template, cada input marca su propio error y arriba se listan los globales:
 
 ```html
-<input v-model="form.Codigo" name="Codigo"
-       :class="{ 'is-invalid': erroresDeCampo('Codigo').length }" />
-<div v-for="m in erroresDeCampo('Codigo')" :key="m" class="invalid-feedback">{{ m }}</div>
+<input
+  v-model="form.Codigo"
+  name="Codigo"
+  :class="{ 'is-invalid': erroresDeCampo('Codigo').length }"
+/>
+<div v-for="m in erroresDeCampo('Codigo')" :key="m" class="invalid-feedback">
+  {{ m }}
+</div>
 
 <div v-if="erroresGlobales.length" class="alert alert-danger">
   <li v-for="m in erroresGlobales" :key="m">{{ m }}</li>
 </div>
 ```
 
-::: info EL DETALLE COMPLETO ESTÁ EN LA SESIÓN 15
-Aquí solo vemos **dónde encaja** la validación en la arquitectura. El pipeline completo (`DataAnnotations`, `FluentValidation`, errores de Oracle, `errorDeCampo` vs `erroresDeCampo`, el prefijo de campos y `validarConEsquema`) se desarrolla en la [sesión 15 — Validación en todas las capas](../../../04-integracion/sesiones/sesion-15-validacion/). Demo ejecutable: `sesiones-vue/sesion-9/Sesion9Formulario.vue`.
+::: info EL DETALLE COMPLETO ESTÁ EN LA SESIÓN 13
+Aquí solo vemos **dónde encaja** la validación en la arquitectura. El pipeline completo (`DataAnnotations`, `FluentValidation`, errores de Oracle, `errorDeCampo` vs `erroresDeCampo`, el prefijo de campos y `validarConEsquema`) se desarrolla en la [sesión 13 — Validación en todas las capas](../../../04-integracion/sesiones/sesion-15-validacion/). Demo ejecutable: `Sesion9Formulario.vue` · 🔗 <https://localhost:44306/uareservas/sesiones-vue/sesion-9/formulario>
 :::
 
 ## 4.5 Estado de la aplicación {#estado}
@@ -443,11 +475,11 @@ Gestionar estado bien significa responder a estas tres preguntas:
 
 ### Niveles de estado en una SPA Vue
 
-| Nivel | Dónde vive | Duración | Ejemplo típico |
-|------|------------|----------|----------------|
-| **Local de componente** | `ref`/`reactive` dentro de una vista/componente | Hasta desmontar componente | Modal abierto/cerrado, tab activo |
-| **Compartido en memoria** | Store de Pinia | Hasta recargar página | Usuario en sesión, carrito, filtros globales |
-| **Persistente en navegador** | `localStorage` o `sessionStorage` | Según almacenamiento | Tema, último filtro usado, borrador de formulario |
+| Nivel                        | Dónde vive                                      | Duración                   | Ejemplo típico                                    |
+| ---------------------------- | ----------------------------------------------- | -------------------------- | ------------------------------------------------- |
+| **Local de componente**      | `ref`/`reactive` dentro de una vista/componente | Hasta desmontar componente | Modal abierto/cerrado, tab activo                 |
+| **Compartido en memoria**    | Store de Pinia                                  | Hasta recargar página      | Usuario en sesión, carrito, filtros globales      |
+| **Persistente en navegador** | `localStorage` o `sessionStorage`               | Según almacenamiento       | Tema, último filtro usado, borrador de formulario |
 
 ::: tip REGLA PRÁCTICA
 Empieza por estado local. Solo sube a Pinia si el dato lo consumen varias vistas. Solo persiste en storage si realmente necesitas recuperar ese valor tras navegación o recarga.
@@ -455,11 +487,11 @@ Empieza por estado local. Solo sube a Pinia si el dato lo consumen varias vistas
 
 ### `localStorage` vs `sessionStorage` vs Pinia
 
-| Opción | Persistencia | Alcance | Cuándo usar |
-|--------|-------------|---------|-------------|
-| `localStorage` | Permanente (hasta borrar manualmente) | Todo el sitio en ese navegador | Preferencias de usuario (tema, idioma, columnas) |
-| `sessionStorage` | Solo pestaña/sesión actual | Esa pestaña del navegador | Estado temporal de navegación (wizard, búsqueda puntual) |
-| Pinia | Memoria de ejecución | Toda la SPA mientras esté cargada | Estado compartido entre vistas/componentes |
+| Opción           | Persistencia                          | Alcance                           | Cuándo usar                                              |
+| ---------------- | ------------------------------------- | --------------------------------- | -------------------------------------------------------- |
+| `localStorage`   | Permanente (hasta borrar manualmente) | Todo el sitio en ese navegador    | Preferencias de usuario (tema, idioma, columnas)         |
+| `sessionStorage` | Solo pestaña/sesión actual            | Esa pestaña del navegador         | Estado temporal de navegación (wizard, búsqueda puntual) |
+| Pinia            | Memoria de ejecución                  | Toda la SPA mientras esté cargada | Estado compartido entre vistas/componentes               |
 
 ### Árbol de decisión
 
@@ -495,16 +527,17 @@ digraph estado {
 ### Ejemplo 1: Preferencia persistente con `localStorage`
 
 ```typescript
-import { ref, watch } from 'vue'
+import { ref, watch } from "vue";
 
-const tema = ref<string>(localStorage.getItem('tema') ?? 'claro')
+const tema = ref<string>(localStorage.getItem("tema") ?? "claro");
 
 watch(tema, (nuevoTema) => {
-  localStorage.setItem('tema', nuevoTema)
-})
+  localStorage.setItem("tema", nuevoTema);
+});
 ```
 
 Qué aporta este patrón:
+
 - Al recargar la app, el usuario conserva su preferencia
 - El componente sigue trabajando de forma reactiva
 - Solo persistes un valor pequeño y estable
@@ -512,16 +545,19 @@ Qué aporta este patrón:
 ### Ejemplo 2: Filtro temporal con `sessionStorage`
 
 ```typescript
-import { ref, watch } from 'vue'
+import { ref, watch } from "vue";
 
-const filtroBusqueda = ref<string>(sessionStorage.getItem('filtro-unidades') ?? '')
+const filtroBusqueda = ref<string>(
+  sessionStorage.getItem("filtro-unidades") ?? "",
+);
 
 watch(filtroBusqueda, (nuevoFiltro) => {
-  sessionStorage.setItem('filtro-unidades', nuevoFiltro)
-})
+  sessionStorage.setItem("filtro-unidades", nuevoFiltro);
+});
 ```
 
 Cuándo encaja:
+
 - Quieres mantener estado durante la sesión actual
 - No quieres arrastrar datos entre días o sesiones futuras
 
@@ -553,48 +589,50 @@ flowchart TB
 
 ```typescript
 // src/stores/useAuthStore.ts
-import { defineStore } from 'pinia'
+import { defineStore } from "pinia";
 
 interface IAuthState {
-  nombre: string
-  token: string
-  autenticado: boolean
+  nombre: string;
+  token: string;
+  autenticado: boolean;
 }
 
-export const useAuthStore = defineStore('auth', {
+export const useAuthStore = defineStore("auth", {
   state: (): IAuthState => ({
-    nombre: '',
-    token: '',
-    autenticado: false
+    nombre: "",
+    token: "",
+    autenticado: false,
   }),
   getters: {
-    nombreVisible: (state) => state.nombre || 'Invitado'
+    nombreVisible: (state) => state.nombre || "Invitado",
   },
   actions: {
     login(nombre: string, token: string) {
-      this.nombre = nombre
-      this.token = token
-      this.autenticado = true
+      this.nombre = nombre;
+      this.token = token;
+      this.autenticado = true;
     },
     logout() {
-      this.nombre = ''
-      this.token = ''
-      this.autenticado = false
-    }
-  }
-})
+      this.nombre = "";
+      this.token = "";
+      this.autenticado = false;
+    },
+  },
+});
 ```
 
 ```html
 <script setup lang="ts">
-import { useAuthStore } from '@/stores/useAuthStore'
+  import { useAuthStore } from "@/stores/useAuthStore";
 
-const auth = useAuthStore()
+  const auth = useAuthStore();
 </script>
 
 <template>
   <p>Usuario: {{ auth.nombreVisible }}</p>
-  <button v-if="!auth.autenticado" @click="auth.login('Ana', 'token-demo')">Entrar</button>
+  <button v-if="!auth.autenticado" @click="auth.login('Ana', 'token-demo')">
+    Entrar
+  </button>
   <button v-else @click="auth.logout()">Salir</button>
 </template>
 ```
@@ -607,13 +645,13 @@ const auth = useAuthStore()
 
 ### Patrón recomendado para la UA
 
-| Tipo de dato | Solución recomendada |
-|--------------|----------------------|
-| Estado de una vista concreta | `ref`/`reactive` local |
-| Estado compartido entre vistas | Pinia |
-| Preferencias de usuario (tema, idioma) | Pinia o `ref` + `localStorage` |
-| Filtros de búsqueda temporales | `sessionStorage` |
-| Tokens / datos sensibles | Evitar almacenamiento innecesario; aplicar política de seguridad del proyecto |
+| Tipo de dato                           | Solución recomendada                                                          |
+| -------------------------------------- | ----------------------------------------------------------------------------- |
+| Estado de una vista concreta           | `ref`/`reactive` local                                                        |
+| Estado compartido entre vistas         | Pinia                                                                         |
+| Preferencias de usuario (tema, idioma) | Pinia o `ref` + `localStorage`                                                |
+| Filtros de búsqueda temporales         | `sessionStorage`                                                              |
+| Tokens / datos sensibles               | Evitar almacenamiento innecesario; aplicar política de seguridad del proyecto |
 
 ::: warning IMPORTANTE
 No conviertas todo en estado global. El exceso de estado compartido complica trazabilidad, pruebas y mantenimiento.
@@ -632,6 +670,7 @@ En un proyecto real no basta con que la pantalla "funcione". Necesitamos herrami
 Permite inspeccionar componentes, props, estado reactivo y stores en el navegador.
 
 Úsalo para:
+
 - Ver qué props recibe un componente
 - Comprobar si un `computed` cambia cuando esperas
 - Inspeccionar estado de Pinia sin añadir `console.log`
@@ -645,6 +684,7 @@ pnpm vue-tsc --noEmit
 ```
 
 Qué detecta:
+
 - Props mal tipadas
 - Interfaces incompletas
 - Accesos a propiedades que no existen
@@ -653,6 +693,7 @@ Qué detecta:
 ### Red del navegador
 
 La pestaña Network ayuda a revisar:
+
 - URL real que se ha llamado
 - Código HTTP devuelto
 - Tiempo de respuesta
@@ -672,14 +713,14 @@ Si algo falla con datos remotos, revisa en este orden:
 
 Antes de dar por buena una práctica de arquitectura, revisa estos puntos:
 
-| Punto | Pregunta de control |
-|-------|----------------------|
-| Capas separadas | ¿La vista evita llamadas HTTP directas? |
-| Tipado | ¿Interfaces y tipos reflejan la respuesta real de la API? |
-| Estados de carga/error | ¿La UI informa cuando carga o falla? |
-| Validación | ¿Hay validación mínima en cliente y control en servidor? |
-| Estado compartido | ¿Solo se globaliza lo que realmente es compartido? |
-| Revisión final | ¿Se ejecutó `pnpm vue-tsc --noEmit` y se comprobó Network? |
+| Punto                  | Pregunta de control                                        |
+| ---------------------- | ---------------------------------------------------------- |
+| Capas separadas        | ¿La vista evita llamadas HTTP directas?                    |
+| Tipado                 | ¿Interfaces y tipos reflejan la respuesta real de la API?  |
+| Estados de carga/error | ¿La UI informa cuando carga o falla?                       |
+| Validación             | ¿Hay validación mínima en cliente y control en servidor?   |
+| Estado compartido      | ¿Solo se globaliza lo que realmente es compartido?         |
+| Revisión final         | ¿Se ejecutó `pnpm vue-tsc --noEmit` y se comprobó Network? |
 
 ### Señales de alerta (antipatrones)
 
@@ -694,23 +735,25 @@ Si un alumno solo prueba el "camino feliz" y no revisa errores de red o validaci
 
 ## 4.8 Pruébalo en el proyecto {#sandbox}
 
-En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-9/` hay cinco demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-9`:
+En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-9/` hay varias demos navegables. Arranca la app y entra en <https://localhost:44306/uareservas/sesiones-vue/sesion-9>:
 
-| Demo | Concepto que ilustra | Fichero |
-|------|----------------------|---------|
-| `Sesion9ContadorComposable.vue` | Composable casero (`useContador`) con dos instancias **independientes** | `sesion-9/Sesion9ContadorComposable.vue` + `composables/useContador.ts` |
-| `Sesion9UseUtils.vue` | Composable sin estado: `generateUniqueId` y `deepClone` de `@vueua/components` | `sesion-9/Sesion9UseUtils.vue` |
-| `Sesion9UseToast.vue` | `avisar / avisarError / avisarPersonalizado`, grupos y toast persistente | `sesion-9/Sesion9UseToast.vue` |
-| `Sesion9BotonLoading.vue` | Patrón "ocupado" como **componente** (`<BotonLoading>`) y como **directiva** (`v-loading`) | `sesion-9/Sesion9BotonLoading.vue` |
-| `Sesion9ArquitecturaTresCapas.vue` | Integradora: Vista → `useRecursos` → `recursosServicioMock` con `SpinnerModal` y `useToast` | `sesion-9/Sesion9ArquitecturaTresCapas.vue` + `composables/useRecursos.ts` + `services/recursosServicioMock.ts` |
+| Demo (vista)                       | Concepto que ilustra                                                                        | URL en la app                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `Sesion9ContadorComposable.vue` (+ `composables/useContador.ts`) | Composable casero (`useContador`) con dos instancias **independientes**     | `/uareservas/sesiones-vue/sesion-9/contador-composable`     |
+| `Sesion9UseUtils.vue`              | Composable sin estado: `generateUniqueId` y `deepClone` de `@vueua/components`              | `/uareservas/sesiones-vue/sesion-9/use-utils`               |
+| `Sesion9UseToast.vue`              | `avisar / avisarError / avisarPersonalizado`, grupos y toast persistente                    | `/uareservas/sesiones-vue/sesion-9/use-toast`               |
+| `Sesion9BotonLoading.vue`          | Patrón "ocupado" como **componente** (`<BotonLoading>`) y como **directiva** (`v-loading`)  | `/uareservas/sesiones-vue/sesion-9/boton-loading`           |
+| `Sesion9Peticion.vue`              | `peticion` vs `llamadaAxios` (anticipo de la sesión 12)                                      | `/uareservas/sesiones-vue/sesion-9/peticion`                |
+| `Sesion9Formulario.vue`            | Validación con `useGestionFormularios` (anticipo de la sesión 13)                            | `/uareservas/sesiones-vue/sesion-9/formulario`              |
+| `Sesion9ArquitecturaTresCapas.vue` (+ `composables/useRecursos.ts` + `services/recursosServicioMock.ts`) | Integradora: Vista → `useRecursos` → `recursosServicioMock` con `SpinnerModal` y `useToast` | `/uareservas/sesiones-vue/sesion-9/tres-capas` |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
-La integradora `Sesion9ArquitecturaTresCapas.vue` es el "estado final" de esta sesión: la vista no sabe de dónde vienen los datos, el composable transforma DTOs PascalCase del servidor a camelCase del cliente, y el servicio aún es mock. Cuando en la sesión 14 sustituyas `recursosServicioMock` por uno con `useAxios`, ni la vista ni el composable se tocan.
+La integradora `Sesion9ArquitecturaTresCapas.vue` es el "estado final" de esta sesión: la vista no sabe de dónde vienen los datos, el composable transforma DTOs PascalCase del servidor a camelCase del cliente, y el servicio aún es mock. Cuando en la sesión 12 sustituyas `recursosServicioMock` por uno con `useAxios`, ni la vista ni el composable se tocan.
 :::
 
 ---
 
-## Ejercicio Sesión 12 {#ejercicio}
+## Ejercicio Sesión 10 {#ejercicio}
 
 ::: info ENUNCIADO
 En esta práctica construirás una funcionalidad real con la arquitectura de la sesión: un **servicio de la vista** que concentra el estado, la lógica y las llamadas a la API, y una **vista** que solo pinta. El objetivo no es solo que funcione, sino que cada responsabilidad quede en su sitio: la vista no debe conocer ni URLs ni `peticion`.
@@ -740,71 +783,94 @@ Crea un **listado de unidades** con esta estructura:
 
 ```typescript
 // src/services/useUnidadesService.ts — el "cerebro" de la vista
-import { ref, computed } from 'vue'
-import { peticion, verbosAxios } from '@vueua/components/composables/use-axios'
+import { ref, computed } from "vue";
+import { peticion, verbosAxios } from "@vueua/components/composables/use-axios";
 
 // LECTURA: lo que DEVUELVE la API (camelCase). La vista pinta esto.
 export interface UnidadLectura {
-  id:     number
-  codigo: string
-  nombre: string
-  activa: boolean
+  id: number;
+  codigo: string;
+  nombre: string;
+  activa: boolean;
 }
 
 // ESCRITURA (DTO): lo que ESPERA la API al crear (PascalCase, como en .NET).
 export interface UnidadCrearDto {
-  Codigo: string
-  Nombre: string
-  Activa: boolean
+  Codigo: string;
+  Nombre: string;
+  Activa: boolean;
 }
 
 export function useUnidadesService() {
   // Estado de la vista
-  const unidades = ref<UnidadLectura[]>([])
-  const cargando = ref(false)
-  const filtro   = ref('')
+  const unidades = ref<UnidadLectura[]>([]);
+  const cargando = ref(false);
+  const filtro = ref("");
 
   // Derivados
   const unidadesFiltradas = computed(() =>
-    unidades.value.filter(u => u.nombre.toLowerCase().includes(filtro.value.toLowerCase())),
-  )
-  const totalActivas = computed(() => unidades.value.filter(u => u.activa).length)
+    unidades.value.filter((u) =>
+      u.nombre.toLowerCase().includes(filtro.value.toLowerCase()),
+    ),
+  );
+  const totalActivas = computed(
+    () => unidades.value.filter((u) => u.activa).length,
+  );
 
   // Acciones: lógica de negocio + llamadas a la API con peticion
   async function cargar(): Promise<void> {
-    cargando.value = true
+    cargando.value = true;
     try {
-      unidades.value = await peticion<UnidadLectura[]>('Unidades', verbosAxios.GET)
+      unidades.value = await peticion<UnidadLectura[]>(
+        "Unidades",
+        verbosAxios.GET,
+      );
     } finally {
-      cargando.value = false
+      cargando.value = false;
     }
   }
 
   async function agregar(dto: UnidadCrearDto): Promise<void> {
-    await peticion<number>('Unidades', verbosAxios.POST, dto)
-    await cargar()                                       // recarga para ver la nueva
+    await peticion<number>("Unidades", verbosAxios.POST, dto);
+    await cargar(); // recarga para ver la nueva
   }
 
   async function eliminar(id: number): Promise<void> {
-    await peticion<void>(`Unidades/${id}`, verbosAxios.DELETE)
-    unidades.value = unidades.value.filter(u => u.id !== id)
+    await peticion<void>(`Unidades/${id}`, verbosAxios.DELETE);
+    unidades.value = unidades.value.filter((u) => u.id !== id);
   }
 
-  return { unidades, cargando, filtro, unidadesFiltradas, totalActivas, cargar, agregar, eliminar }
+  return {
+    unidades,
+    cargando,
+    filtro,
+    unidadesFiltradas,
+    totalActivas,
+    cargar,
+    agregar,
+    eliminar,
+  };
 }
 ```
 
 ```html
 <!-- src/views/Unidades.vue — solo UI -->
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useUnidadesService } from '@/services/useUnidadesService'
+  import { onMounted } from "vue";
+  import { useUnidadesService } from "@/services/useUnidadesService";
 
-// La vista coge solo lo que pinta. No conoce URLs ni peticion.
-const { unidades, unidadesFiltradas, filtro, cargando, totalActivas, cargar, eliminar } =
-  useUnidadesService()
+  // La vista coge solo lo que pinta. No conoce URLs ni peticion.
+  const {
+    unidades,
+    unidadesFiltradas,
+    filtro,
+    cargando,
+    totalActivas,
+    cargar,
+    eliminar,
+  } = useUnidadesService();
 
-onMounted(cargar)
+  onMounted(cargar);
 </script>
 
 <template>
@@ -812,7 +878,11 @@ onMounted(cargar)
     <h1>Gestión de unidades</h1>
     <p>{{ totalActivas }} unidades activas de {{ unidades.length }} total</p>
 
-    <input v-model="filtro" placeholder="Buscar por nombre…" class="form-control mb-3" />
+    <input
+      v-model="filtro"
+      placeholder="Buscar por nombre…"
+      class="form-control mb-3"
+    />
 
     <p v-if="cargando">Cargando unidades…</p>
 
@@ -837,7 +907,9 @@ onMounted(cargar)
             </span>
           </td>
           <td>
-            <button class="btn btn-sm btn-danger" @click="eliminar(u.id)">Eliminar</button>
+            <button class="btn btn-sm btn-danger" @click="eliminar(u.id)">
+              Eliminar
+            </button>
           </td>
         </tr>
       </tbody>
@@ -845,124 +917,141 @@ onMounted(cargar)
   </div>
 </template>
 ```
+
 :::
 
 ::: tip FÍJATE EN EL REPARTO
 La vista quedó **sin lógica**: solo llama a `cargar` al montar y pinta. Todo el estado, los derivados y las llamadas viven en el **servicio**. Si más adelante varias vistas necesitaran las mismas unidades, ese estado subiría a un **store de Pinia** — el "paso más" de §4.2.
 :::
 
-## Test Sesión 12 {#test}
+## Test Sesión 10 {#test}
 
 ### Preguntas (desplegables)
 
 ::: details 1. En la arquitectura propuesta, ¿qué responsabilidad principal tiene la vista?
+
 - a) Centralizar llamadas HTTP
 - b) Renderizar UI y gestionar eventos del usuario
 - c) Persistir el estado en storage
 - d) Definir interfaces globales
-:::
+  :::
 
 ::: details 2. ¿Qué capa suele concentrar estado reactivo, computed y funciones de una vista?
+
 - a) Servicio
 - b) Composable
 - c) Router
 - d) CSS del componente
-:::
+  :::
 
 ::: details 3. ¿Dónde conviene centralizar las llamadas REST?
+
 - a) En la vista
 - b) En el servicio
 - c) En el template
 - d) En los estilos
-:::
+  :::
 
 ::: details 4. ¿Qué anti-patrón debería evitarse?
+
 - a) Crear interfaces reutilizables
 - b) Mezclar llamadas API directamente en una vista grande
 - c) Usar computed
 - d) Separar responsabilidades
-:::
+  :::
 
 ::: details 5. ¿Qué ofrece el modo reactivo de useAxios?
+
 - a) data, isLoading y error listos para la interfaz
 - b) Persistencia automática en Pinia
 - c) Validación HTML5 incorporada
 - d) Renderizado en servidor
-:::
+  :::
 
 ::: details 6. ¿Cuándo encaja mejor el modo manual con async/await?
+
 - a) Cuando hay varios pasos o control más fino del flujo
 - b) Solo en componentes sin formulario
 - c) Nunca, porque el modo reactivo siempre es mejor
 - d) Solo al trabajar con CSS
-:::
+  :::
 
 ::: details 7. Según la explicación de useAxios, ¿qué no debes incluir en la URL del endpoint?
+
 - a) La barra inicial
 - b) El nombre del recurso
 - c) /api/
 - d) El método HTTP
-:::
+  :::
 
 ::: details 8. ¿Por qué se valida tanto en cliente como en servidor?
+
 - a) Porque el cliente reemplaza las reglas del servidor
 - b) Porque cliente mejora UX y servidor garantiza reglas y seguridad
 - c) Porque así no hace falta tipado
 - d) Porque Vue lo exige por defecto
-:::
+  :::
 
 ::: details 9. ¿Qué función de `useGestionFormularios` valida el formulario en cliente con un esquema Zod?
+
 - a) adaptarProblemDetails
 - b) validarConEsquema
 - c) erroresGlobales
 - d) watchFormulario
-:::
+  :::
 
 ::: details 10. ¿Qué función adapta los errores del servidor (400 ValidationProblemDetails) a los campos del formulario?
+
 - a) inicializarMensajeError
 - b) erroresDeCampo
 - c) adaptarProblemDetails
 - d) useErrores
-:::
+  :::
 
 ::: details 11. ¿Qué describe mejor a Pinia?
+
 - a) Storage persistente por defecto
 - b) Estado compartido reactivo en memoria
 - c) Sustituto obligatorio de ref
 - d) Cliente HTTP integrado
-:::
+  :::
 
 ::: details 12. ¿Qué almacenamiento se mantiene tras cerrar y volver a abrir el navegador?
+
 - a) sessionStorage
 - b) localStorage
 - c) Pinia
 - d) Un ref
-:::
+  :::
 
 ::: details 13. ¿Qué almacenamiento dura solo mientras la pestaña sigue abierta?
+
 - a) localStorage
 - b) sessionStorage
 - c) Pinia persistente
 - d) computed
-:::
+  :::
 
 ::: details 14. ¿Para qué sirve pnpm vue-tsc --noEmit?
+
 - a) Para compilar CSS
 - b) Para comprobar tipos sin generar salida de build
 - c) Para levantar el servidor de desarrollo
 - d) Para inspeccionar peticiones HTTP
-:::
+  :::
 
 ::: details 15. ¿Qué herramienta abrirías primero para inspeccionar una petición fallida al backend?
+
 - a) Vue Devtools
 - b) Pestaña Network del navegador
 - c) El archivo de estilos
 - d) Un slot del componente
-:::
+  :::
 
 ### Respuestas (Autoevaluación)
 
 ::: details Ver respuestas
+
 1. b) Renderizar UI y gestionar eventos del usuario.
 2. b) Composable. Suele concentrar estado reactivo y derivados de la vista.
 3. b) En el servicio.
@@ -978,12 +1067,14 @@ La vista quedó **sin lógica**: solo llama a `cargar` al montar y pinta. Todo e
 13. b) sessionStorage.
 14. b) Para comprobar tipos sin generar salida.
 15. b) La pestaña Network del navegador.
-:::
+    :::
 
 ---
 
 <!-- NAV:START -->
-| Anterior | Inicio | Siguiente |
-|---|---|---|
-| [← Sesión 11: Componentes y comunicación](../../../03-vue/sesiones/sesion-11-componentes-estado/) | [Índice del curso](../../../) | [Sesión 13: Otros componentes internos →](../../../03-vue/sesiones/sesion-13-componentes-ua/) |
+
+| Anterior                                                                                          | Inicio                        | Siguiente                                                                                     |
+| ------------------------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------- |
+| [← Sesión 09: Componentes y comunicación](../../../03-vue/sesiones/sesion-09-componentes-estado/) | [Índice del curso](../../../) | [Sesión 11: Otros componentes internos →](../../../03-vue/sesiones/sesion-11-componentes-ua/) |
+
 <!-- NAV:END -->

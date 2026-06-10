@@ -1,9 +1,9 @@
 ---
-title: "Solución del ejercicio: API de Observaciones (sesión 7)"
-description: "Ficheros completos de la API mock de Observaciones que el alumno debe construir en la sesión 7."
+title: "Solución del ejercicio: API de Observaciones (sesión 5)"
+description: "Ficheros completos de la API mock de Observaciones que el alumno debe construir en la sesión 5."
 ---
 
-# Solución del ejercicio §1.9 — API de Observaciones (sesión 7)
+# Solución del ejercicio §1.9 — API de Observaciones (sesión 5)
 
 ::: warning ESTO ES LA SOLUCIÓN
 Este fichero contiene los ficheros completos que el alumno debería entregar al final de §1.9. **Compáralo con el tuyo después de intentarlo**, no antes. Si lo lees antes, te pierdes el aprendizaje de mirar `TipoRecursosController` y derivar el patrón por tu cuenta.

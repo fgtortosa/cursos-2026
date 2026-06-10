@@ -26,9 +26,9 @@ Al finalizar este bloque, el alumno será capaz de:
 
 | Sesión                                                                          | Título                                                                                      | Duración   |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------- |
-| [Sesión 6: Introducción a .NET](./sesiones/sesion-06-introduccion-dotnet/)      | Estructura del proyecto, `Program.cs`, inyección de dependencias, C# útil                   | 1 h 30 min |
-| [Sesión 7: Modelos y primer API](./sesiones/sesion-07-dtos-apis/)               | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | 1 h 30 min |
-| [Sesión 8: Servicios y acceso a Oracle](./sesiones/sesion-08-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit         | 1 h 30 min |
+| [Sesión 3: Introducción a .NET](./sesiones/sesion-03-introduccion-dotnet/)      | Estructura del proyecto, `Program.cs`, inyección de dependencias, C# útil                   | 1 h 30 min |
+| [Sesión 4: Modelos y primer API](./sesiones/sesion-04-dtos-apis/)               | DTOs, controladores API, verbos HTTP, códigos de estado, Scalar, probar sin BD desde Chrome | 1 h 30 min |
+| [Sesión 5: Servicios y acceso a Oracle](./sesiones/sesion-05-servicios-oracle/) | Capas, `Result<T>`/`HandleResult`, ClaseOracleBD3, llamada a paquetes PL/SQL, xUnit         | 1 h 30 min |
 
 ::: tip CONTINUACIÓN EN INTEGRACIÓN
 Los temas de validación avanzada, gestión de errores global, DataTable y consumo desde Vue se cubren en las sesiones de **Integración full-stack** (sesiones 14-17), donde se ven de extremo a extremo:
@@ -54,6 +54,6 @@ Los temas de validación avanzada, gestión de errores global, DataTable y consu
 - Node.js y `pnpm` para que la parte Vue compile (aunque las sesiones 7 y 8 **no piden escribir Vue**: la página `Home.vue` ya trae botones que llaman a la API para que se pueda probar todo desde Chrome).
   :::
 
-::: info CONTEXTO — ejercicio transversal de sesiones 7 y 8
+::: info CONTEXTO — ejercicio transversal de sesiones 3 y 4
 Durante estas dos sesiones el alumno trabajará sobre una entidad nueva, **`TRES_OBSERVACION_RESERVA`** (observaciones asociadas a una reserva, con texto multiidioma + `CODPER_AUTOR`). El SQL completo (tabla, vista `VRES_OBSERVACION_RESERVA` y paquete `PKG_RES_OBSERVACION_RESERVA` con `CREAR` y `ELIMINAR` por `ACTIVO='N'`) **se entrega ya hecho**. La sesión 7 pide que el alumno cree DTOs y la API que devuelva 200 OK con datos hardcodeados; la sesión 8 pide que conecte el servicio al paquete y escriba un test simulado.
 :::

@@ -1,12 +1,10 @@
 ---
-title: "Sesión 13: Otros componentes internos"
+title: "Sesión 11: Otros componentes internos"
 description: Componentes vueua de la Universidad de Alicante — modales, toasts, BotonLoading, Checkbox triestado y Teleport
 outline: deep
 ---
 
-# Sesión 13: Otros componentes internos
-
-<!-- [[toc]] -->
+# Sesión 11: Otros componentes internos
 
 ::: info CONTEXTO
 En las sesiones anteriores construimos componentes y composables a mano para entender los mecanismos de Vue. Ahora vemos los componentes de **`@vueua/components`** — la libreria oficial de la UA — que cubren los patrones repetidos (modales, toasts, botones con spinner, …) ya resueltos.
@@ -33,7 +31,7 @@ En las sesiones anteriores construimos componentes y composables a mano para ent
 Cada componente se presenta junto con su demo abrible en `uareservas/sesiones-vue/sesion-10/...`. Abre el código y modifica valores: es la forma más rápida de fijar la API.
 :::
 
-## 10.1 ¿Qué componente UA elegir? {#decision}
+## 6.1 ¿Qué componente UA elegir? {#decision}
 
 Antes de ver la API de cada uno, fija el árbol de decisión: el alumno que se sienta frente a una pantalla nueva debe poder elegir en 10 segundos qué componente UA usa.
 
@@ -61,14 +59,14 @@ flowchart TD
 La librería se ha **unificado y modernizado**: todos los componentes viven en `@vueua/components` y el patrón de trabajo recomendado para una pantalla es siempre el mismo:
 
 1. **Visibilidad declarativa**: los modales se abren y cierran con una **variable de visibilidad** (`v-model:visible`), no con llamadas imperativas `show()`/`hide()`.
-2. **`peticion<T>`** para hablar con la API (sesión 14).
+2. **`peticion<T>`** para hablar con la API (sesión 12).
 3. **Validar el modelo en el cliente con Zod** (vía `useGestionFormularios`) **antes** de enviar.
 4. **Gestionar los errores 400 y 500** desde `useGestionFormularios`: 400 → errores por campo (`adaptarProblemDetails`); 500/red → toast (`gestionarError`).
 
 A lo largo de la sesión usamos siempre este modo. La antigua API imperativa (`ref + show()`) sigue existiendo por compatibilidad, pero queda relegada a una nota _legacy_.
 :::
 
-## 10.2 `PopUpModal` · confirmaciones y avisos breves {#popup-modal}
+## 6.2 `PopUpModal` · confirmaciones y avisos breves {#popup-modal}
 
 Modal pensado para decisiones cortas: "¿Eliminar?", "Operación completada", "¿Estás seguro?". No lleva formulario dentro; si tu caso lo necesita, salta a `DialogModal`.
 
@@ -90,7 +88,11 @@ function eliminar() {
 <template>
   <button class="btn btn-danger" @click="abierto = true">Eliminar</button>
 
-  <PopUpModal v-model:visible="abierto" @confirmar="eliminar" @cancelar="abierto = false">
+  <PopUpModal
+    v-model:visible="abierto"
+    @confirmar="eliminar"
+    @cancelar="abierto = false"
+  >
     <template #header>Eliminar reserva</template>
     <template #body>Esta accion no se puede deshacer.</template>
   </PopUpModal>
@@ -122,11 +124,12 @@ async function eliminar() {
   </PopUpModal>
 </template>
 ```
+
 :::
 
 [Demo abrible: `/uareservas/sesiones-vue/sesion-10/popup-modal`](/uareservas/sesiones-vue/sesion-10/popup-modal)
 
-## 10.3 `DialogModal` · formularios y vistas de detalle {#dialog-modal}
+## 6.3 `DialogModal` · formularios y vistas de detalle {#dialog-modal}
 
 Modal generalista con slots `#header`, `#body` y `#buttons`. Ideal cuando dentro va un formulario o una ficha de detalle. Recuerda el patrón de slots que vimos en la sesión 8: el padre decide qué HTML va en cada hueco.
 
@@ -185,7 +188,7 @@ async function guardar() {
 
 [Demo abrible: `/uareservas/sesiones-vue/sesion-10/dialog-modal`](/uareservas/sesiones-vue/sesion-10/dialog-modal)
 
-## 10.4 `SpinnerModal` · bloquear pantalla durante operación larga {#spinner-modal}
+## 6.4 `SpinnerModal` · bloquear pantalla durante operación larga {#spinner-modal}
 
 Cuando una operación dura más de medio segundo y no se puede acompañar con un `BotonLoading` (por ejemplo, porque la disparas tú al cargar la página, no desde un botón), bloquea la pantalla con `SpinnerModal`.
 
@@ -216,7 +219,7 @@ Una **sola variable booleana** (`cargando`) gobierna a la vez la visibilidad del
 
 [Demo abrible: `/uareservas/sesiones-vue/sesion-10/spinner-modal`](/uareservas/sesiones-vue/sesion-10/spinner-modal)
 
-## 10.5 `BotonLoading` · botón con spinner integrado {#boton-loading}
+## 6.5 `BotonLoading` · botón con spinner integrado {#boton-loading}
 
 Cuando el usuario pulsa un botón y la operación tarda, hay dos cosas que evitar:
 
@@ -294,7 +297,7 @@ El botón se bloquea solo al pulsarlo. **No** olvides el `try/finally`: desbloqu
 
 [Demo abrible: `/uareservas/sesiones-vue/sesion-9/boton-loading`](/uareservas/sesiones-vue/sesion-9/boton-loading) (introducido en la sesión 12)
 
-## 10.6 `useToast` · avisos transitorios {#use-toast}
+## 6.6 `useToast` · avisos transitorios {#use-toast}
 
 Notificaciones globales que aparecen en una esquina y se cierran solas. Se usan para **confirmar acciones** ("Guardado correctamente"), **avisar de errores** ("No se ha podido contactar") y **informar de procesos en curso**.
 
@@ -328,7 +331,7 @@ El contenedor `<ToastContainer />` debe estar en `App.vue` (o se monta solo en e
 
 [Demo abrible: `/uareservas/sesiones-vue/sesion-9/use-toast`](/uareservas/sesiones-vue/sesion-9/use-toast) (introducido en la sesión 12)
 
-## 10.7 `Checkbox3estados` · filtros con `boolean | null` {#checkbox3estados}
+## 6.7 `Checkbox3estados` · filtros con `boolean | null` {#checkbox3estados}
 
 Un checkbox normal tiene dos estados: marcado / no marcado. En filtros, falta un tercero: **"da igual / no filtrar"**. `Checkbox3estados` da los tres con un único `v-model`:
 
@@ -375,7 +378,7 @@ Tipa la variable como `boolean | null`. Aunque el componente admite valores laxo
 
 [Demo abrible: `/uareservas/sesiones-vue/sesion-10/checkbox-3-estados`](/uareservas/sesiones-vue/sesion-10/checkbox-3-estados)
 
-## 10.8 `Teleport` · renderizar fuera del árbol {#teleport}
+## 6.8 `Teleport` · renderizar fuera del árbol {#teleport}
 
 Es una directiva **de Vue, no de la UA**, pero entender qué hace ayuda a entender por qué los modales y toasts UA funcionan como funcionan.
 
@@ -417,11 +420,11 @@ Vue sigue tratando el contenido teletransportado como parte del componente (reac
 
 ::: details ¿Y `vueua-autocomplete`?
 
-El componente `vueua-autocomplete` (búsqueda remota con selección) figura en el temario maestro pero se aplaza intencionadamente: necesita `useAxios` para mostrar su potencia, y `useAxios` se introduce en la sesión 14. Lo retomamos en la sesión 17 (DataTable + autocomplete) cuando todas las piezas estén disponibles.
+El componente `vueua-autocomplete` (búsqueda remota con selección) figura en el temario maestro pero se aplaza intencionadamente: necesita `useAxios` para mostrar su potencia, y `useAxios` se introduce en la sesión 12. Lo retomamos en la sesión 15 (DataTable + autocomplete) cuando todas las piezas estén disponibles.
 
 :::
 
-## 10.9 Demo integradora: el flujo recomendado {#integradora}
+## 6.9 Demo integradora: el flujo recomendado {#integradora}
 
 [Demo abrible: `/uareservas/sesiones-vue/sesion-10/crud-recursos`](/uareservas/sesiones-vue/sesion-10/crud-recursos)
 
@@ -432,20 +435,37 @@ El corazón está en el `guardar()`: validar → enviar → repartir errores. Es
 ```vue
 <script setup lang="ts">
 import { reactive, ref, useTemplateRef } from "vue";
-import { peticion, verbosAxios, gestionarError } from "@vueua/components/composables/use-axios";
+import {
+  peticion,
+  verbosAxios,
+  gestionarError,
+} from "@vueua/components/composables/use-axios";
 import { useGestionFormularios } from "@vueua/components/composables/use-gestion-formularios";
 import { avisar } from "@vueua/components/composables/use-toast";
 import { DialogModal } from "@vueua/components/ui/dialog-modal";
 // + esquema Zod e interfaces de lectura/escritura del servicio (sesión 12/14)
-import { esquemaCrearTipoRecurso, type TipoRecursoCrearDto } from "@/services/api/apiTiposRecurso";
+import {
+  esquemaCrearTipoRecurso,
+  type TipoRecursoCrearDto,
+} from "@/services/api/apiTiposRecurso";
 
-const editando = ref(false);                 // ← visibilidad declarativa del modal
+const editando = ref(false); // ← visibilidad declarativa del modal
 const guardando = ref(false);
 const formRef = useTemplateRef<HTMLFormElement>("formRef");
-const borrador = reactive<TipoRecursoCrearDto>({ Codigo: "", NombreEs: "", NombreCa: "", NombreEn: "" });
+const borrador = reactive<TipoRecursoCrearDto>({
+  Codigo: "",
+  NombreEs: "",
+  NombreCa: "",
+  NombreEn: "",
+});
 
-const { erroresGlobales, erroresDeCampo, validarConEsquema, adaptarProblemDetails, inicializarMensajeError } =
-  useGestionFormularios();
+const {
+  erroresGlobales,
+  erroresDeCampo,
+  validarConEsquema,
+  adaptarProblemDetails,
+  inicializarMensajeError,
+} = useGestionFormularios();
 
 async function guardar() {
   inicializarMensajeError();
@@ -456,7 +476,7 @@ async function guardar() {
   try {
     // 2) Enviar con peticion<T>.
     await peticion<number>("TipoRecursos", verbosAxios.POST, borrador);
-    editando.value = false;                  // cerramos el modal cambiando la variable
+    editando.value = false; // cerramos el modal cambiando la variable
     avisar("Guardado", "Tipo de recurso creado");
   } catch (error: any) {
     // 3) Gestionar errores del servidor desde useGestionFormularios:
@@ -480,9 +500,19 @@ async function guardar() {
   >
     <template #body>
       <form ref="formRef" novalidate>
-        <input v-model="borrador.Codigo" name="Codigo" class="form-control"
-               :class="{ 'is-invalid': erroresDeCampo('Codigo').length }" />
-        <div v-for="m in erroresDeCampo('Codigo')" :key="m" class="invalid-feedback">{{ m }}</div>
+        <input
+          v-model="borrador.Codigo"
+          name="Codigo"
+          class="form-control"
+          :class="{ 'is-invalid': erroresDeCampo('Codigo').length }"
+        />
+        <div
+          v-for="m in erroresDeCampo('Codigo')"
+          :key="m"
+          class="invalid-feedback"
+        >
+          {{ m }}
+        </div>
         <!-- … resto de campos … -->
 
         <div v-if="erroresGlobales.length" class="alert alert-danger mt-2">
@@ -497,10 +527,10 @@ async function guardar() {
 El resto del CRUD encaja igual: `SpinnerModal v-model:visible="cargando"` en la carga, `PopUpModal v-model:visible="confirmando"` para confirmar el borrado, `BotonLoading` en guardar y `Checkbox3estados` en el filtro.
 
 ::: info DÓNDE ESTÁ EL DETALLE COMPLETO
-Aquí ves **cómo se usan los componentes** con el flujo recomendado. El **porqué** del pipeline de validación de extremo a extremo (DataAnnotations, FluentValidation, errores de Oracle, `ValidationProblemDetails`) se desarrolla en la [sesión 15 — Validación en todas las capas](../../../04-integracion/sesiones/sesion-15-validacion/). Y `peticion<T>` / interceptores / autenticación, en la [sesión 14](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
+Aquí ves **cómo se usan los componentes** con el flujo recomendado. El **porqué** del pipeline de validación de extremo a extremo (DataAnnotations, FluentValidation, errores de Oracle, `ValidationProblemDetails`) se desarrolla en la [sesión 13 — Validación en todas las capas](../../../04-integracion/sesiones/sesion-15-validacion/). Y `peticion<T>` / interceptores / autenticación, en la [sesión 12](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
 :::
 
-## 10.10 Pruébalo en el proyecto {#sandbox}
+## 6.10 Pruébalo en el proyecto {#sandbox}
 
 En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-10/` hay seis demos navegables. Arranca la app y entra en `/uareservas/sesiones-vue/sesion-10`:
 
@@ -514,12 +544,12 @@ En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-10/` hay seis demos naveg
 | `Sesion10CrudRecursos.vue`     | Integradora: listar, filtrar, crear, editar y eliminar con todos los componentes UA         | `sesion-10/Sesion10CrudRecursos.vue`     |
 
 ::: tip CIERRE DEL BLOQUE VUE
-La integradora `Sesion10CrudRecursos.vue` es el **estado final del bloque Vue**: combina `DialogModal` (crear/editar), `PopUpModal` (confirmar eliminación), `SpinnerModal` (carga inicial), `BotonLoading` (guardar), `Checkbox3estados` (filtro) y `useToast` (avisos). Cuando arranque el bloque de **Integración** (sesión 14), sustituiremos el servicio mock por uno con `useAxios` y esta vista no se tocará.
+La integradora `Sesion10CrudRecursos.vue` es el **estado final del bloque Vue**: combina `DialogModal` (crear/editar), `PopUpModal` (confirmar eliminación), `SpinnerModal` (carga inicial), `BotonLoading` (guardar), `Checkbox3estados` (filtro) y `useToast` (avisos). Cuando arranque el bloque de **Integración** (sesión 12), sustituiremos el servicio mock por uno con `useAxios` y esta vista no se tocará.
 :::
 
-## 10.11 Siguiente sesión {#siguiente}
+## 6.11 Siguiente sesión {#siguiente}
 
-En la sesión 14 (parte de Integración) sustituiremos el servicio mock por llamadas reales a la API con `useAxios` y veremos la autenticación CAS/JWT. El código de las demos de esta sesión **no necesitará cambios** en las capas de vista ni de composable.
+En la sesión 12 (parte de Integración) sustituiremos el servicio mock por llamadas reales a la API con `useAxios` y veremos la autenticación CAS/JWT. El código de las demos de esta sesión **no necesitará cambios** en las capas de vista ni de composable.
 
 ## Tarea progresiva del proyecto final {#tarea-pf}
 
@@ -532,12 +562,12 @@ En tu rama `tiporecurso-<nombre>`, construye la pantalla completa de gestión de
 - **Eliminar** desde una fila pidiendo confirmación con `PopUpModal` y mostrando toast.
 - Carga inicial bloqueada por `SpinnerModal`.
 
-A día de hoy sigue trabajando con un **servicio mock**: `tipoRecursoServicioMock.ts` que simule latencia. En la sesión 17 sustituirás el mock por `useAxios` y la pantalla **no se tocará**.
+A día de hoy sigue trabajando con un **servicio mock**: `tipoRecursoServicioMock.ts` que simule latencia. En la sesión 15 sustituirás el mock por `useAxios` y la pantalla **no se tocará**.
 
 Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 :::
 
-## Test Sesión 13 {#test}
+## Test Sesión 11 {#test}
 
 ::: details 1. ¿Cuándo usar `PopUpModal` en lugar de `DialogModal`?
 
@@ -591,7 +621,7 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 ## Referencias {#referencias}
 
 - [Documentación de `@vueua/components`](https://preproddesa.campus.ua.es/ComponentesVue/) — catálogo y demos en vivo.
-- [Skill `ua-validacion`]() — para encadenar este bloque con la validación cross-capa de la sesión 15.
+- [Skill `ua-validacion`]() — para encadenar este bloque con la validación cross-capa de la sesión 13.
 - Sesión 11 — slots, lifecycle, `defineModel` (base teórica de `DialogModal` y `SpinnerModal`).
 - Sesión 12 — composables, `useToast`, `BotonLoading`, arquitectura tres capas (base de la demo integradora).
 
@@ -601,6 +631,6 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 | Anterior                                                                                                      | Inicio                        | Siguiente                                                                                                       |
 | ------------------------------------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| [← Sesión 12: Arquitectura de componentes y servicios](../../../03-vue/sesiones/sesion-12-arquitectura-apis/) | [Índice del curso](../../../) | [Sesión 14: Llamadas a la API y autenticación →](../../../04-integracion/sesiones/sesion-14-api-autenticacion/) |
+| [← Sesión 10: Arquitectura de componentes y servicios](../../../03-vue/sesiones/sesion-10-arquitectura-apis/) | [Índice del curso](../../../) | [Sesión 12: Llamadas a la API y autenticación →](../../../04-integracion/sesiones/sesion-14-api-autenticacion/) |
 
 <!-- NAV:END -->

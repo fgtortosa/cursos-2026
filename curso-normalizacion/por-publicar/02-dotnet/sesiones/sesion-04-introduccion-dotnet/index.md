@@ -4,7 +4,7 @@ description: Fundamentos de .NET 10, inyección de dependencias, estructura de P
 outline: deep
 ---
 
-# Sesión 6: Introducción a .NET y conceptos previos
+# Sesión 4: Introducción a .NET y conceptos previos
 
 ::: info CONTEXTO
 Esta sesión sienta las bases para el resto del curso. Si ya conoces .NET Core, sirve como repaso rápido y actualización a .NET 10. Si vienes de otros lenguajes, aquí encontrarás todo lo que necesitas para seguir las sesiones siguientes.
@@ -13,9 +13,9 @@ Esta sesión sienta las bases para el resto del curso. Si ya conoces .NET Core, 
 
 | Sesión       | Tema                        | Qué aprenderás                                                 |
 | ------------ | --------------------------- | -------------------------------------------------------------- |
-| **6 (esta)** | Introducción a .NET         | Estructura del proyecto, inyección de dependencias, Program.cs |
-| **7**        | Modelos y primer API        | Crear controladores API REST, verbos HTTP, códigos de estado   |
-| **8**        | Servicios y acceso a Oracle | Capas, ClaseOracleBD3, mapeo automático, flujo completo        |
+| **4 (esta)** | Introducción a .NET         | Estructura del proyecto, inyección de dependencias, Program.cs |
+| **5**        | Modelos y primer API        | Crear controladores API REST, verbos HTTP, códigos de estado   |
+| **6**        | Servicios y acceso a Oracle | Capas, ClaseOracleBD3, mapeo automático, flujo completo        |
 
 Los temas de validación, errores, DataTable y OpenAPI se cubren en las sesiones de **Integración full-stack** (11-14).
 :::
@@ -689,6 +689,6 @@ app.Run();
 
 | Anterior                                                                                     | Inicio                        | Siguiente                                                                            |
 | -------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------ |
-| [← Sesión 3: tablas y vistas](../../../01-oracle/sesiones/sesion-03-docencia-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 7: Modelos y primer API →](../../../02-dotnet/sesiones/sesion-07-dtos-apis/) |
+| [← Sesión 3: tablas y vistas](../../../01-oracle/sesiones/sesion-03-docencia-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 5: Modelos y primer API →](../../../02-dotnet/sesiones/sesion-05-dtos-apis/) |
 
 <!-- NAV:END -->

@@ -5,18 +5,20 @@ outline: deep
 ---
 
 # Sesión especial: construye un componente TODO desde cero
+
 <!-- [[toc]] -->
 
 ::: info CONTEXTO
-Esta es una **sesión especial** (formato masterclass grabada) que **refuerza la [Sesión 10: Directivas, eventos y datos](../sesion-10-directivas-eventos/)**. En la sesión 10 vimos cada directiva en una demo aislada; aquí las **encadenamos en una sola construcción en vivo**: partimos de una lista de HTML escrita a mano y, paso a paso, llegamos a un componente TODO interactivo. Después repetimos el **mismo patrón** con las reservas del curso y vemos cómo enlaza con la aplicación real.
+Esta es una **sesión especial** (formato masterclass grabada) que **refuerza la [Sesión 8: Directivas, eventos y datos](../sesion-08-directivas-eventos/)**. En la sesión 8 vimos cada directiva en una demo aislada; aquí las **encadenamos en una sola construcción en vivo**: partimos de una lista de HTML escrita a mano y, paso a paso, llegamos a un componente TODO interactivo. Después repetimos el **mismo patrón** con las reservas del curso y vemos cómo enlaza con la aplicación real.
 
 **Al terminar esta sesión sabrás:**
+
 - Partir de HTML estático y entender por qué no escala.
 - Pasar de HTML "muerto" a datos reactivos con una **interface** y `v-for`.
 - Añadir, marcar y borrar elementos con `v-model`, eventos y `.filter()`.
 - Reconocer que **el patrón no cambia** al pasar del TODO de juguete al dominio real (reservas).
 - Saber dónde encaja todo esto en la aplicación demo y qué viene después (servicio mock → `useAxios`).
-:::
+  :::
 
 ::: tip ¿VIENES DE RAZOR, PHP O ASP?
 En los pasos del `v-for` (§Paso 2) y de **añadir** (§Paso 4) encontrarás recuadros **"Si vienes de Razor, PHP o ASP"** que comparan el código de servidor con el de Vue. Si ya programas con esas tecnologías, te ayudarán a ver qué es **lo mismo** (iterar una colección, un formulario) y qué **cambia de raíz** (render en servidor con recarga → reactividad en el cliente sin recarga).
@@ -24,12 +26,12 @@ En los pasos del `v-for` (§Paso 2) y de **añadir** (§Paso 4) encontrarás rec
 
 ## Plan de sesión (90 min) {#plan-90}
 
-| Bloque | Tiempo | Contenido |
-|--------|--------|-----------|
-| **Construcción del TODO** | 50 min | Pasos 1 a 7: de `<li>` fijos a TODO completo |
-| **El mismo patrón: reservas** | 20 min | Paso 8: mismo componente sobre `IReserva` |
-| **Y después la app** | 10 min | Paso 9: dónde vive y cómo se conecta a la API |
-| **Cierre** | 10 min | Resumen y puente a las sesiones 11–14 |
+| Bloque                        | Tiempo | Contenido                                     |
+| ----------------------------- | ------ | --------------------------------------------- |
+| **Construcción del TODO**     | 50 min | Pasos 1 a 7: de `<li>` fijos a TODO completo  |
+| **El mismo patrón: reservas** | 20 min | Paso 8: mismo componente sobre `IReserva`     |
+| **Y después la app**          | 10 min | Paso 9: dónde vive y cómo se conecta a la API |
+| **Cierre**                    | 10 min | Resumen y puente a las sesiones 11–14         |
 
 ::: tip OBJETIVO PEDAGÓGICO
 El TODO es un dominio **de juguete a propósito**. Lo importante no es la lista de tareas: es interiorizar el **patrón** (interface → array reactivo → `v-for` → añadir/marcar/borrar) para luego aplicarlo sin pensar a reservas, recursos o cualquier entidad del proyecto final.
@@ -38,11 +40,11 @@ El TODO es un dominio **de juguete a propósito**. Lo importante no es la lista 
 ::: details Demos ejecutables de esta sesión
 Todo lo de esta sesión está disponible y navegable en la aplicación demo:
 
-| Demo | Ruta en la app | Fichero |
-|------|----------------|---------|
-| Índice de la sesión especial | `/uareservas/sesiones-vue/sesion-especial` | `SesionEspecialIndice.vue` |
-| Componente TODO (estado final) | `/uareservas/sesiones-vue/sesion-especial/todo` | `SesionEspecialTodo.vue` |
-| El mismo patrón: reservas | `/uareservas/sesiones-vue/sesion-especial/reservas` | `SesionEspecialReservas.vue` |
+| Demo                           | Ruta en la app                                      | Fichero                      |
+| ------------------------------ | --------------------------------------------------- | ---------------------------- |
+| Índice de la sesión especial   | `/uareservas/sesiones-vue/sesion-especial`          | `SesionEspecialIndice.vue`   |
+| Componente TODO (estado final) | `/uareservas/sesiones-vue/sesion-especial/todo`     | `SesionEspecialTodo.vue`     |
+| El mismo patrón: reservas      | `/uareservas/sesiones-vue/sesion-especial/reservas` | `SesionEspecialReservas.vue` |
 
 Carpeta: `uaReservas/ClientApp/src/views/sesiones-vue/sesion-especial/`.
 :::
@@ -56,7 +58,7 @@ Antes de escribir nada de lógica, creamos el fichero del componente y lo **ench
 ```html
 <!-- src/views/sesiones-vue/sesion-especial/SesionEspecialTodo.vue -->
 <script setup lang="ts">
-// De momento, vacío. Aquí irá la lógica a partir del Paso 2.
+  // De momento, vacío. Aquí irá la lógica a partir del Paso 2.
 </script>
 
 <template>
@@ -103,10 +105,11 @@ Empezamos como lo haría cualquiera que conoce HTML pero todavía no Vue: una li
 
 ::: tip 🎥 EN PANTALLA
 Refresca: ya se ven las cuatro tareas. Funciona… pero hazte estas preguntas en voz alta para la cámara:
+
 - ¿Y si quiero **añadir** una tarea? Tengo que editar el HTML y recompilar.
 - ¿Y si quiero **marcar** una como hecha o **borrarla**? El HTML no sabe nada de "estado".
 - ¿Y si las tareas vienen de una **base de datos**? No puedo escribir `<li>` a mano para cada fila.
-:::
+  :::
 
 ::: warning EL PROBLEMA
 Este HTML está **"muerto"**: es contenido fijo y repetido. No hay datos, no hay estado, no hay interacción. Vue existe precisamente para resolver esto: **describir la lista una sola vez y dejar que se genere a partir de los datos**.
@@ -118,26 +121,30 @@ Ahora aparece el `<script>`. Primero **describimos la forma de una tarea** con u
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from "vue";
 
-// Una interface describe la FORMA de un objeto: qué propiedades tiene
-// y de qué tipo. No genera código en runtime; le sirve a TypeScript
-// para avisarte si te equivocas. 'hecha' es la bandera de estado
-// (el equivalente a 'confirmada' en una reserva).
-interface ITarea {
-  id: number      // identificador único y estable → usado en :key
-  texto: string   // lo que se muestra en el <li>
-  hecha: boolean  // ¿está completada?
-}
+  // Una interface describe la FORMA de un objeto: qué propiedades tiene
+  // y de qué tipo. No genera código en runtime; le sirve a TypeScript
+  // para avisarte si te equivocas. 'hecha' es la bandera de estado
+  // (el equivalente a 'confirmada' en una reserva).
+  interface ITarea {
+    id: number; // identificador único y estable → usado en :key
+    texto: string; // lo que se muestra en el <li>
+    hecha: boolean; // ¿está completada?
+  }
 
-// ref<ITarea[]> es una "caja" reactiva que solo admite arrays de ITarea.
-// Son las mismas cuatro tareas que antes estaban escritas a mano.
-const tareas = ref<ITarea[]>([
-  { id: 1, texto: 'Asisto a la sesión del curso de normalización: Vue', hecha: false },
-  { id: 2, texto: 'Me voy a la playa', hecha: false },
-  { id: 3, texto: 'Hago la cena', hecha: false },
-  { id: 4, texto: 'Me voy a dormir', hecha: false },
-])
+  // ref<ITarea[]> es una "caja" reactiva que solo admite arrays de ITarea.
+  // Son las mismas cuatro tareas que antes estaban escritas a mano.
+  const tareas = ref<ITarea[]>([
+    {
+      id: 1,
+      texto: "Asisto a la sesión del curso de normalización: Vue",
+      hecha: false,
+    },
+    { id: 2, texto: "Me voy a la playa", hecha: false },
+    { id: 3, texto: "Hago la cena", hecha: false },
+    { id: 4, texto: "Me voy a dormir", hecha: false },
+  ]);
 </script>
 
 <template>
@@ -158,19 +165,17 @@ const tareas = ref<ITarea[]>([
        Vue lo usa para saber qué fila actualizar, mover o borrar. -->
   <h2>Generada con v-for</h2>
   <ul>
-    <li v-for="tarea in tareas" :key="tarea.id">
-      {{ tarea.texto }}
-    </li>
+    <li v-for="tarea in tareas" :key="tarea.id">{{ tarea.texto }}</li>
   </ul>
 </template>
 ```
 
 ::: tip 🎥 EN PANTALLA
-Las dos listas se ven **idénticas**. Ese es justo el momento "ajá": *el `v-for` produce exactamente lo mismo que el HTML a mano, pero desde los datos*. Cambia un texto en el array `tareas` y verás que **solo cambia la segunda lista** — la de datos es la viva.
+Las dos listas se ven **idénticas**. Ese es justo el momento "ajá": _el `v-for` produce exactamente lo mismo que el HTML a mano, pero desde los datos_. Cambia un texto en el array `tareas` y verás que **solo cambia la segunda lista** — la de datos es la viva.
 :::
 
 ::: warning `:key` ES OBLIGATORIO EN `v-for`
-Siempre una clave **única y estable**, normalmente el `id`. Nunca uses el índice del bucle (`:key="index"`): cuando borras o reordenas, Vue reutiliza los nodos por posición y los estados internos (checkboxes marcados, texto editado) se mezclan. Lo vimos en la [Sesión 10 §2.5](../sesion-10-directivas-eventos/#listas).
+Siempre una clave **única y estable**, normalmente el `id`. Nunca uses el índice del bucle (`:key="index"`): cuando borras o reordenas, Vue reutiliza los nodos por posición y los estados internos (checkboxes marcados, texto editado) se mezclan. Lo vimos en la [Sesión 8 §2.5](../sesion-08-directivas-eventos/#listas).
 :::
 
 ### Si vienes de Razor, PHP o ASP {#vfor-servidor}
@@ -216,13 +221,13 @@ Recorrer una colección para pintar una fila por elemento **no es nuevo**: ya lo
 
 :::
 
-| | Razor / PHP / ASP | Vue (`v-for`) |
-|---|---|---|
-| **Dónde corre el bucle** | En el **servidor** | En el **navegador** |
-| **Cuándo** | **Una vez** por petición, al generar el HTML | Cada vez que **cambian los datos** (reactivo) |
-| **Si cambian los datos** | Hay que **recargar la página** (nueva petición) | La lista se **repinta sola**, sin recargar |
-| **El `:key`** | No existe (el HTML se tira y se regenera entero) | **Obligatorio**: identifica cada fila para actualizar solo lo necesario |
-| **Origen de los datos** | `Model` / variable de servidor | Un `ref`/array reactivo en el cliente |
+|                          | Razor / PHP / ASP                                | Vue (`v-for`)                                                           |
+| ------------------------ | ------------------------------------------------ | ----------------------------------------------------------------------- |
+| **Dónde corre el bucle** | En el **servidor**                               | En el **navegador**                                                     |
+| **Cuándo**               | **Una vez** por petición, al generar el HTML     | Cada vez que **cambian los datos** (reactivo)                           |
+| **Si cambian los datos** | Hay que **recargar la página** (nueva petición)  | La lista se **repinta sola**, sin recargar                              |
+| **El `:key`**            | No existe (el HTML se tira y se regenera entero) | **Obligatorio**: identifica cada fila para actualizar solo lo necesario |
+| **Origen de los datos**  | `Model` / variable de servidor                   | Un `ref`/array reactivo en el cliente                                   |
 
 ::: tip LA DIFERENCIA DE FONDO
 En Razor/PHP/ASP el HTML se **arma una vez en el servidor** y llega "congelado" al navegador: para ver un cambio, otra petición. En Vue el `v-for` queda **vivo en el cliente**, atado a un array reactivo; cuando ese array cambia (añadir, marcar, borrar), Vue actualiza el DOM **sin recargar**. Mismo concepto (iterar una colección), distinto momento de ejecución.
@@ -237,9 +242,7 @@ Ya hemos demostrado que las dos listas son equivalentes. La fija **ya sobra**: l
   <h1>Mi lista de tareas</h1>
 
   <ul>
-    <li v-for="tarea in tareas" :key="tarea.id">
-      {{ tarea.texto }}
-    </li>
+    <li v-for="tarea in tareas" :key="tarea.id">{{ tarea.texto }}</li>
   </ul>
 </template>
 ```
@@ -254,35 +257,39 @@ Para añadir necesitamos dos cosas: un sitio donde el usuario **escriba** (un `<
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from "vue";
 
-interface ITarea {
-  id: number
-  texto: string
-  hecha: boolean
-}
+  interface ITarea {
+    id: number;
+    texto: string;
+    hecha: boolean;
+  }
 
-const tareas = ref<ITarea[]>([
-  { id: 1, texto: 'Asisto a la sesión del curso de normalización: Vue', hecha: false },
-  { id: 2, texto: 'Me voy a la playa', hecha: false },
-  { id: 3, texto: 'Hago la cena', hecha: false },
-  { id: 4, texto: 'Me voy a dormir', hecha: false },
-])
+  const tareas = ref<ITarea[]>([
+    {
+      id: 1,
+      texto: "Asisto a la sesión del curso de normalización: Vue",
+      hecha: false,
+    },
+    { id: 2, texto: "Me voy a la playa", hecha: false },
+    { id: 3, texto: "Hago la cena", hecha: false },
+    { id: 4, texto: "Me voy a dormir", hecha: false },
+  ]);
 
-// Estado del formulario: lo que el usuario está escribiendo ahora mismo.
-const nuevaTarea = ref('')
+  // Estado del formulario: lo que el usuario está escribiendo ahora mismo.
+  const nuevaTarea = ref("");
 
-// Generador simple de ids para las tareas nuevas. Empezamos alto para
-// no chocar con los ids 1-4 iniciales. (Date.now() también valdría.)
-let proximoId = 100
+  // Generador simple de ids para las tareas nuevas. Empezamos alto para
+  // no chocar con los ids 1-4 iniciales. (Date.now() también valdría.)
+  let proximoId = 100;
 
-// Handler SIN argumentos → se engancha con @click="anadir" (sin paréntesis).
-function anadir(): void {
-  const limpio = nuevaTarea.value.trim()
-  if (!limpio) return                                       // descarta vacíos
-  tareas.value.push({ id: proximoId++, texto: limpio, hecha: false })
-  nuevaTarea.value = ''                                     // limpia el input
-}
+  // Handler SIN argumentos → se engancha con @click="anadir" (sin paréntesis).
+  function anadir(): void {
+    const limpio = nuevaTarea.value.trim();
+    if (!limpio) return; // descarta vacíos
+    tareas.value.push({ id: proximoId++, texto: limpio, hecha: false });
+    nuevaTarea.value = ""; // limpia el input
+  }
 </script>
 
 <template>
@@ -368,15 +375,15 @@ End If
 
 :::
 
-| | Razor / PHP / ASP | Vue |
-|---|---|---|
-| **Qué pasa al añadir** | `POST` al servidor (postback) | Se muta un array en el cliente |
-| **Repintado** | El servidor **re-renderiza toda la página** | Vue **parchea solo** el nodo nuevo |
-| **Recarga del navegador** | Sí (nueva petición) | No |
-| **Foco / scroll / lo escrito en otros campos** | Se **pierden** (página nueva) | Se **mantienen** |
+|                                                | Razor / PHP / ASP                           | Vue                                |
+| ---------------------------------------------- | ------------------------------------------- | ---------------------------------- |
+| **Qué pasa al añadir**                         | `POST` al servidor (postback)               | Se muta un array en el cliente     |
+| **Repintado**                                  | El servidor **re-renderiza toda la página** | Vue **parchea solo** el nodo nuevo |
+| **Recarga del navegador**                      | Sí (nueva petición)                         | No                                 |
+| **Foco / scroll / lo escrito en otros campos** | Se **pierden** (página nueva)               | Se **mantienen**                   |
 
 ::: tip ¿Y los datos no se guardan en el servidor?
-En este TODO el array vive **solo en el navegador**, así que al recargar se pierde. En una app real, `anadir()` además llamaría a la API para **persistir** (lo verás con `peticion<T>` en la sesión 14). La diferencia clave se mantiene: en Vue **la UI se actualiza al instante en el cliente** y la llamada al servidor es un paso aparte, no un recargado de toda la página.
+En este TODO el array vive **solo en el navegador**, así que al recargar se pierde. En una app real, `anadir()` además llamaría a la API para **persistir** (lo verás con `peticion<T>` en la sesión 12). La diferencia clave se mantiene: en Vue **la UI se actualiza al instante en el cliente** y la llamada al servidor es un paso aparte, no un recargado de toda la página.
 :::
 
 ## Paso 5 — Marcar tareas como hechas {#paso-5}
@@ -438,13 +445,13 @@ Añadimos un botón por fila que elimina **esa** tarea. Como el botón necesita 
 
 ```html
 <script setup lang="ts">
-// ... (interface, tareas, nuevaTarea, proximoId y anadir, sin cambios)
+  // ... (interface, tareas, nuevaTarea, proximoId y anadir, sin cambios)
 
-// .filter devuelve un ARRAY NUEVO sin el id indicado. Reasignar a .value
-// es lo que Vue detecta para redibujar la lista. .filter NO muta el original.
-function borrar(id: number): void {
-  tareas.value = tareas.value.filter(t => t.id !== id)
-}
+  // .filter devuelve un ARRAY NUEVO sin el id indicado. Reasignar a .value
+  // es lo que Vue detecta para redibujar la lista. .filter NO muta el original.
+  function borrar(id: number): void {
+    tareas.value = tareas.value.filter((t) => t.id !== id);
+  }
 </script>
 
 <template>
@@ -480,10 +487,11 @@ function borrar(id: number): void {
 ```
 
 ::: warning AÑADIR SIN PARÉNTESIS, BORRAR CON PARÉNTESIS
+
 - `@click="anadir"` → **sin** paréntesis: el handler no necesita ningún dato de la fila.
 - `@click="borrar(tarea.id)"` → **con** paréntesis: necesita saber qué fila borrar.
 
-Es la misma regla práctica de la [Sesión 10 §2.2](../sesion-10-directivas-eventos/#funciones).
+Es la misma regla práctica de la [Sesión 8 §2.2](../sesion-08-directivas-eventos/#funciones).
 :::
 
 ::: tip 🎥 EN PANTALLA
@@ -496,41 +504,45 @@ Dos detalles que convierten la demo en algo usable: un **contador de pendientes*
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from "vue";
 
-interface ITarea {
-  id: number
-  texto: string
-  hecha: boolean
-}
+  interface ITarea {
+    id: number;
+    texto: string;
+    hecha: boolean;
+  }
 
-const tareas = ref<ITarea[]>([
-  { id: 1, texto: 'Asisto a la sesión del curso de normalización: Vue', hecha: false },
-  { id: 2, texto: 'Me voy a la playa', hecha: false },
-  { id: 3, texto: 'Hago la cena', hecha: false },
-  { id: 4, texto: 'Me voy a dormir', hecha: false },
-])
+  const tareas = ref<ITarea[]>([
+    {
+      id: 1,
+      texto: "Asisto a la sesión del curso de normalización: Vue",
+      hecha: false,
+    },
+    { id: 2, texto: "Me voy a la playa", hecha: false },
+    { id: 3, texto: "Hago la cena", hecha: false },
+    { id: 4, texto: "Me voy a dormir", hecha: false },
+  ]);
 
-const nuevaTarea = ref('')
-let proximoId = 100
+  const nuevaTarea = ref("");
+  let proximoId = 100;
 
-function anadir(): void {
-  const limpio = nuevaTarea.value.trim()
-  if (!limpio) return
-  tareas.value.push({ id: proximoId++, texto: limpio, hecha: false })
-  nuevaTarea.value = ''
-}
+  function anadir(): void {
+    const limpio = nuevaTarea.value.trim();
+    if (!limpio) return;
+    tareas.value.push({ id: proximoId++, texto: limpio, hecha: false });
+    nuevaTarea.value = "";
+  }
 
-function borrar(id: number): void {
-  tareas.value = tareas.value.filter(t => t.id !== id)
-}
+  function borrar(id: number): void {
+    tareas.value = tareas.value.filter((t) => t.id !== id);
+  }
 
-// Cuenta las que NO están hechas. La resolvemos como FUNCIÓN porque en
-// la sesión 10 aún no hemos visto 'computed'. En la sesión 11 la
-// refactorizaremos a computed para cachear el resultado entre renders.
-function pendientes(): number {
-  return tareas.value.filter(t => !t.hecha).length
-}
+  // Cuenta las que NO están hechas. La resolvemos como FUNCIÓN porque en
+  // la sesión 10 aún no hemos visto 'computed'. En la sesión 11 la
+  // refactorizaremos a computed para cachear el resultado entre renders.
+  function pendientes(): number {
+    return tareas.value.filter((t) => !t.hecha).length;
+  }
 </script>
 
 <template>
@@ -571,7 +583,10 @@ function pendientes(): number {
     </li>
 
     <!-- v-if: solo se crea este <li> cuando el array está vacío. -->
-    <li v-if="tareas.length === 0" class="list-group-item text-center text-muted">
+    <li
+      v-if="tareas.length === 0"
+      class="list-group-item text-center text-muted"
+    >
       No hay tareas. Añade una con el formulario de arriba.
     </li>
   </ul>
@@ -587,8 +602,8 @@ function pendientes(): number {
 Borra **todas** las tareas una a una: cuando cae la última, aparece el mensaje "No hay tareas…". Marca algunas como hechas y observa cómo baja el contador de pendientes. Este es el componente terminado — y lo hemos construido **sin saltarnos ningún concepto de la sesión 10**.
 :::
 
-::: info PUENTE A LA SESIÓN 11
-`pendientes()` es una **función** que se recalcula en cada render. En la [Sesión 11](../sesion-11-componentes-estado/) la convertiremos en una propiedad `computed`, que cachea el resultado y solo lo recalcula cuando cambian las tareas.
+::: info PUENTE A LA SESIÓN 9
+`pendientes()` es una **función** que se recalcula en cada render. En la [Sesión 9](../sesion-09-componentes-estado/) la convertiremos en una propiedad `computed`, que cachea el resultado y solo lo recalcula cuando cambian las tareas.
 :::
 
 ---
@@ -597,50 +612,55 @@ Borra **todas** las tareas una a una: cuando cae la última, aparece el mensaje 
 
 Aquí está la idea central de la sesión. El TODO era el juguete; las **reservas** son el dominio real del curso. Vamos a reescribir el componente **cambiando solo el contrato y los nombres** — la mecánica de Vue es exactamente la misma.
 
-| Concepto | TODO | Reserva |
-|----------|------|---------|
-| Interface | `ITarea { id, texto, hecha }` | `IReserva { id, recurso, horas, confirmada }` |
-| Bandera de estado | `hecha` | `confirmada` |
-| Texto que se pinta | `tarea.texto` | `reserva.recurso (reserva.horas h)` |
-| Añadir / marcar / borrar | igual | igual |
+| Concepto                 | TODO                          | Reserva                                       |
+| ------------------------ | ----------------------------- | --------------------------------------------- |
+| Interface                | `ITarea { id, texto, hecha }` | `IReserva { id, recurso, horas, confirmada }` |
+| Bandera de estado        | `hecha`                       | `confirmada`                                  |
+| Texto que se pinta       | `tarea.texto`                 | `reserva.recurso (reserva.horas h)`           |
+| Añadir / marcar / borrar | igual                         | igual                                         |
 
 ```html
 <script setup lang="ts">
-import { ref } from 'vue'
+  import { ref } from "vue";
 
-// Mismo patrón, distinto contrato. Esta es la forma del DTO ReservaLectura
-// del backend .NET (sesión 7): cuando en la sesión 12 llamemos a
-// /api/Reservas, el JSON cumplirá esta interface.
-interface IReserva {
-  id: number
-  recurso: string
-  horas: number
-  confirmada: boolean       // ← la bandera de estado, antes 'hecha'
-}
+  // Mismo patrón, distinto contrato. Esta es la forma del DTO ReservaLectura
+  // del backend .NET (sesión 7): cuando en la sesión 12 llamemos a
+  // /api/Reservas, el JSON cumplirá esta interface.
+  interface IReserva {
+    id: number;
+    recurso: string;
+    horas: number;
+    confirmada: boolean; // ← la bandera de estado, antes 'hecha'
+  }
 
-const reservas = ref<IReserva[]>([
-  { id: 1, recurso: 'Aula 12',          horas: 2, confirmada: false },
-  { id: 2, recurso: 'Sala reuniones A', horas: 1, confirmada: true  },
-  { id: 3, recurso: 'Proyector',        horas: 1, confirmada: false },
-])
+  const reservas = ref<IReserva[]>([
+    { id: 1, recurso: "Aula 12", horas: 2, confirmada: false },
+    { id: 2, recurso: "Sala reuniones A", horas: 1, confirmada: true },
+    { id: 3, recurso: "Proyector", horas: 1, confirmada: false },
+  ]);
 
-const nuevoRecurso = ref('')
-let proximoId = 100
+  const nuevoRecurso = ref("");
+  let proximoId = 100;
 
-function anadir(): void {
-  const limpio = nuevoRecurso.value.trim()
-  if (!limpio) return
-  reservas.value.push({ id: proximoId++, recurso: limpio, horas: 1, confirmada: false })
-  nuevoRecurso.value = ''
-}
+  function anadir(): void {
+    const limpio = nuevoRecurso.value.trim();
+    if (!limpio) return;
+    reservas.value.push({
+      id: proximoId++,
+      recurso: limpio,
+      horas: 1,
+      confirmada: false,
+    });
+    nuevoRecurso.value = "";
+  }
 
-function borrar(id: number): void {
-  reservas.value = reservas.value.filter(r => r.id !== id)
-}
+  function borrar(id: number): void {
+    reservas.value = reservas.value.filter((r) => r.id !== id);
+  }
 
-function pendientes(): number {
-  return reservas.value.filter(r => !r.confirmada).length
-}
+  function pendientes(): number {
+    return reservas.value.filter((r) => !r.confirmada).length;
+  }
 </script>
 
 <template>
@@ -682,7 +702,10 @@ function pendientes(): number {
       </button>
     </li>
 
-    <li v-if="reservas.length === 0" class="list-group-item text-center text-muted">
+    <li
+      v-if="reservas.length === 0"
+      class="list-group-item text-center text-muted"
+    >
       No hay reservas. Añade una con el formulario de arriba.
     </li>
   </ul>
@@ -694,10 +717,10 @@ function pendientes(): number {
 ```
 
 ::: tip 🎥 EN PANTALLA
-Pon los dos componentes lado a lado (pestaña TODO y pestaña reservas). Son **el mismo componente** con otros nombres. El mensaje para la cámara: *cuando domines este patrón, montar el CRUD de cualquier entidad —tipos de recurso, recursos, reservas— es repetir esta misma estructura*.
+Pon los dos componentes lado a lado (pestaña TODO y pestaña reservas). Son **el mismo componente** con otros nombres. El mensaje para la cámara: _cuando domines este patrón, montar el CRUD de cualquier entidad —tipos de recurso, recursos, reservas— es repetir esta misma estructura_.
 :::
 
-> Demo equivalente en el repo: `SesionEspecialReservas.vue`. Es prácticamente idéntico a `Sesion7ListaReservas.vue` de la [Sesión 10](../sesion-10-directivas-eventos/#eventos), que añade además un bloque "Resumen" con `v-for` sobre un objeto.
+> Demo equivalente en el repo: `SesionEspecialReservas.vue`. Es prácticamente idéntico a `Sesion7ListaReservas.vue` de la [Sesión 8](../sesion-08-directivas-eventos/#eventos), que añade además un bloque "Resumen" con `v-for` sobre un objeto.
 
 ## Paso 9 — Y después… la aplicación {#paso-9}
 
@@ -716,16 +739,17 @@ flowchart LR
 
 <!-- diagram id="especial-fijo-a-api" caption: "Del array fijo a la API real: las dos etapas y sus sesiones" -->
 
-Lo importante: **el `<template>` casi no cambia**. Lo único que se sustituye es *de dónde sale el array*: hoy es un literal, mañana es la respuesta de un servicio. El `v-for`, el `v-model`, el añadir/marcar/borrar… siguen igual.
+Lo importante: **el `<template>` casi no cambia**. Lo único que se sustituye es _de dónde sale el array_: hoy es un literal, mañana es la respuesta de un servicio. El `v-for`, el `v-model`, el añadir/marcar/borrar… siguen igual.
 
 ::: info DÓNDE VERLO EN LA APP
+
 - **Servicio mock:** `uaReservas/ClientApp/src/services/recursosServicioMock.ts` — simula la API con datos en memoria, para trabajar el cliente sin backend.
-- **`useAxios`:** composable de `@vueua/components` que hace las llamadas HTTP reales con renovación de token CAS/JWT. Se introduce en la [Sesión 14](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
-- **El CRUD completo de verdad:** `sesiones-vue/sesion-10/Sesion10CrudRecursos.vue` — combina este patrón con modales, toasts y confirmación de borrado (componentes UA de la [Sesión 13](../sesion-13-componentes-ua/)).
-:::
+- **`useAxios`:** composable de `@vueua/components` que hace las llamadas HTTP reales con renovación de token CAS/JWT. Se introduce en la [Sesión 12](../../../04-integracion/sesiones/sesion-14-api-autenticacion/).
+- **El CRUD completo de verdad:** `sesiones-vue/sesion-10/Sesion10CrudRecursos.vue` — combina este patrón con modales, toasts y confirmación de borrado (componentes UA de la [Sesión 11](../sesion-11-componentes-ua/)).
+  :::
 
 ::: warning ESTO NO ES MAGIA, ES EL MISMO PATRÓN
-Cuando en la sesión 14 cambies el array fijo por `useAxios`, no estarás aprendiendo "otra cosa": estarás cambiando **una sola línea de origen de datos** sobre el componente que ya sabes construir desde esta sesión.
+Cuando en la sesión 12 cambies el array fijo por `useAxios`, no estarás aprendiendo "otra cosa": estarás cambiando **una sola línea de origen de datos** sobre el componente que ya sabes construir desde esta sesión.
 :::
 
 ---
@@ -743,10 +767,10 @@ Cuando en la sesión 14 cambies el array fijo por `useAxios`, no estarás aprend
 
 Arranca la app y entra en `/uareservas/sesiones-vue/sesion-especial`:
 
-| Demo | Concepto que ilustra | Fichero |
-|------|----------------------|---------|
-| Componente TODO | Construcción completa: `v-for`, `v-model`, añadir/marcar/borrar | `sesion-especial/SesionEspecialTodo.vue` |
-| El mismo patrón: reservas | El mismo componente sobre `IReserva` (objetos fijos) | `sesion-especial/SesionEspecialReservas.vue` |
+| Demo                      | Concepto que ilustra                                            | Fichero                                      |
+| ------------------------- | --------------------------------------------------------------- | -------------------------------------------- |
+| Componente TODO           | Construcción completa: `v-for`, `v-model`, añadir/marcar/borrar | `sesion-especial/SesionEspecialTodo.vue`     |
+| El mismo patrón: reservas | El mismo componente sobre `IReserva` (objetos fijos)            | `sesion-especial/SesionEspecialReservas.vue` |
 
 ::: tip CÓMO TRABAJAR LAS DEMOS
 Abre `SesionEspecialTodo.vue` con **F12** y, mientras marcas/borras tareas, observa en **Elements** cómo Vue solo toca los nodos afectados. Después abre `SesionEspecialReservas.vue` en paralelo y compara: **mismo esqueleto, distinto contrato**.
@@ -754,13 +778,15 @@ Abre `SesionEspecialTodo.vue` con **F12** y, mientras marcas/borras tareas, obse
 
 ## Referencias {#referencias}
 
-- [Sesión 10: Directivas, eventos y datos](../sesion-10-directivas-eventos/) — la teoría completa de `v-for`, `v-model`, eventos y `:class`.
-- [Sesión 11: Componentes y comunicación](../sesion-11-componentes-estado/) — `computed`, props y emits para extraer cada fila a su propio componente.
-- [Sesión 13: Otros componentes internos](../sesion-13-componentes-ua/) — modales, toasts y el CRUD con componentes UA.
-- [Sesión 14: Llamadas a la API y autenticación](../../../04-integracion/sesiones/sesion-14-api-autenticacion/) — sustituir el array fijo por `useAxios`.
+- [Sesión 08: Directivas, eventos y datos](../sesion-08-directivas-eventos/) — la teoría completa de `v-for`, `v-model`, eventos y `:class`.
+- [Sesión 09: Componentes y comunicación](../sesion-09-componentes-estado/) — `computed`, props y emits para extraer cada fila a su propio componente.
+- [Sesión 11: Otros componentes internos](../sesion-11-componentes-ua/) — modales, toasts y el CRUD con componentes UA.
+- [Sesión 12: Llamadas a la API y autenticación](../../../04-integracion/sesiones/sesion-14-api-autenticacion/) — sustituir el array fijo por `useAxios`.
 
 <!-- NAV:START -->
-| Anterior | Inicio | Siguiente |
-|---|---|---|
-| [← Sesión 10: Directivas, eventos y datos](../sesion-10-directivas-eventos/) | [Índice del curso](../../../) | [Sesión 11: Componentes y comunicación →](../sesion-11-componentes-estado/) |
+
+| Anterior                                                                     | Inicio                        | Siguiente                                                                   |
+| ---------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------- |
+| [← Sesión 08: Directivas, eventos y datos](../sesion-08-directivas-eventos/) | [Índice del curso](../../../) | [Sesión 9: Componentes y comunicación →](../sesion-09-componentes-estado/) |
+
 <!-- NAV:END -->
