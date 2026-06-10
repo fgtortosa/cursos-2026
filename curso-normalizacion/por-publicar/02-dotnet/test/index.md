@@ -1,6 +1,6 @@
 ---
 title: Material docente .NET
-description: Tests y prácticas de apoyo por sesión del módulo .NET (sesiones 6 a 8 del temario global).
+description: Tests y prácticas de apoyo por sesión del módulo .NET (sesiones 4 a 6 del temario global).
 outline: [2, 2]
 search: false
 ---
@@ -9,17 +9,17 @@ search: false
 
 Material de autoevaluación y práctica de "fix con IA" para las tres sesiones del bloque .NET.
 
-## Sesión 6 — Introducción a .NET
+## Sesión 4 — Introducción a .NET
+
+- [Autoevaluación rápida](./sesion-04/autoevaluacion.md)
+- [Práctica IA-fix](./sesion-04/practica-ia-fix.md)
+
+## Sesión 5 — Modelos y primer API
+
+- [Autoevaluación rápida](./sesion-05/autoevaluacion.md)
+- [Práctica IA-fix](./sesion-05/practica-ia-fix.md)
+
+## Sesión 6 — Servicios y acceso a Oracle
 
 - [Autoevaluación rápida](./sesion-06/autoevaluacion.md)
 - [Práctica IA-fix](./sesion-06/practica-ia-fix.md)
-
-## Sesión 7 — Modelos y primer API
-
-- [Autoevaluación rápida](./sesion-07/autoevaluacion.md)
-- [Práctica IA-fix](./sesion-07/practica-ia-fix.md)
-
-## Sesión 8 — Servicios y acceso a Oracle
-
-- [Autoevaluación rápida](./sesion-08/autoevaluacion.md)
-- [Práctica IA-fix](./sesion-08/practica-ia-fix.md)

@@ -381,7 +381,7 @@ public TipoRecursoCrearDtoValidator(ITiposRecursoServicio servicio)
 
 ## 13.5 Errores de Oracle: el camino idiomático {#errores-oracle}
 
-`uaReservas` incluye **paquetes de prueba** de errores precisamente para que el alumno vea, sin tocar BD, cómo viaja un error desde el `RAISE_APPLICATION_ERROR` hasta el `errors` del JSON. Son los botones rojos / amarillos del probador (`Sesion1ProbadorApi.vue`).
+`uaReservas` incluye **paquetes de prueba** de errores precisamente para que el alumno vea, sin tocar BD, cómo viaja un error desde el `RAISE_APPLICATION_ERROR` hasta el `errors` del JSON. Son los botones rojos / amarillos del probador (`ProbadorApi.vue`).
 
 | Botón del probador | Llama a | Lanza `ORA-` | `ErrorType` | HTTP |
 |--------------------|---------|--------------|-------------|------|
@@ -679,8 +679,8 @@ flowchart LR
 #### Probarlo en el sandbox
 
 Hay una demo conectada al paquete real en
-`/uareservas/sesiones-dotnet/sesion-5/crear-tipo-recurso`
-(fichero `views/sesiones-dotnet/sesion-5/Sesion5CrearTipoRecurso.vue`).
+`/uareservas/sesiones-dotnet/tipo-recurso/crear-tipo-recurso`
+(fichero `views/sesiones-dotnet/tipo-recurso/CrearTipoRecurso.vue`).
 Ejercicios sugeridos para enseñar las tres capas con el mismo formulario:
 
 | Caso                                                            | Capa que corta            | Qué deberías ver                               |

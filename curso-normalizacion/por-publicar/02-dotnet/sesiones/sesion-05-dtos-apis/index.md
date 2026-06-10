@@ -1,15 +1,15 @@
 ---
-title: "Sesión 7: Modelos y primer API"
+title: "Sesión 5: Modelos y primer API"
 description: DTOs, controladores API REST, verbos HTTP, status codes, documentación Scalar y prueba sin BD desde Chrome
 outline: deep
 ---
 
-# Sesión 7: Modelos y primer API
+# Sesión 5: Modelos y primer API
 
 ::: info ¿Para quién es este material?
 Esta sesión está pensada para gente con perfiles muy distintos: desde quien lleva años con Oracle PL/SQL pero nunca ha tocado HTTP, hasta quien viene de ASP clásico, WebForms o MVC y nunca ha trabajado con SPAs. Por eso empezamos despacio con la arquitectura conceptual y vamos descendiendo al detalle.
 
-**En esta sesión no vamos a tocar Oracle ni a escribir Vue:** la API se prueba desde Chrome DevTools y desde la página `Home.vue` (que ya está hecha). El acceso a base de datos y la arquitectura por capas se ven en la [**sesión 8**](../sesion-08-servicios-oracle/).
+**En esta sesión no vamos a tocar Oracle ni a escribir Vue:** la API se prueba desde Chrome DevTools y desde la página `Home.vue` (que ya está hecha). El acceso a base de datos y la arquitectura por capas se ven en la [**sesión 6**](../sesion-06-servicios-oracle/).
 :::
 
 ## 0. Pre-requisitos del curso
@@ -1353,7 +1353,7 @@ La plantilla UA tiene **dos consumidores** del idioma en la misma petición:
 Cambiar `X-Idioma` afecta a las **tres cosas** simultáneamente: nombres multiidioma de tablas, mensajes de validación del modelo y mensajes de error de negocio.
 :::
 
-### 1.5.4 Errores: dos formas JSON y un único traductor (referencia a la sesión 16)
+### 1.5.4 Errores: dos formas JSON y un único traductor (referencia a la sesión 14)
 
 Los errores HTTP en el curso siempre viajan en JSON con dos formas estandarizadas (RFC 9457): **`ProblemDetails`** para 404/500 y **`ValidationProblemDetails`** para 400 con `errors` por campo. En el servidor los construye una única función — `ApiControllerBase.HandleResult` — a partir del `Result<T>` que devuelve cada servicio. En el cliente, el interceptor de `useAxios` los reparte automáticamente a `.catch`, y `useGestionFormularios.adaptarProblemDetails` los pinta sobre el formulario.
 
@@ -1392,7 +1392,7 @@ Aplicar esta lista a cualquier controlador nuevo:
 | ☐   | Rutas en plural (`/api/Recursos`, `/api/Reservas`).                                                       |
 | ☐   | Parámetros de ruta con tipo (`{id:int}`) cuando son numéricos: error 404 automático si no.                |
 
-## 1.8 Probar la API sin Vue (referencia a la sesión 14) {#probar-api}
+## 1.8 Probar la API sin Vue (referencia a la sesión 12) {#probar-api}
 
 Una vez documentada la API con Scalar (§1.5), todavía falta probarla "como la verá Vue": cookie de sesión, cabecera `X-Idioma`, JSON real en `<pre>`. El **recorrido guiado** (DevTools + Scalar + probador `Home.vue` con `peticion<T>` + `gestionarError`) vive en una sola sesión:
 
@@ -1468,7 +1468,7 @@ Estos tres ficheros SQL ya están en el repo, **no los tocas tú**:
 Solo expone **CREAR** y **ELIMINAR**. La lectura se hace desde .NET contra la vista `VRES_OBSERVACION_RESERVA` (no hay procedimiento `OBTENER_TODOS` en PL/SQL). Es el patrón que vamos a defender todo el curso: **las vistas son el "GET" del paquete**.
 :::
 
-### 1.9.3 Lo que tienes que entregar en la sesión 4
+### 1.9.3 Lo que tienes que entregar en la sesión 5
 
 Tres ficheros nuevos en `uaReservas`. Nada de Oracle ni de servicios: solo DTOs y un controlador con datos en memoria.
 
@@ -1487,10 +1487,10 @@ uaReservas/
 
 - `IdReserva` (obligatorio, entero positivo).
 - `TextoEs`, `TextoCa`, `TextoEn` (los tres `[Required]` y `[MaxLength(2000)]`).
-- Sus `ErrorMessage` deben ser **claves** del estilo `VALIDACION_TEXTO_ES_REQUERIDO` — la sesión 3 traduce esas claves desde `Resources/SharedResource.{idioma}.resx`.
+- Sus `ErrorMessage` deben ser **claves** del estilo `VALIDACION_TEXTO_ES_REQUERIDO` — la sesión 4 traduce esas claves desde `Resources/SharedResource.{idioma}.resx`.
 
 ::: danger ZONA PELIGROSA — `CodperAutor` NO va en el DTO de entrada
-Aunque la tabla lo tenga, **no lo pongas en `ObservacionReservaCrearDto`**. En la sesión 5 lo rellenará el controlador con `CodPer` (del token). Si lo aceptas en el body, un usuario malicioso podría crear observaciones a nombre de otro.
+Aunque la tabla lo tenga, **no lo pongas en `ObservacionReservaCrearDto`**. En la sesión 6 lo rellenará el controlador con `CodPer` (del token). Si lo aceptas en el body, un usuario malicioso podría crear observaciones a nombre de otro.
 :::
 
 **3. `ObservacionesController.cs`** — tres endpoints:
@@ -1524,7 +1524,7 @@ Abre `Controllers/Apis/TipoRecursosController.cs` en otra pestaña. Tu `Observac
 4. **Home.vue**: el botón **`GET /api/Observaciones (ejercicio)`** ya está cableado. Debe pintar el JSON en la zona de salida sin tocar Vue.
 5. **DevTools → Network**: la URL es `/uareservas/api/Observaciones` y la cookie `X-Access-Token` viaja sola.
 
-### 1.9.5 Qué se cubrirá en la sesión 5 (lo que NO tocas hoy)
+### 1.9.5 Qué se cubrirá en la sesión 6 (lo que NO tocas hoy)
 
 - Crear `IObservacionesServicio` + `ObservacionesServicio` siguiendo el patrón de `TiposRecursoServicio` (§2.3.2 y §2.4.2).
 - El servicio leerá `VRES_OBSERVACION_RESERVA` con `ObtenerTodosMapAsync<T>` y llamará a `PKG_RES_OBSERVACION_RESERVA.CREAR`/`ELIMINAR` con `EjecutarParamsAsync` + `DynamicParameters`.
@@ -1533,7 +1533,7 @@ Abre `Controllers/Apis/TipoRecursosController.cs` en otra pestaña. Tu `Observac
 - Añadir un test xUnit "simulado" del controlador y otro "real" del servicio contra Oracle (con `[SkippableFact]`).
 
 ::: tip BUENA PRÁCTICA — ejercicio acumulativo
-Lo que entregues hoy (DTOs + controlador con datos en memoria) **es el cimiento sobre el que la sesión 5 construirá los servicios y los tests**. Si los DTOs no tienen los nombres adecuados, las cabeceras de respuesta no son consistentes o falta `[Authorize]`, la sesión 5 se complica. Tómate el rato de comparar tus respuestas en Scalar con las de `TipoRecursos`.
+Lo que entregues hoy (DTOs + controlador con datos en memoria) **es el cimiento sobre el que la sesión 6 construirá los servicios y los tests**. Si los DTOs no tienen los nombres adecuados, las cabeceras de respuesta no son consistentes o falta `[Authorize]`, la sesión 5 se complica. Tómate el rato de comparar tus respuestas en Scalar con las de `TipoRecursos`.
 :::
 
 ::: details Solución completa (revísala DESPUÉS de intentarlo)
@@ -1556,7 +1556,7 @@ En tu rama `tiporecurso-<nombre>` reproduce el patrón que has visto en clase:
 - Documenta cada endpoint con XML doc para que Scalar lo recoja.
 - Comprueba con el botón **`GET /api/Observaciones (ejercicio)`** del probador y en Scalar.
 
-En la sesión 5 conectarás el controlador al paquete Oracle real. **No reescribas**: solo cambiarás el servicio.
+En la sesión 6 conectarás el controlador al paquete Oracle real. **No reescribas**: solo cambiarás el servicio.
 
 Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 :::
@@ -1565,8 +1565,8 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 ## Tests y práctica IA
 
-- [Autoevaluación sesión 4](../../test/sesion-04/autoevaluacion.md)
-- [Práctica IA-fix sesión 4](../../test/sesion-04/practica-ia-fix.md)
+- [Autoevaluación sesión 5](../../test/sesion-05/autoevaluacion.md)
+- [Práctica IA-fix sesión 5](../../test/sesion-05/practica-ia-fix.md)
 
 ---
 

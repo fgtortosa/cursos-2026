@@ -296,7 +296,7 @@ Entrega:
    - Una decisión que dejarías para resolver más adelante en un package (por ejemplo, evitar borrar un tipo de bloqueo en uso).
 
 ::: tip SIGUIENTE PASO
-Una vez entregado este ejercicio, estás listo para la [Sesión 2 — Tablas, vistas y paquetes](../3-tablas-vistas/), donde aplicarás el mismo patrón a un modelo con relaciones, rangos de fechas y un package CRUD completo.
+Una vez entregado este ejercicio, estás listo para la [Sesión 2 — Tablas, vistas y paquetes](../sesion-03-docencia-tablas-vistas/), donde aplicarás el mismo patrón a un modelo con relaciones, rangos de fechas y un package CRUD completo.
 :::
 
 ---
@@ -305,6 +305,6 @@ Una vez entregado este ejercicio, estás listo para la [Sesión 2 — Tablas, vi
 
 | Anterior                                                                                    | Inicio                        | Siguiente                                                                                     |
 | ------------------------------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------- |
-| [← Sesión 1: Fundamentos Oracle](../../../01-oracle/sesiones/sesion-01-fundamentos-oracle/) | [Índice del curso](../../../) | [Sesión 3: Tablas, vistas y paquetes →](../../../01-oracle/sesiones/sesion-03-tablas-vistas/) |
+| [← Sesión 1: Fundamentos Oracle](../../../01-oracle/sesiones/sesion-01-docencia-fundamentos-oracle/) | [Índice del curso](../../../) | [Sesión 3: Tablas, vistas y paquetes →](../../../01-oracle/sesiones/sesion-03-docencia-tablas-vistas/) |
 
 <!-- NAV:END -->

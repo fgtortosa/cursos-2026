@@ -1,11 +1,11 @@
 ---
-title: "Preguntas — Sesión 7: Modelos y primer API"
+title: "Preguntas — Sesión 5: Modelos y primer API"
 description: "Banco de 22 preguntas tipo test sobre DTOs, [ApiController], verbos HTTP, routing y validación básica con DataAnnotations."
 outline: [2, 2]
 search: false
 ---
 
-# Test de autoevaluación — Sesión 7: Modelos y primer API
+# Test de autoevaluación — Sesión 5: Modelos y primer API
 
 ::: tip ALCANCE
 Las preguntas cubren **solo** lo que se enseña en esta sesión: DTOs, controladores `[ApiController]`, verbos HTTP, status codes, `ControladorBase`, `ActionResult<T>`, `[Produces]`, `[ProducesResponseType]` y validación básica con DataAnnotations.
@@ -15,7 +15,7 @@ Los temas relacionados que se cubren en otras sesiones tienen su propio test:
 - `ProblemDetails` / `ValidationProblemDetails` detallados, `Result<T>`, `HandleResult` → [Sesión 14](../../../04-integracion/sesiones/sesion-14-errores/).
 - FluentValidation con mensajes localizados → [Sesión 13](../../../04-integracion/sesiones/sesion-13-validacion/).
 - `peticion<T>` / `llamadaAxios` / `useGestionFormularios` / toasts → [Sesión 12](../../../04-integracion/sesiones/sesion-12-api-autenticacion/).
-- `[Columna]`, `[IgnorarMapeo]`, mapeo `'S'/'N'` ↔ `bool` y resolución de idioma de `ClaseOracleBD3` → [Sesión 8](../sesion-08/).
+- `[Columna]`, `[IgnorarMapeo]`, mapeo `'S'/'N'` ↔ `bool` y resolución de idioma de `ClaseOracleBD3` → [Sesión 6](../sesion-06/).
   :::
 
 ## Pregunta 1

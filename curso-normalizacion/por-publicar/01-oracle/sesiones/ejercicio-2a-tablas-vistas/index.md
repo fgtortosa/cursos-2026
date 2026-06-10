@@ -1,10 +1,10 @@
 ---
-title: "Ejercicio sesión 4 — Diseño de vistas"
+title: "Ejercicio de la sesión 3 — Diseño de vistas"
 description: Ejercicio entre la sesión 2 de Oracle y la primera sesión de .NET. Diseñar VRES_HORARIO_DIA y VRES_FRANJA_HORARIO razonando alias, JOINs, filtros y documentación, y compararlas con las vistas reales del schema.
 outline: [2, 4]
 ---
 
-# Ejercicio sesión 4 — Diseño de vistas
+# Ejercicio de la sesión 3 — Diseño de vistas
 
 ::: info CONTEXTO
 En la sesión 3 has visto la vista `VRES_TIPO_RECURSO` (proyección simple) y la vista `VRES_RECURSO` (con `JOIN` para evitar consultas N+1). Este ejercicio te pide diseñar **dos vistas más** del schema de reservas, decidir tú mismo cuándo aplicar `JOIN` y cuándo filtrar.
@@ -227,7 +227,7 @@ Entrega:
    - Una mejora concreta para cada una.
 
 ::: tip SIGUIENTE PASO
-Continúa con el [Ejercicio 2B — Procedimientos en paquetes](../5-paquetes/), donde implementarás `ACTUALIZAR_BLOQUEADO`, `CREAR` de horario por día y `CREAR` de reserva con sus validaciones reutilizables.
+Continúa con el [Ejercicio 2B — Procedimientos en paquetes](../ejercicio-2b-paquetes/), donde implementarás `ACTUALIZAR_BLOQUEADO`, `CREAR` de horario por día y `CREAR` de reserva con sus validaciones reutilizables.
 :::
 
 ---
@@ -236,6 +236,6 @@ Continúa con el [Ejercicio 2B — Procedimientos en paquetes](../5-paquetes/), 
 
 | Anterior                                                                                      | Inicio                        | Siguiente                                                                                            |
 | --------------------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
-| [← Sesión 3: Tablas, vistas y paquetes](../../../01-oracle/sesiones/sesion-03-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 5: Ejercicio: procedimientos en paquetes →](../../../01-oracle/sesiones/sesion-05-paquetes/) |
+| [← Sesión 3: Tablas, vistas y paquetes](../../../01-oracle/sesiones/sesion-03-docencia-tablas-vistas/) | [Índice del curso](../../../) | [Ejercicio: procedimientos en paquetes →](../../../01-oracle/sesiones/ejercicio-2b-paquetes/) |
 
 <!-- NAV:END -->

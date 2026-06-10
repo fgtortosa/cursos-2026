@@ -1,10 +1,10 @@
 ---
-title: "Ejercicio sesión 5 — Procedimientos en paquetes"
+title: "Ejercicio de la sesión 3 — Procedimientos en paquetes"
 description: Ejercicio práctico de PL/SQL. Implementar ACTUALIZAR_BLOQUEADO, CREAR de horario por día y CREAR de reserva, apoyándose en validaciones reutilizables (VALIDAR_TEXTO, VALIDAR_ID_POSITIVO, VALIDAR_FLAG, VALIDAR_FECHAS).
 outline: [2, 4]
 ---
 
-# Ejercicio sesión 5 — Procedimientos en paquetes
+# Ejercicio de la sesión 3 — Procedimientos en paquetes
 
 ::: info CONTEXTO
 En la sesión 3 has visto el package `PKG_RES_TIPO_RECURSO` con `VALIDAR_TEXTO` y `VALIDAR_ID_POSITIVO`, los códigos `-20700`/`-20701`/`-20702`/`-20703` y el patrón `RETURNING ... INTO`.
@@ -388,6 +388,6 @@ Con esto cierras la parte Oracle. La siguiente sesión (parte .NET) toma estos p
 
 | Anterior                                                                                                     | Inicio                        | Siguiente                                                                                     |
 | ------------------------------------------------------------------------------------------------------------ | ----------------------------- | --------------------------------------------------------------------------------------------- |
-| [← Sesión 4: Ejercicio: diseño de vistas](../../../01-oracle/sesiones/sesion-04-ejercicio-2a-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 6: Introducción a .NET →](../../../02-dotnet/sesiones/sesion-06-introduccion-dotnet/) |
+| [← Ejercicio: diseño de vistas](../../../01-oracle/sesiones/ejercicio-2a-tablas-vistas/) | [Índice del curso](../../../) | [Sesión 4: Introducción a .NET →](../../../02-dotnet/sesiones/sesion-04-introduccion-dotnet/) |
 
 <!-- NAV:END -->

@@ -1,10 +1,10 @@
 ---
-title: "Práctica IA-fix — Sesión 7"
-description: "Corregir un controlador POST que no respeta los patrones de la sesión 7 (ControladorBase, Result<T>, CreatedAtAction)."
+title: "Práctica IA-fix — Sesión 5"
+description: "Corregir un controlador POST que no respeta los patrones de la sesión 5 (ControladorBase, Result<T>, CreatedAtAction)."
 outline: deep
 ---
 
-# Práctica IA-fix — Sesión 7
+# Práctica IA-fix — Sesión 5
 
 ## Objetivo
 

@@ -1,11 +1,11 @@
 ---
-title: "Respuestas — Sesión 7: Modelos y primer API"
-description: "Solucionario razonado del test de 22 preguntas de la Sesión 7."
+title: "Respuestas — Sesión 5: Modelos y primer API"
+description: "Solucionario razonado del test de 22 preguntas de la Sesión 5."
 outline: [2, 2]
 search: false
 ---
 
-# Respuestas — Test Sesión 7: Modelos y primer API
+# Respuestas — Test Sesión 5: Modelos y primer API
 
 1. **c)** El DTO transporta datos entre capas sin lógica de negocio; la entidad representa una fila de la BD con mapeo directo. Los DTOs son objetos planos con solo propiedades, sin métodos de acceso a datos ni lógica de negocio.
 

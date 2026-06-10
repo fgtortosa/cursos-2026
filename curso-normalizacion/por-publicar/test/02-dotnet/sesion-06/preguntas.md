@@ -1,307 +1,282 @@
 ---
-title: "Preguntas — Sesión 6: Introducción a .NET"
-description: "Banco de 22 preguntas tipo test sobre Program.cs, inyección de dependencias, pipeline, C# moderno y arquitectura del proyecto UA."
+title: "Preguntas — Sesión 6: Servicios y acceso a Oracle"
+description: "Banco de 21 preguntas tipo test sobre ClaseOracleBD3, mapeo automático, Result<T> básico, paquetes PL/SQL con OUT params y patrón de servicio."
 outline: [2, 2]
 search: false
 ---
 
-# Test de autoevaluación — Sesión 6: Introducción a .NET
+# Test de autoevaluación — Sesión 6: Servicios y acceso a Oracle
 
 ::: tip ALCANCE
-Las preguntas cubren **solo** lo que se enseña en esta sesión: anatomía del proyecto, `Program.cs`, inyección de dependencias (`AddScoped`/`Transient`/`Singleton`), orden del pipeline, características útiles de C# (operadores `?.` / `??`, records, raw strings, expresiones de colección, `switch` con discard, tuplas) y arquitectura por capas.
+Las preguntas cubren **solo** lo que se enseña en esta sesión: separación de capas, `ClaseOracleBD3` (mapeo automático PascalCase → SNAKE_CASE, `[Columna]`, `[IgnorarMapeo]`, idioma), `Result<T>` con `Success`/`NotFound`/`Failure`, paquetes PL/SQL con `OUT` params y patrón de servicio + registro DI.
 
 Los temas relacionados que se cubren en otras sesiones tienen su propio test:
 
-- DTOs, `[ApiController]`, verbos HTTP, validación con DataAnnotations → [Sesión 7](../sesion-07/).
-- `ClaseOracleBD3`, mapeo automático, `[Columna]`, `Result<T>`, paquetes PL/SQL → [Sesión 8](../sesion-08/).
-- `HandleResult` interno, `ProblemDetails`, `ValidationProblemDetails`, contrato de error UA → [Sesión 14](../../../04-integracion/sesiones/sesion-14-errores/).
-- FluentValidation, `AddValidatorsFromAssemblyContaining`, localización con `.resx` → [Sesión 13](../../../04-integracion/sesiones/sesion-13-validacion/).
-- CAS / JWT / claims → [Sesión 12](../../../04-integracion/sesiones/sesion-12-api-autenticacion/).
+- `HandleResult` interno (mapeo `ErrorType` → HTTP), `ProblemDetails` / `ValidationProblemDetails` detallados, `ErrorPaquetePlSql.DesdeCodigo` → [Sesión 14](../../../04-integracion/sesiones/sesion-14-errores/).
+- Tests xUnit con `OracleTestFixture`, `[SkippableFact]`, fakes → [Sesión 19](../../../05-avanzadas/sesiones/sesion-19-tests-calidad/).
+- FluentValidation y localización → [Sesión 13](../../../04-integracion/sesiones/sesion-13-validacion/).
   :::
 
 ## Pregunta 1
 
-¿Qué ciclo de vida tiene un servicio registrado con `AddScoped`?
+Observa el siguiente modelo:
 
-a) Se crea una nueva instancia cada vez que se solicita
-b) Se crea una única instancia compartida por toda la aplicación
-c) Se crea una instancia por cada petición HTTP
-d) Se crea una instancia por cada controlador
+```csharp
+public class ClaseDocumento
+{
+    public string Nombre { get; set; }
+    public byte[]? Contenido { get; set; }
+    public bool TieneContenido => Contenido?.Length > 0;
+}
+```
+
+¿Qué ocurrirá al ejecutar `ObtenerTodosMap<ClaseDocumento>(sql, null)`?
+
+a) Funcionará correctamente, las propiedades calculadas se ignoran automáticamente
+b) Error de mapeo: la librería buscará una columna `TIENE_CONTENIDO` que no existe
+c) La propiedad `TieneContenido` se mapeará a la columna `TIENE_CONTENIDO`
+d) Error de compilación por no tener setter
 
 ## Pregunta 2
 
-Dado el siguiente código en `Program.cs`, ¿cuál es el problema?
+¿Cuál es el atributo correcto para evitar el error de la pregunta anterior?
 
-```csharp
-var app = builder.Build();
-app.UseAuthorization();
-app.UseRouting();
-app.UseAuthentication();
-app.MapControllers();
-app.Run();
-```
-
-a) Falta `app.UseStaticFiles()`
-b) `UseAuthorization` y `UseAuthentication` están en orden incorrecto respecto a `UseRouting`
-c) `MapControllers` debería ir antes de `UseRouting`
-d) Falta `app.UseCors()`
+a) `[JsonIgnore]`
+b) `[NotMapped]`
+c) `[IgnorarMapeo]`
+d) `[Computed]`
 
 ## Pregunta 3
 
-¿Qué ocurre si registramos `ClaseUnidades` como `AddSingleton` y este servicio usa `ClaseOracleBd` registrado como `AddScoped`?
+Según la convención de nombres de la UA, ¿cómo deben llamarse el DTO de lectura, el servicio y la interfaz para la entidad "Reserva"?
 
-a) Funciona correctamente en todos los entornos
-b) .NET lanza una excepción en desarrollo porque un Singleton consume un Scoped (captive dependency)
-c) La conexión a Oracle se cierra automáticamente
-d) Se crea una nueva conexión por cada llamada al método
+a) `Reserva.cs`, `Reservas.cs`, `IReservas.cs`
+b) `ClaseReserva.cs`, `ClaseReservas.cs`, `IClaseReservas.cs`
+c) `ReservaDto.cs`, `ReservaService.cs`, `IReservaService.cs`
+d) `ClaseReserva.cs`, `ReservasService.cs`, `IReservasService.cs`
 
 ## Pregunta 4
 
-¿Cuál es la salida del siguiente código?
+Observa esta llamada a un procedimiento almacenado:
 
 ```csharp
-string? nombre = null;
-var resultado = nombre?.ToUpper() ?? "ANONIMO";
-Console.WriteLine(resultado);
+bd.Command.Parameters.Clear();
+bd.TipoComando = CommandType.StoredProcedure;
+bd.TextoComando = "PKG_RES_RESERVA.CREAR";
+
+bd.CrearParametro("p_id", dto.Id ?? 0,
+    OracleDbType.Int32, 0, ParameterDirection.InputOutput);
+bd.CrearParametro("p_nombre_es", dto.NombreEs);
+
+bd.Ejecutar();
+
+var idGenerado = Convert.ToInt32(
+    bd.Command.Parameters["p_id"].Value?.ToString() ?? "0");
 ```
 
-a) `null`
-b) Una excepción `NullReferenceException`
-c) `"ANONIMO"`
-d) `""` (cadena vacía)
+¿Qué falta al final de este código (antes de la siguiente llamada al paquete)?
+
+a) `bd.Commit();`
+b) `bd.Command.Parameters.Clear();`
+c) `bd.EndTransaction();`
+d) `bd.Dispose();`
 
 ## Pregunta 5
 
-¿Dónde se registran los servicios propios de la aplicación en la plantilla UA?
+¿Para qué tipo de operación Oracle usamos `ParameterDirection.InputOutput`?
 
-a) Directamente en `Program.cs` dentro de `Main()`
-b) En `appsettings.json` bajo la clave `"Services"`
-c) En `ServicesExtensionsApp.cs`, invocado desde `Program.cs` con `builder.AddServicesApp()`
-d) En cada controlador mediante el atributo `[Service]`
+a) Solo para consultas SELECT con filtros
+b) Para parámetros que envían un valor (ej: `Id=0` para crear) y reciben otro (ej: `Id` generado)
+c) Para parámetros de salida pura que no reciben valor inicial
+d) Para el `RETURN_VALUE` de funciones Oracle
 
 ## Pregunta 6
 
-¿Qué tipo de dato devuelve este método?
+¿Qué ocurre con una columna Oracle `ACTIVO` de tipo `VARCHAR2(1)` con valor `'S'` al mapear a una propiedad `bool Activo`?
 
-```csharp
-public (bool exito, string mensaje) ValidarReserva(int id)
-{
-    if (id <= 0)
-        return (false, "ID no valido");
-    return (true, "Reserva valida");
-}
-```
-
-a) Un objeto anónimo
-b) Una tupla con dos valores: un `bool` y un `string`
-c) Un `record` de tipo `Validacion`
-d) Un `Dictionary<bool, string>`
+a) Error de conversión: `VARCHAR2` no se puede convertir a `bool`
+b) Se convierte automáticamente a `true`
+c) Se necesita un constructor `IDataRecord` para la conversión
+d) Hay que usar `[Columna]` para indicar la conversión
 
 ## Pregunta 7
 
-Dado el siguiente `record`:
+Dado el siguiente modelo con multiidioma:
 
 ```csharp
-public record Error(string Code, string Message, ErrorType Type);
+public class ClaseHerramientaIA
+{
+    public int CodHerramienta { get; set; }
+    public string Nombre { get; set; }
+    public string Descripcion { get; set; }
+    public bool Activo { get; set; }
+}
 ```
 
-¿Cuál de las siguientes afirmaciones es correcta?
+Si llamamos a `ObtenerTodosMap<ClaseHerramientaIA>(sql, null, idioma: "CA")`, ¿a qué columnas se mapearán `Nombre` y `Descripcion`?
 
-a) El record permite modificar sus propiedades después de creado
-b) Dos instancias con los mismos valores de `Code`, `Message` y `Type` se consideran iguales
-c) Es obligatorio definir un constructor explícito
-d) Los records no pueden usarse como parámetros de métodos
+a) `NOMBRE` y `DESCRIPCION`
+b) `NOMBRE_CA` y `DESCRIPCION_CA`
+c) `NOMBRE_ES` y `DESCRIPCION_ES` (siempre usa español por defecto)
+d) `CA_NOMBRE` y `CA_DESCRIPCION`
 
 ## Pregunta 8
 
-¿Cuál es el orden correcto del pipeline de middleware en `Program.cs`?
+¿Cuál es el orden de prioridad que usa `ClaseOracleBD3` para resolver el nombre de columna de una propiedad?
 
-a) `UseAuthentication` → `UseRouting` → `UseAuthorization` → `UseStaticFiles` → `MapControllers`
-b) `UseStaticFiles` → `UseRouting` → `UseCors` → `UseAuthentication` → `UseAuthorization` → `MapControllers`
-c) `MapControllers` → `UseRouting` → `UseAuthentication` → `UseAuthorization` → `UseStaticFiles`
-d) `UseRouting` → `UseStaticFiles` → `UseAuthentication` → `UseCors` → `UseAuthorization` → `MapControllers`
+a) PascalCase → SNAKE_CASE, luego nombre exacto, luego `[Columna]`
+b) `[Columna]`, luego nombre exacto (case-insensitive), luego PascalCase → SNAKE_CASE, luego sufijo idioma
+c) Nombre exacto, luego `[Columna]`, luego SNAKE_CASE
+d) Solo usa `[Columna]` si existe, si no da error
 
 ## Pregunta 9
 
-En el siguiente código, ¿qué hace el `_` en la expresión `switch`?
+¿Qué permisos tiene el usuario web de Oracle sobre las tablas `TRES_*`?
 
-```csharp
-return result.Error!.Type switch
-{
-    ErrorType.Validation => BadRequest(...),
-    _ => Problem(..., 500)
-};
-```
-
-a) Ignora el valor de retorno
-b) Actúa como caso por defecto, capturando cualquier valor no contemplado
-c) Representa un valor null
-d) Es un operador de descarte que no compila si hay más valores en el enum
+a) `SELECT`, `INSERT`, `UPDATE`, `DELETE`
+b) Solo `SELECT` y `EXECUTE`
+c) No tiene permisos directos sobre las tablas — usa vistas `VRES_*` para leer y paquetes `PKG_RES_*` para escribir
+d) Solo `EXECUTE`
 
 ## Pregunta 10
 
-¿Qué diferencia hay entre `AddControllersWithViews()` y `AddControllers()` en `Program.cs`?
+¿Cuál es la diferencia entre `ObtenerTodosMap<T>` y `ObtenerPrimeroMap<T>`?
 
-a) No hay diferencia, son equivalentes
-b) `AddControllersWithViews` registra soporte para MVC con vistas Razor además de APIs (lo necesitamos porque `HomeController` sirve la vista `Index.cshtml` que carga la SPA Vue)
-c) `AddControllers` solo funciona con APIs en .NET Framework
-d) `AddControllersWithViews` es obsoleto en .NET 10
+a) `ObtenerTodosMap` es asíncrono y `ObtenerPrimeroMap` es síncrono
+b) `ObtenerTodosMap` devuelve `IEnumerable<T>?` y `ObtenerPrimeroMap` devuelve `T?`
+c) `ObtenerTodosMap` usa vistas y `ObtenerPrimeroMap` usa tablas directamente
+d) No hay diferencia, son alias del mismo método
 
 ## Pregunta 11
 
-Dado este controlador, ¿qué fallo tiene?
+¿Cómo se registra el servicio `ClaseUnidades` en la inyección de dependencias?
 
-```csharp
-public class UnidadesController : ApiControllerBase
-{
-    public ActionResult Listar([FromQuery] string idioma = "ES")
-    {
-        var servicio = new ClaseUnidades(new ClaseOracleBd());
-        var resultado = servicio.ObtenerActivas(idioma);
-        return HandleResult(resultado);
-    }
-}
-```
-
-a) Falta el atributo `[HttpGet]`
-b) No se debe crear instancias manualmente con `new`; se debe inyectar por constructor
-c) `HandleResult` no existe en `ApiControllerBase`
-d) `FromQuery` no se puede usar con parámetros por defecto
+a) `builder.Services.AddSingleton<IClaseUnidades, ClaseUnidades>();`
+b) `builder.Services.AddTransient<IClaseUnidades, ClaseUnidades>();`
+c) `builder.Services.AddScoped<IClaseUnidades, ClaseUnidades>();`
+d) `builder.Services.AddScoped<ClaseUnidades>();`
 
 ## Pregunta 12
 
-En el siguiente `Program.cs`, ¿qué falta para que los controladores API funcionen?
+¿Qué devuelve el siguiente método del servicio cuando `bd.ObtenerPrimeroMap` retorna `null`?
 
 ```csharp
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllersWithViews();
-builder.Services.AddScoped<IClaseUnidades, ClaseUnidades>();
-var app = builder.Build();
-app.UseRouting();
-app.Run();
-```
-
-a) Falta `app.UseEndpoints()`
-b) Falta `app.MapControllers()`
-c) Falta `app.UseControllers()`
-d) Los controladores se registran automáticamente, no falta nada
-
-## Pregunta 13
-
-¿Qué problema tiene este registro de servicios?
-
-```csharp
-builder.Services.AddTransient<IClaseOracleBd, ClaseOracleBd>();
-builder.Services.AddScoped<IClaseUnidades, ClaseUnidades>();
-```
-
-a) No se puede mezclar Transient y Scoped
-b) `ClaseOracleBd` gestiona conexiones y no debería ser Transient (crearía una conexión nueva cada vez que se inyecta)
-c) Falta registrar `ClaseUnidades` como Transient también
-d) El orden de registro es incorrecto
-
-## Pregunta 14
-
-¿Qué hace el middleware `UseStaticFiles()` y por qué va primero en el pipeline?
-
-a) Comprime los archivos estáticos; va primero para mejorar el rendimiento
-b) Sirve archivos CSS/JS directamente; va primero para no pasar por autenticación innecesariamente
-c) Registra las rutas de los archivos estáticos; debe ir antes de `UseRouting`
-d) Genera los archivos estáticos del frontend Vue; va primero para que estén disponibles
-
-## Pregunta 15
-
-¿Cuál es el resultado de este código?
-
-```csharp
-var sql = """
-    SELECT ID, NOMBRE_ES
-    FROM TRES_UNIDAD
-    WHERE FLG_ACTIVA = 'S'
-    """;
-Console.WriteLine(sql.Contains("NOMBRE_ES"));
-```
-
-a) `false`
-b) `true`
-c) Error de compilación: `"""` no es sintaxis válida
-d) Error en tiempo de ejecución
-
-## Pregunta 16
-
-¿Qué patrón sigue el flujo `Controlador → Servicio → ClaseOracleBD3 → Oracle`?
-
-a) Patrón Repositorio
-b) Patrón MVC con capas de servicio
-c) Patrón Observer
-d) Patrón Factory
-
-## Pregunta 17
-
-¿Por qué el controlador recibe `IClaseUnidades` (interfaz) y no `ClaseUnidades` (clase concreta)?
-
-a) Las interfaces son más rápidas en .NET
-b) Es un requisito del atributo `[ApiController]`
-c) Para desacoplar: permite cambiar la implementación y facilitar testing con fakes
-d) Las clases concretas no se pueden inyectar en ASP.NET Core
-
-## Pregunta 18
-
-En el siguiente servicio, ¿qué rol cumple `_bd`?
-
-```csharp
-public class ClaseUnidades : IClaseUnidades
+public Result<ClaseUnidad> ObtenerPorId(int id, string idioma = "ES")
 {
-    private readonly IClaseOracleBd _bd;
-
-    public ClaseUnidades(IClaseOracleBd bd)
-    {
-        _bd = bd;
-    }
+    const string sql = "SELECT * FROM VRES_UNIDAD WHERE ID = :id";
+    var unidad = bd.ObtenerPrimeroMap<ClaseUnidad>(sql, new { id }, idioma: idioma);
+    return unidad is null
+        ? Result<ClaseUnidad>.NotFound("UNIDAD_NO_ENCONTRADA", $"No existe una unidad con id {id}")
+        : Result<ClaseUnidad>.Success(unidad);
 }
 ```
 
-a) Es una variable estática compartida entre instancias
-b) Es una dependencia inyectada por constructor que da acceso a Oracle
-c) Es un campo que se inicializa con `new ClaseOracleBd()`
-d) Es un parámetro de configuración leído de `appsettings.json`
+a) `Result` con `IsSuccess = true` y `Value` igual a `null`
+b) `Result` con `IsSuccess = false` y `Error.Type = ErrorType.NotFound`
+c) Una excepción `NullReferenceException`
+d) `Result` con `IsSuccess = true` y `Value` con un objeto cuyo `Id = 0`
+
+## Pregunta 13
+
+¿Qué código HTTP recibe el frontend cuando el resultado del servicio es `Result<T>.Success(valor)`?
+
+a) 201 Created
+b) 204 No Content
+c) 200 OK con el valor serializado
+d) Depende del tipo de `T`
+
+## Pregunta 14
+
+Dado el contrato de errores UA, ¿cuál de estas afirmaciones es **FALSA**?
+
+a) `ErrorType.Validation` produce HTTP 400
+b) `ErrorType.Failure` produce HTTP 500
+c) Si un recurso no se encuentra, se devuelve HTTP 404
+d) El contrato solo define dos códigos de error: 400 y 500
+
+## Pregunta 15
+
+Observa este código del controlador:
+
+```csharp
+[HttpPost]
+public ActionResult Crear([FromBody] ReservaCrearDto dto)
+{
+    // CodPer del JWT (CodPer de ControladorBase), nunca del body
+    return HandleResult(_reservas.CrearAsync(CodPer, dto).Result);
+}
+```
+
+¿Por qué se asigna `CodPer` desde `ControladorBase` y no se acepta del JSON del cliente?
+
+a) Porque es un campo opcional
+b) Por seguridad: el `CodPer` debe venir del servidor (token JWT del usuario autenticado), nunca del cliente
+c) Porque el JSON no soporta enteros
+d) Porque `ClaseOracleBD3` no puede mapear ese campo
+
+## Pregunta 16
+
+¿Qué tipo de retorno tiene `EjecutarParams` (versión síncrona)?
+
+a) `int` (filas afectadas)
+b) `bool` (éxito/fallo)
+c) `void`
+d) `Result<T>`
+
+## Pregunta 17
+
+¿Cuál es la forma correcta de pasar múltiples parámetros a una consulta con `ObtenerTodosMap`?
+
+a) `bd.ObtenerTodosMap<T>(sql, "activo=S&sala=A")`
+b) `bd.ObtenerTodosMap<T>(sql, new { activo = "S", sala = "A" })`
+c) `bd.ObtenerTodosMap<T>(sql, new List<string> { "S", "A" })`
+d) `bd.ObtenerTodosMap<T>(sql, ("S", "A"))`
+
+## Pregunta 18
+
+¿Qué propiedad de `Result<T>` indica si la operación fue exitosa?
+
+a) `Result.Success`
+b) `Result.IsSuccess`
+c) `Result.Ok`
+d) `Result.HasValue`
 
 ## Pregunta 19
 
-¿Qué versión de .NET se usa en este curso y por qué?
+¿Qué pasa si creas un modelo con esta propiedad y la columna Oracle es `COD_USR`?
 
-a) .NET 9 porque es la más reciente
-b) .NET 10 porque es LTS con soporte hasta noviembre de 2028
-c) .NET 8 porque es la más estable
-d) .NET Framework 4.8 porque es compatible con Oracle
+```csharp
+public class ClaseUsuario
+{
+    public string CodUsr { get; set; }
+}
+```
+
+a) Mapea correctamente porque `CodUsr` → `COD_USR`
+b) Falla porque `CodUsr` se convierte a `COD_USR` pero la "r" de "Usr" no genera un guion bajo nuevo
+c) Necesita `[Columna("COD_USR")]` porque la conversión PascalCase → SNAKE_CASE no funciona con abreviaturas
+d) Mapea a `CODUSR`
 
 ## Pregunta 20
 
-¿Dónde se configura la cadena de conexión a Oracle en el proyecto?
+Observa este fragmento del servicio `Crear`:
 
-a) En `Program.cs` como constante
-b) En `appsettings.json` (y variantes por entorno)
-c) En `ServicesExtensionsApp.cs`
-d) En cada servicio que accede a Oracle
+```csharp
+bd.CrearParametro("p_flg_activa", dto.FlgActiva ? "S" : "N");
+```
+
+¿Por qué se convierte el `bool` a `"S"` o `"N"` manualmente al llamar al paquete?
+
+a) Porque `ClaseOracleBD3` no soporta booleanos
+b) Porque el parámetro de entrada del paquete Oracle espera un `VARCHAR2`, no un booleano (Oracle no tiene `BOOLEAN` nativo en la API SQL)
+c) Porque es una convención de la UA sin motivo técnico
+d) Porque `bool` no existe en C#
 
 ## Pregunta 21
 
-¿Cuál es el error en este registro de dependencias?
+En el patrón de la UA, ¿dónde debe ir la lógica SQL y de acceso a datos?
 
-```csharp
-builder.Services.AddScoped<ClaseUnidades>();
-```
-
-a) Falta especificar el ciclo de vida
-b) Se registra la clase concreta sin interfaz, lo que impide inyectar `IClaseUnidades` en controladores
-c) `AddScoped` no acepta un solo parámetro genérico
-d) No hay error, es una forma válida de registro
-
-## Pregunta 22
-
-¿Qué beneficio principal aporta el patrón `Result<T>` frente a lanzar excepciones en los servicios?
-
-a) Es más rápido en ejecución porque evita el coste del stack trace de excepciones
-b) Obliga al controlador a manejar explícitamente éxitos y errores sin depender de try/catch
-c) Permite devolver múltiples resultados simultáneamente
-d) Es requisito obligatorio de ASP.NET Core 10
+a) En el controlador (`ReservasController.cs`)
+b) En el modelo DTO (`ClaseReserva.cs`)
+c) En el servicio (`ReservasServicio.cs`)
+d) En `Program.cs`

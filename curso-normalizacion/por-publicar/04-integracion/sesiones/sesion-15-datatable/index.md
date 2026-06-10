@@ -29,7 +29,7 @@ El contenido detallado de esta sesión está pendiente de publicación.
 
 Pendiente de publicación.
 
-Material de referencia: [DataTable server-side (.NET)](../../02-dotnet/sesiones/sesion-04-datatable-clasecrud/)
+Material de referencia: [ClaseCrudUtils / acceso a datos (.NET)](../../../02-dotnet/sesiones/sesion-06-servicios-oracle/)
 
 ## 15.2 Lado servidor: ClaseCrudUtils {#servidor}
 

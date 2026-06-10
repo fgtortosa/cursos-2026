@@ -1,13 +1,13 @@
 ---
-title: "Sesión 8 — Tests y práctica IA"
-description: Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 8 (Servicios y acceso a Oracle).
+title: "Sesión 5 — Tests y práctica IA"
+description: Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 5 (Modelos y primer API).
 outline: [2, 2]
 search: false
 ---
 
-# Sesión 8 — Tests y práctica IA
+# Sesión 5 — Tests y práctica IA
 
-Material de evaluación de la [Sesión 8: Servicios y acceso a Oracle](../../sesiones/sesion-08-servicios-oracle/).
+Material de evaluación de la [Sesión 5: Modelos y primer API](../../sesiones/sesion-05-dtos-apis/).
 
 ## Contenido
 

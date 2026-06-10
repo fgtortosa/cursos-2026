@@ -924,7 +924,7 @@ Diseña las vistas con columnas `_ES` / `_CA` y deja que la librería haga la se
 **Duración:** 1 h 30 min
 **Herramienta:** DBeaver o SQL Developer para VS Code
 
-Esta práctica te prepara para el [ejercicio entregable de la sesión 1](../2-ejercicio-fundamentos/), donde aplicarás los conceptos sobre una tabla nueva.
+Esta práctica te prepara para el [ejercicio entregable de la sesión 1](../sesion-02-ejercicio-fundamentos/), donde aplicarás los conceptos sobre una tabla nueva.
 
 ### Conexiones a configurar
 
@@ -951,7 +951,7 @@ Ejecuta siempre los scripts de creación conectado como **CURSONORMADM**. Compro
 :::
 
 ::: tip SIGUIENTE PASO
-Completa el [ejercicio entregable de la sesión 1](../2-ejercicio-fundamentos/) y continúa con la [Sesión 2 — Tablas, vistas y paquetes](../3-tablas-vistas/).
+Completa el [ejercicio entregable de la sesión 1](../sesion-02-ejercicio-fundamentos/) y continúa con la [Sesión 2 — Tablas, vistas y paquetes](../sesion-03-docencia-tablas-vistas/).
 :::
 
 ## Resumen y conexión con la sesión 2 {#resumen}

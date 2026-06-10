@@ -220,7 +220,7 @@ Empieza siempre con `peticion`. Pasa a `llamadaAxios` solo si te ves creando a m
 
 ### 12.3.4 Interfaces de lectura y de escritura (DTOs)
 
-Antes del código, una decisión de diseño importante: **no se usa la misma interfaz para leer que para escribir**. Igual que en .NET hay un DTO por operación ([sesión 7 — DTOs y APIs](../../../02-dotnet/sesiones/sesion-07-dtos-apis/)), en Vue declaramos:
+Antes del código, una decisión de diseño importante: **no se usa la misma interfaz para leer que para escribir**. Igual que en .NET hay un DTO por operación ([sesión 5 — DTOs y APIs](../../../02-dotnet/sesiones/sesion-05-dtos-apis/)), en Vue declaramos:
 
 - una interfaz de **lectura** con lo que la API **devuelve** (en `camelCase`, ya resuelto al idioma del usuario);
 - una o varias interfaces de **escritura (DTO)** con lo que la API **espera** al crear o actualizar (en `PascalCase`, como las propiedades del DTO en .NET).
@@ -582,7 +582,7 @@ El `v-else-if` garantiza que **solo una rama** se renderiza. Es más legible y e
 
 ### 12.6.2 Probar un error 400 desde Scalar y desde Vue
 
-Tanto el probador de Vue (`Sesion1ProbadorApi.vue`) como Scalar invocan los mismos endpoints `PruebasErrores/*`. La diferencia es donde ves el resultado:
+Tanto el probador de Vue (`ProbadorApi.vue`) como Scalar invocan los mismos endpoints `PruebasErrores/*`. La diferencia es donde ves el resultado:
 
 ```mermaid
 flowchart LR
@@ -723,17 +723,17 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 ## 12.8 Pruébalo en el proyecto {#sandbox}
 
-En la **sesión 1 (.NET)** ya tienes el probador con los botones que provocan errores 404/400/500. Esta sesión lo cierra con la idea contraria: **el botón hace lo mismo, lo que cambia es el sitio donde lo manejas**.
+En la **sesión 5 (.NET)** ya tienes el probador con los botones que provocan errores 404/400/500. Esta sesión lo cierra con la idea contraria: **el botón hace lo mismo, lo que cambia es el sitio donde lo manejas**.
 
 | Punto del recorrido | Demo del sandbox | Sesión |
 |---------------------|------------------|--------|
-| Cookie + JWT en cabecera | DevTools → Network sobre cualquier llamada de `Sesion1ProbadorApi.vue` | 1 (.NET) |
-| Lectura de claims en servidor | Botón **`GET /api/Info/UsuarioActual`** | 1 (.NET) |
+| Cookie + JWT en cabecera | DevTools → Network sobre cualquier llamada de `ProbadorApi.vue` | 5 (.NET) |
+| Lectura de claims en servidor | Botón **`GET /api/Info/UsuarioActual`** | 5 (.NET) |
 | Lectura de claims en cliente | `useUsuarioCasStore` en Home + `Sesion10ArquitecturaTresCapas.vue` | 1 / 9 |
 | Spinner global | `Sesion11SpinnerModal.vue` | 10 |
 | Patrón "ocupado" en botón | `Sesion10BotonLoading.vue` | 9 |
 | Tres capas con servicio mock | `Sesion10ArquitecturaTresCapas.vue` | 9 |
-| Errores Oracle → toast | Botones de "Errores Oracle" en `Sesion1ProbadorApi.vue` | 1 (.NET) §1.8.5 |
+| Errores Oracle → toast | Botones de "Errores Oracle" en `ProbadorApi.vue` | 5 (.NET) §1.8.5 |
 
 ::: info LO QUE LLEGA EN SESIONES SIGUIENTES
 La validación de formularios con `useGestionFormularios` y `ValidationProblemDetails` por campo se cubre en la **sesión 13**. El registro estructurado de errores con `ClaseErrores` y `Serilog` en la **sesión 14** y la **sesión 21**.

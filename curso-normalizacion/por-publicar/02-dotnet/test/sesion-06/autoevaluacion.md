@@ -2,16 +2,16 @@
 
 ## Preguntas rápidas
 
-1. ¿Qué diferencia hay entre .NET y ASP.NET Core?
-2. ¿Dónde se registran los servicios de inyección de dependencias?
-3. ¿Qué ciclo de vida (`AddScoped`, `AddTransient`, `AddSingleton`) usarías para un servicio que accede a Oracle?
-4. ¿Por qué el controlador recibe `IClaseUnidades` (interfaz) y no `ClaseUnidades` (clase)?
-5. ¿Qué orden deben seguir `UseRouting`, `UseAuthentication` y `UseAuthorization` en el pipeline?
+1. ¿Qué ventaja tiene `Result<T>` frente a excepciones para negocio?
+2. ¿Por qué usamos vistas `VCTS_*` para lectura?
+3. ¿Dónde se hace el mapeo `Result<T>` -> HTTP?
+4. ¿Qué devuelve `HandleResult` según el tipo de error?
+5. ¿Qué inyecta un servicio UA además de `ClaseOracleBd`?
 
 ## Respuestas esperadas
 
-1. .NET es la plataforma completa (runtime + bibliotecas); ASP.NET Core es el framework web que se ejecuta sobre .NET para crear APIs y aplicaciones web.
-2. En `Program.cs` (o en métodos de extensión como `ServicesExtensionsApp`) usando `builder.Services.AddScoped/AddTransient/AddSingleton`.
-3. `AddScoped`: una instancia por petición HTTP. La conexión se abre al inicio de la petición y se libera al final.
-4. Para desacoplar: se puede cambiar la implementación sin modificar el controlador y se puede testear con un servicio falso (Fake) sin base de datos.
-5. `UseRouting()` → `UseAuthentication()` → `UseAuthorization()`. Si se cambia el orden, la autorización no sabe qué endpoint proteger.
+1. Flujo explícito, mejor rendimiento y menor complejidad de control.
+2. Por permisos: usuario web normalmente solo `SELECT` en vistas.
+3. En `ApiControllerBase.HandleResult`.
+4. Depende del `ErrorType`: `NotFound` -> `404` con `ProblemDetails`; cualquier otro error (`Failure`, etc.) -> `500` con `ProblemDetails` genérico.
+5. `ILogger<T>` para trazabilidad.

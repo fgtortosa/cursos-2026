@@ -85,7 +85,7 @@ builder.Services.AddScoped<IObservacionesServicio, ObservacionesServicio>();   /
 
 ### 6.2.1 El problema que resuelve
 
-En la sesión 4 el controlador hacía:
+En la sesión 5 el controlador hacía:
 
 ```csharp
 [HttpGet("{id:int}")]
@@ -595,7 +595,7 @@ public static async Task<Result<T>> EjecutarPaqueteAsync<T>(
 }
 ```
 
-Cualquier excepción que **no** sea `BDException` se deja escapar para que el `ErrorHandlerMiddleware` (sesión 16) la trate como 500 técnico.
+Cualquier excepción que **no** sea `BDException` se deja escapar para que el `ErrorHandlerMiddleware` (sesión 14) la trate como 500 técnico.
 :::
 
 ### 6.4.3 Traducción ORA-\* → `Result<T>`
@@ -792,7 +792,7 @@ La cabecera `Location` es útil para clientes genéricos que siguen el estándar
 En `ReservasController.Crear` verás que el controlador llama a `_reservas.CrearAsync(CodPer, dto)` pasando `CodPer` (propiedad de `ControladorBase` leída del JWT) **como argumento aparte del DTO**. Aunque el cliente envíe un campo `codper` en el body, el controlador **no lo usa** — usa el del token. Esto evita que un usuario malicioso cree recursos a nombre de otra persona.
 :::
 
-## 6.5 xUnit: primer test del CRUD (referencia a la sesión 21) {#tests-xunit}
+## 6.5 xUnit: primer test del CRUD (referencia a la sesión 19) {#tests-xunit}
 
 El proyecto ya incluye `uaReservas.Tests/` con el patrón completo: tests **simulados** del controlador (con fakes y `UsuarioFake` para suplantar el JWT) y tests **reales** del servicio contra Oracle (con `OracleTestFixture` + `[SkippableFact]` para no romper CI cuando no hay conexión).
 
@@ -814,11 +814,11 @@ Lo mínimo que necesitas saber **para el ejercicio §5.6** que viene a continuac
 
 ## 6.6 Ejercicio: cerrar `Observaciones` con servicio + tests
 
-Cierre del ejercicio que arrancaste en [§1.9](../sesion-07-dtos-apis/#_1-9-ejercicio-api-de-observaciones-de-reservas). El controlador `ObservacionesController` con `_datos` hardcodeados se queda obsoleto: lo conectamos a Oracle vía un servicio nuevo, registramos el servicio en DI y añadimos los dos tests del patrón (simulado + real).
+Cierre del ejercicio que arrancaste en [§1.9](../sesion-05-dtos-apis/#_1-9-ejercicio-api-de-observaciones-de-reservas). El controlador `ObservacionesController` con `_datos` hardcodeados se queda obsoleto: lo conectamos a Oracle vía un servicio nuevo, registramos el servicio en DI y añadimos los dos tests del patrón (simulado + real).
 
 ### 6.6.1 Punto de partida
 
-Después de la sesión 7 tienes:
+Después de la sesión 5 tienes:
 
 - `Models/Reservas/ObservacionReservaLectura.cs` y `ObservacionReservaCrearDto.cs`.
 - `Controllers/Apis/ObservacionesController.cs` con la lista estática `_datos`.
@@ -1001,9 +1001,9 @@ En tu rama `tiporecurso-<nombre>`, sustituye el CRUD en memoria por un servicio 
 - Escritura contra `PKG_RES_TIPO_RECURSO.CREAR / ACTUALIZAR / ELIMINAR` con `DynamicParameters` y `P_CODIGO_ERROR / P_MENSAJE_ERROR`.
 - Convierte los errores Oracle con `ErrorPaquetePlSql.AResultFailure(...)` antes de devolver el `Result<T>`.
 
-El controlador **no cambia**: sigue siendo el de la sesión 4, solo pasa a usar el nuevo servicio vía DI.
+El controlador **no cambia**: sigue siendo el de la sesión 5, solo pasa a usar el nuevo servicio vía DI.
 
-**Adelanto del módulo 2 (Recurso)**: empieza a pensar en los campos de auditoría (`FECHA_CREACION`, `CODPER_CREADOR`). En la sesión 14 leeremos `CodPer` del JWT; aquí basta con dejarlos como columnas en la tabla.
+**Adelanto del módulo 2 (Recurso)**: empieza a pensar en los campos de auditoría (`FECHA_CREACION`, `CODPER_CREADOR`). En la sesión 12 leeremos `CodPer` del JWT; aquí basta con dejarlos como columnas en la tabla.
 
 Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 :::
@@ -1012,8 +1012,8 @@ Mapa completo: [Proyecto final del curso](../../../06-proyecto-final/).
 
 ## Tests y práctica IA
 
-- [Autoevaluación sesión 5](../../test/sesion-05/autoevaluacion.md)
-- [Práctica IA-fix sesión 5](../../test/sesion-05/practica-ia-fix.md)
+- [Autoevaluación sesión 6](../../test/sesion-06/autoevaluacion.md)
+- [Práctica IA-fix sesión 6](../../test/sesion-06/practica-ia-fix.md)
 
 ---
 

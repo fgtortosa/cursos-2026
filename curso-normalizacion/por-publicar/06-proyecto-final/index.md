@@ -1,6 +1,6 @@
 ---
 title: "Proyecto final del curso"
-description: Aplicación de reservas construida en cuatro módulos progresivos (Tipo de recurso, Recurso, Horario, Reserva) que el alumno desarrolla a lo largo de las 22 sesiones.
+description: Aplicación de reservas construida en cuatro módulos progresivos (Tipo de recurso, Recurso, Horario, Reserva) que el alumno desarrolla a lo largo de las 23 sesiones.
 outline: deep
 ---
 
@@ -42,10 +42,10 @@ flowchart LR
 
 | Módulo | Modo de aprendizaje | Sesión de cierre | Rama de Git |
 |--------|---------------------|------------------|-------------|
-| **1. Tipo de recurso** | **Hilo conductor** — el material de las sesiones lo construye contigo en clase. | Sesión 14 | `tiporecurso-<nombre>` |
-| **2. Recurso** | **Ejercicio guiado** — repites el patrón sobre una entidad con auditoría y seguridad. | Sesión 14 / 16 | `recurso-<nombre>` |
-| **3. Horario** | **Ejercicio de profundización** — primer caso con objetos complejos y estado compartido. | Sesión 17 | `horario-<nombre>` |
-| **4. Reserva** | **Cierre integrador** — combina todo y aplica las sesiones avanzadas. | Sesión 22 | `reserva-<nombre>` |
+| **1. Tipo de recurso** | **Hilo conductor** — el material de las sesiones lo construye contigo en clase. | Sesión 12 | `tiporecurso-<nombre>` |
+| **2. Recurso** | **Ejercicio guiado** — repites el patrón sobre una entidad con auditoría y seguridad. | Sesión 15 | `recurso-<nombre>` |
+| **3. Horario** | **Ejercicio de profundización** — primer caso con objetos complejos y estado compartido. | Sesión 18 | `horario-<nombre>` |
+| **4. Reserva** | **Cierre integrador** — combina todo y aplica las sesiones avanzadas. | Sesión 23 | `reserva-<nombre>` |
 
 ::: tip CÓMO LO VAS A VIVIR
 - En el **Módulo 1** el material te lleva de la mano: la sesión explica y muestra; tú reproduces el mismo patrón en tu rama. Es **rodaje**.
@@ -58,8 +58,8 @@ flowchart LR
 - **Una rama por módulo**, con el nombre indicado en la tabla anterior.
 - **Cada día se publica en `master` la solución del día anterior** del curso. El alumno hace `git pull` y, si quiere, rebasea su rama sobre la nueva base. Si se ha quedado atrás, **descarta su trabajo del día anterior y arranca con la solución oficial**.
 - **Commits frecuentes**, pequeños y con mensaje en español. Que el historial cuente la historia.
-- **Tests siempre que el material los explique** (sesión 18 introduce xUnit + `WebApplicationFactory`).
-- **Accesibilidad obligatoria** en cada componente nuevo (sesión 21).
+- **Tests siempre que el material los explique** (sesión 19 introduce xUnit + `WebApplicationFactory`).
+- **Accesibilidad obligatoria** en cada componente nuevo (sesión 22).
 
 ::: warning POR QUÉ DESCARTAR Y NO INTENTAR ARREGLAR
 Si te has quedado descolgado un día, **no inviertas la primera hora del día siguiente** en rescatar tu rama: descarta y arranca con la solución oficial. El objetivo de cada sesión es **aprender el siguiente concepto**, no debuggear el del día anterior. Tendrás otra ocasión de aplicarlo en el siguiente módulo.
@@ -71,37 +71,34 @@ Esta es la tabla maestra que conviene revisar al inicio del curso. Indica **qué
 
 | # | Sesión | Módulo | Qué añades al proyecto |
 |---|--------|--------|------------------------|
-| 1-2 | Oracle · Fundamentos + ejercicio | 1 | Inspección del schema y tabla `TIPO_RECURSO` con `IDENTITY`, multiidioma y `CHECK` |
-| 3-4 | Oracle · Tablas y vistas + ejercicio | 1 | Vista `VRES_TIPO_RECURSO` con alias para automapeo |
-| 5 | Oracle · Paquetes CRUD | 1 + 3 | `PKG_RES_TIPO_RECURSO` (`LISTAR / OBTENER / CREAR / ACTUALIZAR / ELIMINAR`) **+** primer contacto con arrays de objetos para el módulo Horario |
-| 6 | .NET · Introducción | — | Setup del proyecto en tu rama |
-| 7 | .NET · DTOs y APIs | 1 | DTOs (`TipoRecursoLectura / CrearDto / ActualizarDto`) + controller con CRUD en memoria |
-| 8 | .NET · Servicios Oracle | 1 + 2 (auditoría) | Servicio real con `ClaseOracleBD3` + introducción de campos de auditoría para el módulo Recurso |
-| 9 | .NET · Validación y errores | 1 + 3 (conflictos) | DataAnnotations en los DTOs + plantilla de validación cruzada para horarios |
-| 10 | .NET · DataTable + ClaseCrud | 1 + 2 (filtros) | Paginación, orden, filtros server-side de `TipoRecurso` + extensión para `Recurso` con campos extra |
-| 11 | .NET · OpenAPI y Scalar | 1 | XML doc + Scalar pulido en tu rama |
-| 12 | Vue · Fundamentos | 1 | Estructura del cliente, primera vista de `TipoRecurso` |
-| 13 | Vue · Directivas y eventos | 1 | Tabla y filtro de `TipoRecurso` |
-| 14 | Vue · Componentes y comunicación | 1 + 3 (día) + 4 (Hora/Duración) | Modal de edición de `TipoRecurso` **+** componente `BloqueDia` para Horario y `SelectorHoraDuracion` para Reserva |
-| 15 | Vue · Arquitectura: composables y servicios | 1 + 2 | Composable `useTipoRecurso` + plantilla del de `Recurso` |
-| 16 | Vue · Componentes internos UA | 1 | CRUD de `TipoRecurso` completo cliente (la integradora `Sesion11CrudRecursos` es la referencia visual) |
-| 17 | Integración · Llamadas a la API y autenticación | 1 + 2 (idioma+codper) | Sustituir el mock por `useAxios`, lectura de claims y filtrado de listas por idioma del usuario |
-| 18 | Integración · Validación en todas las capas | 1 + 3 (conflictos) | `useGestionFormularios` aplicado al formulario de `TipoRecurso` + validador cruzado de Horario |
-| 19 | Integración · Gestión de errores | 1 + 2 | Toast + confirmación en eliminación de `TipoRecurso` y `Recurso`, errores Oracle traducidos |
-| 20 | Integración · DataTable | 1 + 2 (cierre) + 4 (lógica) | Cierre del módulo 2: DataTable de `Recurso` con acciones por fila y filtro desplegable por tipo **+** primer endpoint de "disponibilidad" para Reserva |
-| 21 | Avanzadas · i18n | 1-4 | Traducciones de los formularios a `es / ca / en` |
-| 22 | Avanzadas · Seguridad (roles, políticas) | 2 + 4 | `[Authorize(Roles)]` en las APIs y `meta.roles` en el router para `Recurso` y `Reserva` |
-| 23 | Avanzadas · Pinia | 3 + 4 | Estado compartido del horario en edición y filtros del calendario de reserva |
-| 24 | Avanzadas · Tests | 1-4 | xUnit + `WebApplicationFactory` sobre tus controladores |
-| 25 | Avanzadas · Ficheros | 4 | Adjuntar justificante a una reserva (opcional) |
-| 26 | Avanzadas · Serilog | 1-4 | Sinks Console / Oracle / File / Email en tu proyecto |
-| 27 | Avanzadas · Accesibilidad y ENS | 1-4 | Auditoría WCAG de tus formularios y tablas |
-| 28 | Avanzadas · Copilot | 1-4 | Productividad sobre el proyecto ya construido |
+| 1 | Oracle · Fundamentos | 1 | Inspección del schema y primeros `SELECT` sobre el catálogo |
+| 2 | Oracle · Ejercicio: fundamentos | 1 | Tabla `TIPO_RECURSO` con `IDENTITY`, multiidioma y `CHECK` |
+| 3 | Oracle · Tablas, vistas y paquetes | 1 + 3 | Vista `VRES_TIPO_RECURSO` con alias + `PKG_RES_TIPO_RECURSO` (`LISTAR / OBTENER / CREAR / ACTUALIZAR / ELIMINAR`) **+** primer contacto con arrays de objetos para Horario (los ejercicios de vistas y paquetes son anexos de esta sesión) |
+| 4 | .NET · Introducción | — | Setup del proyecto en tu rama |
+| 5 | .NET · DTOs y primer API | 1 | DTOs (`TipoRecursoLectura / CrearDto / ActualizarDto`) + controller con CRUD en memoria + Scalar/OpenAPI |
+| 6 | .NET · Servicios y acceso a Oracle | 1 + 2 (auditoría) | Servicio real con `ClaseOracleBD3`, `Result<T>` y primer test xUnit + campos de auditoría para el módulo Recurso |
+| 7 | Vue · Fundamentos (TypeScript) | 1 | Estructura del cliente, primera vista de `TipoRecurso` |
+| 8 | Vue · Directivas y eventos | 1 | Tabla y filtro de `TipoRecurso` |
+| 9 | Vue · Componentes y comunicación | 1 + 3 (día) + 4 (Hora/Duración) | Modal de edición de `TipoRecurso` **+** componente `BloqueDia` para Horario y `SelectorHoraDuracion` para Reserva |
+| 10 | Vue · Arquitectura: composables y servicios | 1 + 2 | Composable `useTipoRecurso` + plantilla del de `Recurso` |
+| 11 | Vue · Componentes internos UA | 1 | CRUD de `TipoRecurso` completo en cliente (la integradora `Sesion11CrudRecursos` es la referencia visual) |
+| 12 | Integración · Llamadas a la API y autenticación | 1 + 2 (idioma+codper) | Sustituir el mock por `useAxios`, lectura de claims, filtrado por idioma y OpenAPI/Scalar |
+| 13 | Integración · Validación en todas las capas | 1 + 3 (conflictos) | `useGestionFormularios` aplicado al formulario de `TipoRecurso` + validador cruzado de Horario |
+| 14 | Integración · Gestión de errores | 1 + 2 | Toast + confirmación en eliminación de `TipoRecurso` y `Recurso`, errores Oracle traducidos |
+| 15 | Integración · DataTable | 2 (cierre) + 4 (lógica) | Cierre del módulo 2: DataTable de `Recurso` con acciones por fila y filtro desplegable por tipo **+** primer endpoint de "disponibilidad" para Reserva |
+| 16 | Avanzadas · Internacionalización | 1-4 | Traducciones de los formularios a `es / ca / en` |
+| 17 | Avanzadas · Seguridad (roles, políticas) | 2 + 4 | `[Authorize(Roles)]` en las APIs y `meta.roles` en el router para `Recurso` y `Reserva` |
+| 18 | Avanzadas · Estado y persistencia (Pinia) | 3 + 4 | Estado compartido del horario en edición y filtros del calendario de reserva |
+| 19 | Avanzadas · Tests y calidad | 1-4 | xUnit + `WebApplicationFactory` sobre tus controladores |
+| 20 | Avanzadas · Ficheros | 4 | Adjuntar justificante a una reserva (opcional) |
+| 21 | Avanzadas · Logs y diagnóstico (Serilog) | 1-4 | Sinks Console / Oracle / File / Email en tu proyecto |
+| 22 | Avanzadas · Accesibilidad y ENS | 1-4 | Auditoría WCAG de tus formularios y tablas |
+| 23 | Avanzadas · Copilot y organización | 1-4 | Productividad sobre el proyecto ya construido |
 
 ::: tip CÓMO LEER LA TABLA
 - "Módulo" indica **a qué módulo aporta** el trabajo de esa sesión.
 - "Qué añades" es el **delta mínimo** esperado al cierre. Puedes ir más lejos.
-- Si un alumno se centra en seguir el material en clase, al terminar la sesión 14 tiene el **Módulo 1 cerrado**. Las sesiones 11 a 14 lo extienden con seguridad e integración real.
+- Si un alumno se centra en seguir el material en clase, al terminar la sesión 12 tiene el **Módulo 1 cerrado**. Las sesiones 13 a 17 lo extienden con validación, errores y seguridad reales.
 :::
 
 ## Módulo 1 — Tipo de recurso
@@ -116,7 +113,7 @@ Esta es la tabla maestra que conviene revisar al inicio del curso. Indica **qué
 
 ### Cómo se aprende
 
-El material **construye este módulo contigo en clase** sesión a sesión. Tu trabajo es **reproducir el mismo patrón en tu rama**, no descubrirlo de cero. Al cierre de la sesión 14 deberías tener:
+El material **construye este módulo contigo en clase** sesión a sesión. Tu trabajo es **reproducir el mismo patrón en tu rama**, no descubrirlo de cero. Al cierre de la sesión 12 deberías tener:
 
 - Tabla `TIPO_RECURSO`, vista `VRES_TIPO_RECURSO`, paquete `PKG_RES_TIPO_RECURSO`.
 - Endpoints `GET / GET {id} / POST / PUT / DELETE /api/TipoRecursos`.
@@ -143,7 +140,7 @@ El material **construye este módulo contigo en clase** sesión a sesión. Tu tr
 
 ### Cómo se aprende
 
-El material te enseña los conceptos en sesiones puntuales (auditoría en .NET sesión 2, idioma/codper en sesión 11, permisos en sesión 16, filtros en sesión 14). El **ejercicio del proyecto** es aplicarlos a `Recurso` **siguiendo el patrón** del módulo 1.
+El material te enseña los conceptos en sesiones puntuales (auditoría en .NET sesión 6, idioma/codper en sesión 12, permisos en sesión 17, filtros en sesión 15). El **ejercicio del proyecto** es aplicarlos a `Recurso` **siguiendo el patrón** del módulo 1.
 
 ### Criterios de aceptación
 
@@ -163,7 +160,7 @@ El material te enseña los conceptos en sesiones puntuales (auditoría en .NET s
 
 ### Cómo se aprende
 
-Este módulo presenta **el primer caso real de un objeto complejo** que no es un simple CRUD. La sesión 5 (Oracle) introduce el array; las sesiones 8 (Vue) y 17 (Pinia) dan las piezas de cliente; la 12 cierra la validación cruzada de conflictos. El **ejercicio** es ensamblarlo en una pantalla de edición.
+Este módulo presenta **el primer caso real de un objeto complejo** que no es un simple CRUD. La sesión 3 (Oracle) introduce el array; las sesiones 9 (Vue) y 18 (Pinia) dan las piezas de cliente; la 13 cierra la validación cruzada de conflictos. El **ejercicio** es ensamblarlo en una pantalla de edición.
 
 ### Criterios de aceptación
 
@@ -205,9 +202,9 @@ Antes de la entrega, repasa este checklist por módulo:
 - [ ] **Vue**: vistas con `useGestionFormularios({ aislado: true })`, banner global + errores por campo, toasts en éxitos y errores reales.
 - [ ] **Confirmación**: `PopUpModal` antes de cualquier eliminación.
 - [ ] **Seguridad**: `[Authorize(Roles)]` donde proceda en API, `meta.roles` en las rutas Vue.
-- [ ] **Accesibilidad**: cada formulario y tabla pasa la auditoría WCAG-AA (sesión 21).
-- [ ] **Tests**: al menos un test por endpoint nuevo (sesión 18).
-- [ ] **Serilog**: la app emite eventos estructurados con `Code` y `RequestPath` (sesión 20).
+- [ ] **Accesibilidad**: cada formulario y tabla pasa la auditoría WCAG-AA (sesión 22).
+- [ ] **Tests**: al menos un test por endpoint nuevo (sesión 19).
+- [ ] **Serilog**: la app emite eventos estructurados con `Code` y `RequestPath` (sesión 21).
 
 ## Cómo navegar a partir de aquí
 

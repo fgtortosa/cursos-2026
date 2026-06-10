@@ -1,13 +1,13 @@
 ---
 title: "Sesión 6 — Tests y práctica IA"
-description: Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 6 (Introducción a .NET).
+description: Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 6 (Servicios y acceso a Oracle).
 outline: [2, 2]
 search: false
 ---
 
 # Sesión 6 — Tests y práctica IA
 
-Material de evaluación de la [Sesión 6: Introducción a .NET](../../sesiones/sesion-06-introduccion-dotnet/).
+Material de evaluación de la [Sesión 6: Servicios y acceso a Oracle](../../sesiones/sesion-06-servicios-oracle/).
 
 ## Contenido
 

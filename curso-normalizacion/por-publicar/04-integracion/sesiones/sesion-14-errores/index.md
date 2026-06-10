@@ -1067,7 +1067,7 @@ flowchart TD
 
 ::: tip QUIÉN INVOCA QUÉ
 - **Éxitos:** los llamas tú desde el código (`avisar('Guardado', ...)`).
-- **Errores HTTP:** `gestionarError` (sesión 1 §1.8.5 y sesión 12 §12.4) los dispara automáticamente según `status`.
+- **Errores HTTP:** `gestionarError` (sesión 5 §1.8.5 y sesión 12 §12.4) los dispara automáticamente según `status`.
 - **Validación de campos:** **no uses toast**. Va en el formulario con `useGestionFormularios`.
 
 La regla de oro: **un toast por evento del usuario**. Si rellenó cinco campos mal, no muestres cinco toasts — pinta los cinco errores en el formulario y, opcionalmente, un único banner global.
