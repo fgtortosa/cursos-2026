@@ -23,6 +23,8 @@ En las sesiones anteriores aprendimos a crear componentes, comunicar datos y der
 - Diferenciar un composable genérico de un servicio de vista y cuándo usar cada uno
 - Estructurar una pantalla con la arquitectura Vista → Servicio → API
 - Consumir APIs REST (GET, POST, PUT, DELETE) con `useAxios`
+- Escribir formularios **accesibles**: foco, `label`, acción predeterminada y Enter
+- Entender qué papel juega **Zod** como contrato de validación en cliente (el hermano de las DataAnnotations)
 - Validar formularios en cliente y servidor con `useGestionFormularios`
 - Gestionar estado local, compartido y persistente en frontend
 - Usar herramientas de apoyo para depurar y verificar una aplicación Vue
@@ -294,6 +296,15 @@ export const useRecursosStore = defineStore("recursos", () => {
 
 > Pinia se desarrolla en la [sesión 18 — Estado global y persistencia](../../../05-avanzadas/sesiones/sesion-18-estado-persistencia/). Por ahora quédate con la idea: **un servicio para una vista; Pinia cuando ese estado lo comparten varias**.
 
+::: info PARA LOS DE .NET: ES EL CICLO DE VIDA DE LA INYECCIÓN DE DEPENDENCIAS
+En .NET decides si un servicio es `Transient` o `Singleton` **al registrarlo**, no al escribirlo.
+Aquí igual: el **mismo servicio** puede vivir como función normal — cada vista que llama a
+`useRecursosService()` recibe su propia instancia, como un `Transient` — o envuelto en
+`defineStore` de Pinia — instancia única para toda la SPA, como un `Singleton`. El código de
+dentro **no cambia**: solo cambia el envoltorio. Y la regla de oro: el estado tiene **un único
+dueño** — o el servicio local o el store compartido, nunca los dos a la vez.
+:::
+
 ### Ventajas de separar así
 
 | Ventaja              | Descripción                                                           |
@@ -309,10 +320,13 @@ export const useRecursosStore = defineStore("recursos", () => {
 src/
 ├── composables/                ← composables GENÉRICOS (helpers reutilizables)
 │   ├── useContador.ts
-│   └── useUtils.ts
-├── services/                   ← SERVICIOS de vista (estado + lógica + DTOs + API)
+│   └── useCrudResource.ts
+├── services/                   ← SERVICIOS de vista (estado + lógica + form)
 │   ├── useRecursosService.ts
-│   └── useReservasService.ts
+│   ├── useReservasService.ts
+│   └── api/                    ← puertas a la API: contrato + HTTP, sin estado
+│       ├── apiRecursos.ts          (se desarrolla en la sesión 12)
+│       └── apiReservas.ts
 ├── stores/                     ← Pinia: estado compartido entre vistas (sesión 18)
 │   └── useRecursosStore.ts
 └── views/                      ← vistas .vue: solo interfaz
@@ -323,8 +337,61 @@ src/
 
 - ¿Lo usaría cualquier pantalla y no tiene datos de negocio? → `composables/` (genérico).
 - ¿Es la lógica/estado/API de **una** pantalla? → `services/`.
+- ¿Describe el contrato con la API (interfaces, DTOs, endpoints)? → `services/api/` (sesión 12).
 - ¿Ese estado lo comparten **varias** pantallas? → `stores/` (Pinia).
   :::
+
+Frente al código real, el árbol de decisión completo es este:
+
+```mermaid
+flowchart TD
+    A([Tengo un trozo de código]) --> B{"¿Es template, estilo o un<br/>computed puramente visual?"}
+    B -->|Sí| V["🖼️ Vista (.vue)"]
+    B -->|No| C{"¿Es genérico, reutilizable<br/>en cualquier pantalla,<br/>sin datos de negocio?"}
+    C -->|Sí| CO["🧰 composables/<br/>(o ya existe en @vueua/components)"]
+    C -->|No| D{"¿Describe el contrato con la API?<br/>(interfaz · DTO · esquema · endpoint)"}
+    D -->|Sí| AP["📡 services/api/apiXxx.ts<br/>(o el bloque de contrato del servicio)"]
+    D -->|No| E{"¿El estado lo comparten varias<br/>vistas o componentes<br/>sin relación padre/hijo?"}
+    E -->|No| S["🧠 services/useXxxService.ts"]
+    E -->|Sí| P["🗄️ stores/ con Pinia<br/>(el mismo servicio dentro de defineStore)"]
+
+    style V fill:#e3f2fd,stroke:#1976d2
+    style S fill:#fff3e0,stroke:#ef6c00
+    style AP fill:#fce4ec,stroke:#c2185b
+    style CO fill:#ede7f6,stroke:#5e35b1
+    style P fill:#e0f2f1,stroke:#00796b
+```
+
+<!-- diagram id="s10-decision-codigo" caption: "Árbol de decisión: dónde vive cada trozo de código del frontend" -->
+
+### El camino de crecimiento: cuatro niveles {#niveles}
+
+Este patrón se adopta **de forma progresiva**: una pantalla empieza simple y solo sube de nivel
+cuando aparece la necesidad. La clave es que **cada salto no toca la vista**, porque la firma
+pública del servicio no cambia.
+
+```mermaid
+flowchart LR
+    N1["<b>Nivel 1</b><br/>Servicio único<br/>con datos mock<br/><i>(esta sesión)</i>"]
+    N2["<b>Nivel 2</b><br/>API real:<br/>el mock se cambia<br/>por peticion&lt;T&gt;<br/><i>(§4.3 y sesión 12)</i>"]
+    N3["<b>Nivel 3</b><br/>El contrato se separa<br/>en apiXxx.ts cuando<br/>el fichero crece<br/><i>(sesión 12)</i>"]
+    N4["<b>Nivel 4</b><br/>El servicio se envuelve<br/>en defineStore cuando<br/>se comparte<br/><i>(sesión 18)</i>"]
+    N1 -->|"la vista NO cambia"| N2 -->|"la vista NO cambia"| N3 -->|"la vista NO cambia"| N4
+
+    style N1 fill:#e8f5e9,stroke:#388e3c
+    style N2 fill:#fff3e0,stroke:#ef6c00
+    style N3 fill:#fce4ec,stroke:#c2185b
+    style N4 fill:#e0f2f1,stroke:#00796b
+```
+
+<!-- diagram id="s10-niveles-crecimiento" caption: "Camino de crecimiento: cada nivel se adopta cuando aparece la necesidad, sin tocar la vista" -->
+
+En la app del curso, el patrón está implementado **completo y en su nivel 3** para las cuatro
+entidades de la API: `services/useTiposRecursoService.ts`, `useRecursosService.ts`,
+`useReservasService.ts` y `useObservacionesService.ts`, cada uno sobre su puerta
+`services/api/apiXxx.ts`. Las pantallas que los consumen están en
+`views/sesiones-dotnet/crud-real/` — fíjate en lo corto que queda el `<script setup>` de cada
+vista: una llamada al servicio y el control de sus modales.
 
 ## 4.3 Traer datos reales (un vistazo) {#useaxios}
 
@@ -365,6 +432,28 @@ Eso es **toda** la diferencia entre el mock y la API real: una línea dentro del
 
 > 🔗 **En la app** · Vista `Sesion10Peticion.vue` (`peticion` vs `llamadaAxios`) · URL <https://localhost:44306/uareservas/sesiones-vue/sesion-10/peticion>
 
+### El contrato con la API: convenciones de nombres {#contrato}
+
+Cada tipo de dato de la API tiene su **contrato escrito una sola vez**, con estas convenciones
+(las mismas que usa la app del curso en `services/api/apiReservas.ts` y compañía):
+
+| Pieza | Convención | Por qué |
+| --- | --- | --- |
+| **Interfaz de lectura** | `RecursoLectura`, `camelCase` | Es lo que **devuelve** la API serializada; la vista pinta esto |
+| **DTO de escritura** | `RecursoCrearDto`, `PascalCase` | Es lo que **espera** el endpoint .NET; mismos nombres que el DTO C# |
+| **Esquema Zod** | `esquemaCrearRecurso` | Las reglas de validación del DTO, junto a su tipo (§4.4) |
+| **Formulario inicial** | `formInicialRecurso` | El estado limpio del formulario; resetear = `Object.assign(form, formInicial)` |
+
+El `formInicialXxx` es el equivalente al `new ViewModel()` de MVC: un objeto exportado junto al
+contrato con los valores de un formulario recién abierto. El servicio lo usa para crear el
+`reactive` del formulario y para limpiarlo tras guardar o cancelar.
+
+::: tip EL CONTRATO VIVE JUNTO A SU API
+Interfaz, DTO, esquema y formulario inicial **cambian a la vez** cuando cambia el endpoint. Por
+eso viven en el mismo fichero (el bloque de contrato del servicio o, cuando crece, su
+`services/api/apiXxx.ts` — sesión 12), nunca repartidos por carpetas que evolucionen por separado.
+:::
+
 ### Y los datos, ¿cómo se comparten?
 
 - Si los usa **una sola vista**, se quedan en su **servicio** (como arriba).
@@ -374,9 +463,149 @@ Eso es **toda** la diferencia entre el mock y la API real: una línea dentro del
 Aquí solo vemos **que** los datos llegan con `peticion<T>` y dónde viven. El tratamiento completo —`peticion` vs `llamadaAxios` vs `HttpApi`, interfaces de **lectura** y de **escritura** (DTOs), operaciones POST/PUT/DELETE, interceptores y refresco del token, autenticación CAS/JWT y Scalar— se desarrolla en la [sesión 12 — Llamadas a la API y autenticación](../../../04-integracion/sesiones/sesion-12-api-autenticacion/).
 :::
 
-## 4.4 Validación de formularios (un vistazo) {#validacion}
+## 4.4 Formularios: accesibles y validados (un vistazo) {#validacion}
 
 Un formulario que escribe en la API valida en **varias capas**, y todas devuelven el mismo formato (`ValidationProblemDetails`): el **cliente** (feedback inmediato), **.NET** (`DataAnnotations` / `FluentValidation`) y **Oracle**. En Vue, el composable **`useGestionFormularios`** de `@vueua/components` recibe esa respuesta y pinta los errores **por campo** y los **globales**.
+
+Pero antes de validar nada, el formulario tiene que estar **bien construido**. Empezamos por ahí.
+
+### Primero: un formulario accesible {#formularios-accesibles}
+
+Una persona ciega navega la aplicación **con el teclado**: la tecla <kbd>Tab</kbd> va saltando de
+elemento en elemento y el lector de pantalla anuncia dónde está el **foco**. La consecuencia
+práctica es inmediata: **solo los controles interactivos reciben el foco** — `<a>`, `<button>`,
+`<input>`, `<select>`, `<textarea>`. Un `<div>`, un `<li>` o un `<p>` **nunca** lo reciben.
+
+De ahí salen las cuatro reglas que aplicamos en **todos** los formularios del curso:
+
+**1. Los eventos de interacción (`@click`, `@keyup`…) van solo sobre controles interactivos.**
+Si le pones `@click` a un `<div>`, funciona con el ratón… y es **inalcanzable** con el teclado.
+Haz la prueba: recorre tu pantalla pulsando <kbd>Tab</kbd>; si no puedes llegar a un elemento,
+una persona con lector de pantalla tampoco. Es más fácil usar un `<button>` con otra clase que
+convertir en botón algo que no lo es (haría falta `role="button"`, `tabindex="0"`, gestión de
+teclado… mejor no entrar ahí).
+
+**2. Los campos se agrupan en un `<form>`.** Cuando el lector de pantalla (o la IA) llega a un
+`<form>`, sabe que eso es una acción interactiva con principio y fin. En las SPA se ha perdido la
+costumbre porque "ya no hace falta", pero debe hacerse por semántica y legibilidad.
+
+**3. Cada campo lleva su `<label for>`.** El `for` del label apunta al `id` del input: el lector
+anuncia "Nombre del nuevo recurso, control de formulario" en lugar de un input anónimo.
+
+**4. El formulario tiene una acción predeterminada que se dispara con <kbd>Enter</kbd>.** Un
+`<form>` con un botón `type="submit"` ejecuta esa acción al pulsar <kbd>Enter</kbd> **desde
+cualquier campo**, sin perseguir el botón con el ratón. En Vue, el patrón es
+`@submit.prevent="accion"` (el `.prevent` evita que el form llame a un `action=""` y recargue la
+página). Los botones secundarios del form llevan `type="button"` para no disparar el submit.
+
+```mermaid
+flowchart LR
+    K(["⌨️ Enter en cualquier<br/>campo del formulario"]) --> D
+    C(["🖱️ Click en el botón<br/>type=submit"]) --> D
+    D["Acción predeterminada del form:<br/>su primer botón type=submit"] --> S["evento submit"]
+    S -->|"@submit.prevent"| F["agregarRecurso()<br/>sin recargar la página"]
+
+    style F fill:#e8f5e9,stroke:#388e3c
+```
+
+<!-- diagram id="s10-accion-predeterminada" caption: "La acción predeterminada del formulario: Enter en cualquier campo y el click en el botón submit desembocan en la misma función" -->
+
+Las cuatro reglas juntas, en el formulario más pequeño posible:
+
+::: code-group
+
+```html [✅ Accesible]
+<form @submit.prevent="agregarRecurso">
+  <label for="inputNuevoRecurso">Nombre del nuevo recurso:</label>
+  <input id="inputNuevoRecurso" v-model="nombreRecurso" type="text" />
+  <button type="submit">Agregar</button>
+</form>
+```
+
+```html [❌ Inalcanzable con teclado]
+<!-- El div no recibe el foco: con Tab nunca llegas a "Agregar".
+     Y sin form ni label, el input es un campo anónimo y suelto. -->
+<input v-model="nombreRecurso" placeholder="Nombre" />
+<div class="boton" @click="agregarRecurso">Agregar</div>
+```
+
+:::
+
+Y cuando el formulario valida (lo que viene a continuación), los errores también se anuncian:
+`aria-invalid` en el campo que falla, `aria-describedby` apuntando al `id` del mensaje de error y
+`role="alert"` en el banner de errores globales. Lo verás aplicado en todos los ejemplos que
+siguen.
+
+::: warning EN LOS MODALES, OJO CON EL ENTER
+En los modales de la plantilla el botón visible de guardar está en el *footer*, **fuera** del
+`<form>`, así que pulsar <kbd>Enter</kbd> en un campo no enviaría nada. La solución de las demos
+de la app es añadir dentro del form un botón `type="submit"` oculto
+(`class="d-none" aria-hidden="true" tabindex="-1"`): el Enter vuelve a funcionar y el botón del
+footer sigue siendo el visible. Lo tienes en `views/sesiones-dotnet/crud-real/CrudTiposRecurso.vue`.
+:::
+
+> La accesibilidad completa (WCAG 2.1 AA, ENS, verificación) se trabaja en la
+> [sesión 22 — Accesibilidad y ENS](../../../05-avanzadas/sesiones/sesion-22-accesibilidad-ens/).
+> Lo de hoy es el mínimo que **todo** formulario del curso debe cumplir desde ya.
+
+### Zod, grosso modo: el contrato validable {#zod}
+
+En el bloque .NET ya validaste DTOs con **DataAnnotations** (`[Required]`, `[MaxLength]`…) y
+conocerás **FluentValidation** en la sesión 13. **Zod es la misma idea en el cliente**: un
+*esquema* que describe las reglas de un objeto y que se evalúa en tiempo de ejecución.
+
+```typescript
+// services/api/apiTiposRecurso.ts — el esquema vive JUNTO al DTO que valida
+export interface TipoRecursoCrearDto {
+  Codigo:   string;
+  NombreEs: string;
+  NombreCa: string;
+  NombreEn: string;
+}
+
+export const esquemaCrearTipoRecurso = z.object({
+  Codigo: z.string()
+    .trim()
+    .min(1,   'El codigo es obligatorio')
+    .max(100, 'El codigo no puede superar los 100 caracteres')
+    .regex(/^[A-Z0-9_]+$/, 'Solo se admiten mayusculas, numeros y guion bajo'),
+  NombreEs: z.string().trim().min(1, 'El nombre en castellano es obligatorio').max(150),
+  NombreCa: z.string().trim().min(1, 'El nombre en catalan es obligatorio').max(150),
+  NombreEn: z.string().trim().min(1, 'El nombre en ingles es obligatorio').max(150),
+});
+```
+
+Léelo como leerías el DTO de C#: mismas reglas, mismo vocabulario, otro idioma. La
+correspondencia es directa:
+
+| Regla | DataAnnotations (.NET) | FluentValidation (.NET) | Zod (cliente) |
+| --- | --- | --- | --- |
+| Obligatorio | `[Required]` | `.NotEmpty()` | `.min(1, 'mensaje')` |
+| Longitud máxima | `[MaxLength(100)]` | `.MaximumLength(100)` | `.max(100)` |
+| Formato | `[RegularExpression(...)]` | `.Matches(...)` | `.regex(/.../)` |
+| Rango numérico | `[Range(0, 23)]` | `.InclusiveBetween(0, 23)` | `.min(0).max(23)` |
+
+¿Y por qué una capa más, si el navegador ya valida (`required`, `maxlength`) y la API también?
+Porque cada capa hace un trabajo distinto y **ninguna puede sustituir a las otras**:
+
+| Capa | Herramienta | Qué aporta | Qué NO puede hacer |
+| --- | --- | --- | --- |
+| Navegador | HTML5 (`required`, `maxlength`…) | Feedback mientras se escribe | Reglas ricas (regex con mensaje, condicionales); se desactiva con `novalidate` y se salta con DevTools |
+| **Cliente Vue** | **Zod** + `validarConEsquema` | **Todas las reglas del DTO, sin viaje de red** y con mensajes propios | Garantizar nada: el cliente siempre es manipulable |
+| API .NET | DataAnnotations / FluentValidation | La **barrera real**: nada entra sin pasar por aquí | Feedback instantáneo (cada error cuesta un viaje de red) |
+| Oracle | Constraints + `RAISE_APPLICATION_ERROR` | Última red de seguridad de los datos | Mensajes amigables para el usuario |
+
+Por eso el formulario **no depende** de la validación HTML5 (ponemos `novalidate` y validamos con
+Zod, que expresa las mismas reglas que el servidor y unas cuantas más) **ni depende** de la API
+para enterarse de un campo vacío (sería un viaje de red por cada error tonto). Zod da el feedback
+completo e inmediato; el servidor sigue siendo quien manda.
+
+::: tip EL ESQUEMA VIVE JUNTO AL DTO
+`esquemaCrearTipoRecurso` y `TipoRecursoCrearDto` están en el **mismo fichero** y describen el
+**mismo contrato**: si mañana el código pasa de 100 a 50 caracteres, se cambia el tipo y la regla
+a la vez, en el mismo sitio que el endpoint. Esquemas en una carpeta y tipos en otra es la receta
+para que se desincronicen.
+:::
 
 ### Flujo de validación cross-capa
 
@@ -402,12 +631,8 @@ flowchart LR
 
 <!-- diagram id="s9-validacion-cross-capa" caption: "Pipeline de validacion: Vue -> .NET (DataAnnotations + FluentValidation) -> Oracle, y vuelta con ProblemDetails" -->
 
-::: warning ANTIPATRON
-**No te fies solo de la validacion en cliente.** El alumno tentado de hacerlo descubre tarde que cualquier `curl` o herramienta DevTools puede saltarse el HTML5 trivialmente. La validacion de cliente mejora la UX; la del servidor es la que protege los datos.
-:::
-
 ::: warning NO TE FÍES SOLO DEL CLIENTE
-La validación de cliente mejora la UX, pero cualquier `curl` o DevTools la salta. La del servidor es la que protege los datos. Por eso validamos en **las dos**.
+La validación de cliente (HTML5 o Zod) mejora la UX, pero cualquier `curl` o DevTools la salta. La del servidor es la que protege los datos. Por eso validamos en **las dos**.
 :::
 
 ### El patrón, en breve
@@ -444,20 +669,28 @@ async function crear(
 }
 ```
 
-En el template, cada input marca su propio error y arriba se listan los globales:
+En el template, cada input marca su propio error (y se lo anuncia al lector de pantalla con
+`aria-invalid` + `aria-describedby`) y arriba se listan los globales con `role="alert"`:
 
 ```html
+<label class="form-label" for="campoCodigo">Código</label>
 <input
+  id="campoCodigo"
   v-model="form.Codigo"
   name="Codigo"
+  class="form-control"
   :class="{ 'is-invalid': erroresDeCampo('Codigo').length }"
+  :aria-invalid="erroresDeCampo('Codigo').length > 0"
+  :aria-describedby="erroresDeCampo('Codigo').length ? 'errorCodigo' : undefined"
 />
-<div v-for="m in erroresDeCampo('Codigo')" :key="m" class="invalid-feedback">
-  {{ m }}
+<div v-if="erroresDeCampo('Codigo').length" id="errorCodigo" class="invalid-feedback">
+  <div v-for="m in erroresDeCampo('Codigo')" :key="m">{{ m }}</div>
 </div>
 
-<div v-if="erroresGlobales.length" class="alert alert-danger">
-  <li v-for="m in erroresGlobales" :key="m">{{ m }}</li>
+<div v-if="erroresGlobales.length" class="alert alert-danger" role="alert">
+  <ul class="mb-0">
+    <li v-for="m in erroresGlobales" :key="m">{{ m }}</li>
+  </ul>
 </div>
 ```
 
@@ -719,6 +952,7 @@ Antes de dar por buena una práctica de arquitectura, revisa estos puntos:
 | Tipado                 | ¿Interfaces y tipos reflejan la respuesta real de la API?  |
 | Estados de carga/error | ¿La UI informa cuando carga o falla?                       |
 | Validación             | ¿Hay validación mínima en cliente y control en servidor?   |
+| Accesibilidad          | ¿`label` con `for` en cada campo, eventos solo en controles interactivos y submit que responde a Enter? |
 | Estado compartido      | ¿Solo se globaliza lo que realmente es compartido?         |
 | Revisión final         | ¿Se ejecutó `pnpm vue-tsc --noEmit` y se comprobó Network? |
 
@@ -751,6 +985,32 @@ En `uaReservas/ClientApp/src/views/sesiones-vue/sesion-10/` hay varias demos nav
 La integradora `Sesion10ArquitecturaTresCapas.vue` es el "estado final" de esta sesión: la vista no sabe de dónde vienen los datos, el composable transforma DTOs PascalCase del servidor a camelCase del cliente, y el servicio aún es mock. Cuando en la sesión 12 sustituyas `recursosServicioMock` por uno con `useAxios`, ni la vista ni el composable se tocan.
 :::
 
+### El patrón completo, en la app {#patron-completo-app}
+
+Además de las demos, la app implementa el patrón **de principio a fin** para las cuatro entidades
+de la API. Es el mejor sitio para ver el reparto con código real:
+
+| Entidad | Servicio de la vista | Puerta a la API | Vista (solo UI) |
+| --- | --- | --- | --- |
+| Tipos de recurso | `services/useTiposRecursoService.ts` | `services/api/apiTiposRecurso.ts` | `crud-real/CrudTiposRecurso.vue` |
+| Recursos | `services/useRecursosService.ts` | `services/api/apiRecursos.ts` | `crud-real/CrudRecursos.vue` |
+| Reservas | `services/useReservasService.ts` | `services/api/apiReservas.ts` | `crud-real/CrudReservas.vue` |
+| Observaciones | `services/useObservacionesService.ts` | `services/api/apiObservaciones.ts` | `crud-real/CrudObservaciones.vue` |
+
+(Las vistas están en `views/sesiones-dotnet/crud-real/` y necesitan la API arrancada y login CAS.)
+
+Fíjate en tres cosas al leerlas:
+
+1. El `<script setup>` de cada vista se reduce a **una llamada al servicio** y al control de sus
+   modales. Todo lo demás (estado, formulario, catálogos de los `<select>`, llamadas) está en el
+   servicio.
+2. Los cuatro servicios comparten esqueleto porque se apoyan en el composable genérico
+   `composables/useCrudResource.ts`: el servicio solo aporta lo específico del dominio (contrato,
+   `formInicial`, mapeos y mensajes).
+3. Los formularios cumplen las reglas de accesibilidad de §4.4: `label` con `for`, errores con
+   `aria-invalid`/`aria-describedby`, y el botón submit oculto que hace funcionar el
+   <kbd>Enter</kbd> dentro del modal.
+
 ---
 
 ## Ejercicio Sesión 10 {#ejercicio}
@@ -772,11 +1032,11 @@ Crea un **listado de unidades** con esta estructura:
    - Computed: `unidadesFiltradas` (filtrar por nombre) y `totalActivas` (contar activas).
    - Acciones con `peticion`: `cargar()` (GET), `agregar(dto)` (POST + recarga), `eliminar(id)` (DELETE).
 
-3. **Vista** `Unidades.vue` (solo UI):
-   - Input de búsqueda con `v-model` sobre `filtro`.
+3. **Vista** `Unidades.vue` (solo UI, y **accesible** según §4.4):
+   - Input de búsqueda con `v-model` sobre `filtro` y su `<label for>`.
    - Tabla con `v-for` de `unidadesFiltradas`.
    - Indicador de carga con `v-if`.
-   - Botón de eliminar en cada fila.
+   - Botón de eliminar en cada fila (un `<button>`, nunca un `<div>` clicable).
    - Contador: "X unidades activas de Y total".
 
 ::: details Solución
@@ -878,11 +1138,10 @@ export function useUnidadesService() {
     <h1>Gestión de unidades</h1>
     <p>{{ totalActivas }} unidades activas de {{ unidades.length }} total</p>
 
-    <input
-      v-model="filtro"
-      placeholder="Buscar por nombre…"
-      class="form-control mb-3"
-    />
+    <div class="mb-3">
+      <label class="form-label" for="campoFiltro">Buscar por nombre</label>
+      <input id="campoFiltro" v-model="filtro" type="search" class="form-control" />
+    </div>
 
     <p v-if="cargando">Cargando unidades…</p>
 
@@ -1048,6 +1307,30 @@ La vista quedó **sin lógica**: solo llama a `cargar` al montar y pinta. Todo e
 - d) Un slot del componente
   :::
 
+::: details 16. ¿Qué papel cumple un esquema Zod en el cliente?
+
+- a) Sustituye a la validación del servidor
+- b) Describe las mismas reglas que el DTO (como DataAnnotations en .NET) y valida sin viaje de red
+- c) Genera el HTML del formulario
+- d) Persiste el formulario en localStorage
+  :::
+
+::: details 17. ¿Sobre qué elementos puede ir un `@click` para que el control sea accesible con teclado?
+
+- a) Sobre cualquier elemento, incluido un `<div>` o un `<li>`
+- b) Solo sobre controles interactivos: `<a>`, `<button>`, `<input>`, `<select>`…
+- c) Solo sobre elementos con clase `btn`
+- d) Sobre cualquier elemento si tiene un estilo de cursor pointer
+  :::
+
+::: details 18. ¿Cómo se consigue que pulsar Enter en cualquier campo de un formulario ejecute la acción de guardar?
+
+- a) Añadiendo `@keyup.enter` a cada input, uno a uno
+- b) Con un botón `type="submit"` dentro del `<form>` y `@submit.prevent="guardar"` en el form
+- c) Es automático en Vue, no hay que hacer nada
+- d) Solo se puede hacer con jQuery
+  :::
+
 ### Respuestas (Autoevaluación)
 
 ::: details Ver respuestas
@@ -1067,6 +1350,9 @@ La vista quedó **sin lógica**: solo llama a `cargar` al montar y pinta. Todo e
 13. b) sessionStorage.
 14. b) Para comprobar tipos sin generar salida.
 15. b) La pestaña Network del navegador.
+16. b) Describe las mismas reglas que el DTO y valida en cliente sin viaje de red; el servidor sigue siendo quien manda.
+17. b) Solo sobre controles interactivos (`<a>`, `<button>`, `<input>`, `<select>`…): son los únicos que reciben el foco con Tab.
+18. b) Botón `type="submit"` dentro del form + `@submit.prevent="guardar"`: el Enter dispara la acción predeterminada desde cualquier campo.
     :::
 
 ---

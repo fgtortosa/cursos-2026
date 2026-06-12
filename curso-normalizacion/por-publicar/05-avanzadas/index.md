@@ -13,10 +13,10 @@ Esta sección cubre las **sesiones 16 a 23** del curso. Son temas especializados
 ::: warning IMPORTANTE
 Estas sesiones asumen que se han completado:
 
-- [Parte Oracle](../01-oracle/) (sesiones 1-5).
-- [Parte .NET](../02-dotnet/) (sesiones 6-8).
-- [Parte Vue](../03-vue/) (sesiones 9-13).
-- [Integración full-stack](../04-integracion/) (sesiones 14-17).
+- [Parte Oracle](../01-oracle/) (sesiones 1-3).
+- [Parte .NET](../02-dotnet/) (sesiones 4-6).
+- [Parte Vue](../03-vue/) (sesiones 7-11).
+- [Integración full-stack](../04-integracion/) (sesiones 12-15).
   :::
 
 ## Sesiones de este bloque

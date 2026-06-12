@@ -1,13 +1,15 @@
 ---
-title: "Sesión 9 — Tests y práctica IA"
-description: Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 9 (Vue 3, TypeScript y primer componente).
+title: "Sesión 7 — Tests y práctica IA"
+description: Autoevaluación, preguntas, respuestas y práctica IA-fix para la Sesión 7 (Vue 3, TypeScript y primer componente).
 outline: [2, 2]
 search: false
 ---
 
-# Sesión 9 — Tests y práctica IA
+# Sesión 7 — Tests y práctica IA
 
-Material de evaluación de la [Sesión 9: Vue 3, TypeScript y tu primer componente](../../sesiones/sesion-09-vue-typescript-fundamentos/).
+Material de evaluación de la [Sesión 7: Vue 3, TypeScript y tu primer componente](../sesiones/sesion-07-vue-typescript-fundamentos/).
+
+> El resto de sesiones del bloque Vue (8 a 11) incluyen su test al final de la propia página de la sesión.
 
 ## Contenido
 

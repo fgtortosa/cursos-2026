@@ -1,6 +1,6 @@
 ---
-title: Parte Vue 3 con TypeScript — Sesiones 9 a 13
-description: Fundamentos de Vue 3 con TypeScript para el curso de normalización (sesiones 9 a 13 del temario global).
+title: Parte Vue 3 con TypeScript — Sesiones 7 a 11
+description: Fundamentos de Vue 3 con TypeScript para el curso de normalización (sesiones 7 a 11 del temario global).
 outline: deep
 ---
 
@@ -29,10 +29,10 @@ Al finalizar este bloque, el alumno será capaz de:
 | [Sesión 8: Directivas, eventos y datos](./sesiones/sesion-08-directivas-eventos/)                   | Interfaces, directivas, `v-model`, eventos y métodos de arrays      | 1 h 30 min |
 | [Sesión 9: Componentes y comunicación](./sesiones/sesion-09-componentes-estado/)                    | `computed`, Props, Emits, `defineModel`, watchers, lifecycle, slots | 1 h 30 min |
 | [Sesión 10: Arquitectura de componentes y servicios](./sesiones/sesion-10-arquitectura-apis/)       | Composables vs Servicios, Vista → Composable → Servicio, depuración | 1 h 30 min |
-| [Sesión 11: Otros componentes internos](./sesiones/sesion-11-componentes-ua/)                       | `@vueua/components` — modales, toasts, BotonLoading, Teleport       | 1 h 30 min |
+| [Sesión 11: Otros componentes internos](./sesiones/sesion-11-componentes-ua/)                       | `@vueua/components` — modales, toasts, BotonLoading, Select, Autocomplete, QuillEditor, SelectorFicheros, Teleport | 1 h 30 min |
 
 ::: tip CONTINUACIÓN EN INTEGRACIÓN
-Los temas de llamadas a la API (`useAxios`), validación de formularios (`useGestionFormularios`) y estado global (Pinia) se cubren en las sesiones de **Integración full-stack** (14-17) y **Sesiones avanzadas** (18-25), donde se ven de extremo a extremo con .NET y Oracle.
+Los temas de llamadas a la API (`useAxios`), validación de formularios (`useGestionFormularios`) y estado global (Pinia) se cubren en las sesiones de **Integración full-stack** (12-15) y **Sesiones avanzadas** (16-23), donde se ven de extremo a extremo con .NET y Oracle.
 :::
 
 ## Requisitos previos

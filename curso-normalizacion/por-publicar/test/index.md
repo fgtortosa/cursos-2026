@@ -9,7 +9,7 @@ search: false
 
 Material de evaluación para todas las sesiones del curso, agrupado por bloque. Cada sesión incluye preguntas de test, respuestas, autoevaluación rápida y una práctica IA-fix.
 
-## Bloque Oracle — Sesiones 1 a 5
+## Bloque Oracle — Sesiones 1 a 3 (+ ejercicios)
 
 ### Sesión 1 — Fundamentos Oracle
 
@@ -32,14 +32,14 @@ Material de evaluación para todas las sesiones del curso, agrupado por bloque. 
 - [Autoevaluación](../01-oracle/test/sesion-03/autoevaluacion.md)
 - [Práctica IA-fix](../01-oracle/test/sesion-03/practica-ia-fix.md)
 
-### Sesión 4 — Ejercicio: diseño de vistas
+### Ejercicio de la sesión 3 — Diseño de vistas
 
 - [Preguntas](../01-oracle/test/sesion-04/preguntas.md)
 - [Respuestas](../01-oracle/test/sesion-04/respuestas.md)
 - [Autoevaluación](../01-oracle/test/sesion-04/autoevaluacion.md)
 - [Práctica IA-fix](../01-oracle/test/sesion-04/practica-ia-fix.md)
 
-### Sesión 5 — Ejercicio: procedimientos en paquetes
+### Ejercicio de la sesión 3 — Procedimientos en paquetes
 
 - [Preguntas](../01-oracle/test/sesion-05/preguntas.md)
 - [Respuestas](../01-oracle/test/sesion-05/respuestas.md)
@@ -68,6 +68,14 @@ Material de evaluación para todas las sesiones del curso, agrupado por bloque. 
 - [Respuestas](../02-dotnet/test/sesion-06/respuestas.md)
 - [Autoevaluación](../02-dotnet/test/sesion-06/autoevaluacion.md)
 - [Práctica IA-fix](../02-dotnet/test/sesion-06/practica-ia-fix.md)
+
+## Bloque Vue — Sesiones 7 a 11
+
+El bloque Vue se evalúa con los tests integrados al final de cada sesión, más este material de bloque:
+
+- [Material de test del bloque](../03-vue/test/index.md)
+- [Autoevaluación](../03-vue/test/autoevaluacion.md)
+- [Práctica IA-fix](../03-vue/test/practica-ia-fix.md)
 
 ## Bloque Integración — Sesiones 12 a 15
 

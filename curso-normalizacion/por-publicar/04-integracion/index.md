@@ -13,9 +13,9 @@ Esta sección cubre las **sesiones 12 a 15** del curso. Cada sesión trata un te
 ::: warning IMPORTANTE
 Estas sesiones asumen que se han completado las partes anteriores:
 
-- [Parte Oracle](../01-oracle/) (sesiones 1-5).
-- [Parte .NET](../02-dotnet/) (sesiones 6-8).
-- [Parte Vue](../03-vue/) (sesiones 9-13).
+- [Parte Oracle](../01-oracle/) (sesiones 1-3).
+- [Parte .NET](../02-dotnet/) (sesiones 4-6).
+- [Parte Vue](../03-vue/) (sesiones 7-11).
   :::
 
 ## Sesiones de este bloque

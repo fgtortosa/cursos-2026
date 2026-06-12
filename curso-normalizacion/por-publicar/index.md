@@ -1,6 +1,6 @@
 ---
 title: Curso Normalización
-description: Portada del curso de normalización de aplicaciones — 25 sesiones de 1 h 30 min organizadas en seis bloques.
+description: Portada del curso de normalización de aplicaciones — 23 sesiones de 1 h 30 min organizadas en cinco bloques más la preparación del entorno.
 outline: [2, 2]
 ---
 
@@ -8,7 +8,7 @@ outline: [2, 2]
 
 Material del curso para trabajar Oracle, .NET y Vue dentro del flujo habitual de desarrollo de la Universidad de Alicante.
 
-**25 sesiones de 1 h 30 min** organizadas en seis bloques. Consulta la [organización del curso](./organizacion-del-curso.md) para ver el calendario completo y el reparto de sesiones.
+**23 sesiones de 1 h 30 min** organizadas en cinco bloques, más la preparación del entorno, dos ejercicios entregables de Oracle y una sesión especial de Vue. Consulta la [organización del curso](./organizacion-del-curso.md) para ver el calendario completo y el reparto de sesiones.
 
 ## Preparación
 
@@ -19,16 +19,16 @@ Material del curso para trabajar Oracle, .NET y Vue dentro del flujo habitual de
   <span class="landing-card__link">Ir a la preparación →</span>
 </a>
 
-## Oracle — Sesiones 1 a 2
+## Oracle — Sesiones 1 a 3
 
 <a class="landing-card" href="./01-oracle/">
-  <span class="landing-card__eyebrow">Bloque 1 · 2 sesiones</span>
+  <span class="landing-card__eyebrow">Bloque 1 · 3 sesiones + 2 ejercicios</span>
   <strong class="landing-card__title">Oracle</strong>
   <span class="landing-card__description">Fundamentos ADM/WEB, tablas y vistas, paquetes CRUD y tres ejercicios entregables: catálogo simple, diseño de vistas y procedimientos en paquetes con detección de solapamiento.</span>
   <span class="landing-card__link">Ir al índice Oracle →</span>
 </a>
 
-## .NET — Sesiones 3 a 5
+## .NET — Sesiones 4 a 6
 
 <a class="landing-card" href="./02-dotnet/">
   <span class="landing-card__eyebrow">Bloque 2 · 3 sesiones</span>
@@ -37,16 +37,16 @@ Material del curso para trabajar Oracle, .NET y Vue dentro del flujo habitual de
   <span class="landing-card__link">Ir al índice .NET →</span>
 </a>
 
-## Vue — Sesiones 6 a 10
+## Vue — Sesiones 7 a 11
 
 <a class="landing-card" href="./03-vue/">
-  <span class="landing-card__eyebrow">Bloque 3 · 5 sesiones</span>
+  <span class="landing-card__eyebrow">Bloque 3 · 5 sesiones + 1 especial</span>
   <strong class="landing-card__title">Vue 3 con TypeScript</strong>
   <span class="landing-card__description">Frontend con Vue 3 y TypeScript: componentes, reactividad, composición, arquitectura de tres capas y librería interna `@vueua/components`.</span>
   <span class="landing-card__link">Ir al índice Vue →</span>
 </a>
 
-## Integración full-stack — Sesiones 11 a 14
+## Integración full-stack — Sesiones 12 a 15
 
 <a class="landing-card" href="./04-integracion/">
   <span class="landing-card__eyebrow">Bloque 4 · 4 sesiones</span>
@@ -55,7 +55,7 @@ Material del curso para trabajar Oracle, .NET y Vue dentro del flujo habitual de
   <span class="landing-card__link">Ir al índice Integración →</span>
 </a>
 
-## Sesiones avanzadas — Sesiones 15 a 22
+## Sesiones avanzadas — Sesiones 16 a 23
 
 <a class="landing-card" href="./05-avanzadas/">
   <span class="landing-card__eyebrow">Bloque 5 · 8 sesiones</span>
